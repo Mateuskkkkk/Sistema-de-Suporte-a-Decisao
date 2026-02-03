@@ -7,7 +7,12 @@ import matplotlib.pyplot as plt
 import os
 from io import BytesIO
 
+# ============================================================================
+# FUNÇÕES DE CÁLCULO (MANTIDAS INTACTAS)
+# ============================================================================
+
 def obter_k_dinamico(area_km2):
+    """Calcula coeficiente K dinâmico baseado na área"""
     ha = area_km2 * 100.0
     if ha <= 5:
         return 0.90
@@ -20,12 +25,15 @@ def obter_k_dinamico(area_km2):
     else:
         return 0.70
 
+
 ordem_meses = {
     'JAN': 1, 'FEV': 2, 'MAR': 3, 'ABR': 4, 'MAI': 5, 'JUN': 6,
     'JUL': 7, 'AGO': 8, 'SET': 9, 'OUT': 10, 'NOV': 11, 'DEZ': 12
 }
 
+
 def wide_to_long_monthly(df, mes_inicial, ano_inicial, mes_final, ano_final):
+    """Converte dados de vazão de formato wide para long"""
     columns = ['Ano'] + list(df.columns[1:])
     df.columns = columns
     df = df.iloc[1:].reset_index(drop=True)
@@ -42,7 +50,9 @@ def wide_to_long_monthly(df, mes_inicial, ano_inicial, mes_final, ano_final):
     
     return df_long[(df_long['Data'] >= d_ini) & (df_long['Data'] <= d_fim)].sort_values('Data').reset_index(drop=True)
 
+
 def simular_sistema_n(dfs, params, modo, vazao_conjunta):
+    """Função principal de simulação do sistema (mantida intacta)"""
     n_res = len(dfs)
     n_meses = len(dfs[0])
     segundos_mes = 2.592e6
@@ -66,6 +76,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         nomes_faixas_atuais = []
         prev_volumes_pos_natureza = []
 
+        # Cálculo de racionamento e volumes pós-natureza
         for i in range(n_res):
             p = params[i]
             vol_ini = volumes_atueis[i]
@@ -103,6 +114,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
         total_vol_disponivel = sum(prev_volumes_pos_natureza)
 
+        # Cálculo da demanda total
         rac_inicial_conjunta = racionamentos[0] if len(racionamentos) > 0 else 0.0
         demanda_conjunta_estimada = vazao_conjunta * (1 - rac_inicial_conjunta / 100.0) * (segundos_mes / 1e6)
         
@@ -112,6 +124,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             dem_esp_hm3 = p['demanda_nominal'] * (1 - racionamentos[i] / 100.0) * (segundos_mes / 1e6)
             total_demanda_necessaria += dem_esp_hm3
 
+        # Verificação de falha sistêmica
         sistema_em_falha = False
         if modo == "Paralelo" and (total_vol_disponivel < total_demanda_necessaria):
             sistema_em_falha = True
@@ -119,6 +132,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                 dfs[i].loc[t, 'Falha'] = 'Sim'
                 dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
+        # Lógica de transferência
         demandas_finais = [0.0] * n_res
         transferencias_registradas = [0.0] * n_res
         transferencias_enviadas = [0.0] * n_res
@@ -186,7 +200,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         transferencias_registradas[idx_receiver] += fluxo_transf
                         transferencias_enviadas[idx_sender] += fluxo_transf
 
-            else:
+            else:  # Individual
                 for k in range(n_res):
                     base = demandas_iniciais[k]
                     if k == 0:
@@ -199,6 +213,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                     base += vazao_conjunta
                 demandas_finais[k] = base * (1 - racionamentos[k] / 100.0)
 
+        # Atualização de volumes
         for i in range(n_res):
             p = params[i]
             df = dfs[i]
@@ -256,8 +271,14 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
     return dfs
 
+
+# ============================================================================
+# FUNÇÕES DE CARREGAMENTO DE DADOS (COM CACHE)
+# ============================================================================
+
 @st.cache_data
 def load_data():
+    """Carrega todos os dados necessários dos arquivos Excel locais"""
     try:
         base_path = os.path.abspath(".")
         
@@ -272,6 +293,7 @@ def load_data():
             st.error(f"❌ Arquivo não encontrado: {caminho_vazoes}")
             return None
         
+        # Carregar dados físicos
         xls_dados = pd.ExcelFile(caminho_dados)
         acudes_original = pd.read_excel(xls_dados, "acudes_original")
         
@@ -296,10 +318,12 @@ def load_data():
         if "COD" in plano_secas.columns:
             plano_secas["COD"] = plano_secas["COD"].astype(str).str.replace(r'\.0$', '', regex=True)
         
+        # Carregar presets de hidrossistemas com modo de operação
         presets = {"--- Selecione um Sistema ---": {'modo': None, 'reservatorios': []}}
         try:
             df_hidro = pd.read_excel(xls_dados, "hidrossistemas", header=None)
             
+            # Pular a primeira linha se for cabeçalho
             start_row = 1 if df_hidro.iloc[0, 0] == 'hidrossistema' else 0
             
             for index in range(start_row, len(df_hidro)):
@@ -309,8 +333,10 @@ def load_data():
                 if pd.isna(nome_sistema) or str(nome_sistema).strip() == "":
                     continue
                 
+                # Pegar modo de operação da segunda coluna
                 modo_operacao = str(row.iloc[1]).strip().lower() if not pd.isna(row.iloc[1]) else "individual"
                 
+                # Normalizar o modo
                 if 'paral' in modo_operacao or 'paralel' in modo_operacao:
                     modo_operacao = "Paralelo"
                 elif 'ser' in modo_operacao or 'série' in modo_operacao:
@@ -318,6 +344,7 @@ def load_data():
                 else:
                     modo_operacao = "Individual"
                 
+                # Pegar códigos dos reservatórios (a partir da terceira coluna)
                 valores_linha = row.iloc[2:].dropna()
                 lista_res_limpa = []
                 for val in valores_linha:
@@ -335,6 +362,7 @@ def load_data():
         except Exception as e:
             print(f"Erro ao carregar presets: {e}")
         
+        # Retornar apenas dados serializáveis (sem xls_vazoes)
         return {
             'acudes_original': acudes_original,
             'cav': cav,
@@ -342,14 +370,16 @@ def load_data():
             'plano_secas': plano_secas,
             'presets': presets,
             'caminho_dados': caminho_dados,
-            'caminho_vazoes': caminho_vazoes
+            'caminho_vazoes': caminho_vazoes  # Guardar apenas o caminho
         }
     
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
         return None
 
+
 def carregar_vazao_reservatorio(caminho_vazoes, nome_reservatorio):
+    """Carrega dados de vazão para um reservatório específico"""
     try:
         df_vazao = pd.read_excel(caminho_vazoes, sheet_name=nome_reservatorio)
         return df_vazao
@@ -357,7 +387,13 @@ def carregar_vazao_reservatorio(caminho_vazoes, nome_reservatorio):
         st.error(f"❌ Erro ao carregar vazões do reservatório {nome_reservatorio}: {str(e)}")
         return None
 
+
+# ============================================================================
+# VISUALIZAÇÃO E EDIÇÃO DO PLANO DE SECAS
+# ============================================================================
+
 def visualizar_plano_secas(plano_secas_df, reservatorios):
+    """Gera figura com as curvas de racionamento para cada reservatório do hidrossistema"""
     meses_labels = list(ordem_meses.keys())
 
     cores_faixas = {
@@ -392,6 +428,7 @@ def visualizar_plano_secas(plano_secas_df, reservatorios):
                     fontsize=12, color='#888888', style='italic')
             continue
 
+        # Ordenar faixas do menor limite médio para o maior
         plano_res['_media'] = plano_res[meses_labels].mean(axis=1)
         plano_res = plano_res.sort_values('_media', ascending=True).reset_index(drop=True)
 
@@ -410,6 +447,7 @@ def visualizar_plano_secas(plano_secas_df, reservatorios):
 
             y_base = y_topo.copy()
 
+        # Completar até 100% se o teto não chegar
         if np.mean(y_base) < 99:
             ax.fill_between(range(12), y_base, 100,
                             color=cores_faixas['Normal'], alpha=0.75, label='Normal  (0% rac.)')
@@ -419,17 +457,21 @@ def visualizar_plano_secas(plano_secas_df, reservatorios):
     fig.tight_layout(pad=2.2)
     return fig
 
+
 def _plano_efetivo(data):
+    """Monta o plano completo: original do xlsx + edições pendentes + planos custom (sessão)."""
     base = data['plano_secas'].copy()
     meses_labels = list(ordem_meses.keys())
     cols = ['Faixa', 'Racionamento (%)'] + meses_labels
 
+    # 1) substituir blocos de COD que já foram editados
     for cod, df_ed in st.session_state.get('plano_secas_editado', {}).items():
-        base = base[base['COD'].astype(str) != cod]
+        base = base[base['COD'].astype(str) != cod]                  # remove originais
         df_ins = df_ed[cols].copy()
         df_ins.insert(0, 'COD', cod)
         base = pd.concat([base, df_ins], ignore_index=True)
 
+    # 2) adicionar planos custom que só existem na sessão
     for cod, df_ed in st.session_state.get('plano_secas_custom', {}).items():
         df_ins = df_ed[cols].copy()
         df_ins.insert(0, 'COD', cod)
@@ -437,10 +479,16 @@ def _plano_efetivo(data):
 
     return base
 
+
 def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
+    """Editor com adicionar / remover faixas.
+    CODs que existem no xlsx → edições vão para 'plano_secas_editado' e podem ser salvas.
+    CODs que NÃO existem no xlsx (sistema custom) → vão para 'plano_secas_custom', só sessão.
+    """
     meses_labels  = list(ordem_meses.keys())
     cols_edit     = ['Faixa', 'Racionamento (%)'] + meses_labels
 
+    # garantir chaves no session_state
     if 'plano_secas_editado' not in st.session_state:
         st.session_state['plano_secas_editado'] = {}
     if 'plano_secas_custom' not in st.session_state:
@@ -450,17 +498,20 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
 
     for res in reservatorios:
         cod       = str(res['cod'])
-        is_custom = cod not in codigos_no_xlsx
+        is_custom = cod not in codigos_no_xlsx          # não existe no arquivo
         state_key = 'plano_secas_custom' if is_custom else 'plano_secas_editado'
 
+        # ---- fonte de dados para este COD ----
         if cod in st.session_state[state_key]:
             plano_res = st.session_state[state_key][cod].copy()
         else:
             sub = plano_secas_df[plano_secas_df['COD'].astype(str) == cod][cols_edit]
             plano_res = sub.reset_index(drop=True) if not sub.empty else pd.DataFrame(columns=cols_edit)
 
+        # ---- cabeçalho ----
         st.subheader(f"🌊 {res['nome']}  (COD {cod})")
 
+        # ---- botão  ＋ Adicionar Faixa ----
         if st.button("＋ Adicionar Faixa", key=f"add_faixa_{cod}"):
             nova = pd.DataFrame([{
                 'Faixa': 'Nova Faixa',
@@ -471,6 +522,7 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
             st.session_state[state_key][cod] = plano_res.copy()
             st.rerun()
 
+        # ---- botão  − Remover Faixa (só se >1 linha) ----
         if len(plano_res) > 1:
             col_sel, col_btn = st.columns([3, 1])
             with col_sel:
@@ -487,6 +539,7 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
                     st.session_state[state_key][cod] = plano_res.copy()
                     st.rerun()
 
+        # ---- tabela editável ----
         if plano_res.empty:
             st.warning("Sem faixas. Clique '＋ Adicionar Faixa' para começar.")
         else:
@@ -496,17 +549,21 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    'Faixa': st.column_config.TextColumn(),
+                    'Faixa': st.column_config.TextColumn(),                   # editável
                     'Racionamento (%)': st.column_config.NumberColumn(
                         min_value=0.0, max_value=100.0, step=1.0, format="%.1f"),
                     **{m: st.column_config.NumberColumn(
                         min_value=0.0, max_value=100.0, step=1.0, format="%.0f") for m in meses_labels}
                 }
             )
+            # persistir mudanças imediatas no session_state
             st.session_state[state_key][cod] = edited.copy()
 
         st.markdown("---")
 
+    # ============================================================
+    # SALVAR no xlsx — só para CODs que já existem no arquivo
+    # ============================================================
     if st.session_state.get('plano_secas_editado'):
         st.markdown("### 💾 Salvar Alterações no Arquivo")
 
@@ -523,6 +580,7 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
                 rac_col   = header.index('Racionamento (%)') + 1
                 mes_cols  = {m: header.index(m) + 1 for m in meses_labels}
 
+                # --- 1) deletar linhas antigas dos CODs editados ---
                 rows_to_del = []
                 for row_idx in range(2, ws.max_row + 1):
                     cv = str(ws.cell(row=row_idx, column=cod_col).value).replace('.0', '')
@@ -531,6 +589,7 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
                 for ri in sorted(rows_to_del, reverse=True):
                     ws.delete_rows(ri)
 
+                # --- 2) append todas as linhas (editadas + novas) ---
                 for cod_val, df_ed in st.session_state['plano_secas_editado'].items():
                     for _, nr in df_ed.iterrows():
                         nova_row = ws.max_row + 1
@@ -551,8 +610,14 @@ def editar_plano_secas(plano_secas_df, reservatorios, caminho_dados):
             except Exception as e:
                 st.error(f"❌ Erro ao salvar: {str(e)}")
 
+    # info sobre planos custom
     if st.session_state.get('plano_secas_custom'):
         st.info("ℹ️ Planos marcados como *novo (sessão)* existem apenas durante esta sessão e são usados diretamente pela simulação — não são gravados no Excel.")
+
+
+# ============================================================================
+# INTERFACE STREAMLIT
+# ============================================================================
 
 def main():
     st.set_page_config(
@@ -564,6 +629,7 @@ def main():
     
     st.title("Sistema de Suporte a Decisão")
     
+    # Carregar dados
     data = load_data()
     
     if data is None:
@@ -572,6 +638,7 @@ def main():
     
     st.success("✅ Dados carregados com sucesso!")
     
+    # ---- session_state defaults ----
     defaults = {
         'reservatorios_selecionados': [],
         'resultados_simulacao':       None,
@@ -579,17 +646,22 @@ def main():
         'mostrar_editor_secas':       False,
         'plano_secas_editado':        {},
         'plano_secas_custom':         {},
-        'modo_criacao':               'preset',
+        'modo_criacao':               'preset',   # 'preset' | 'custom'
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
+    # Criar abas
     tab1, tab2, tab3 = st.tabs(["⚙️ Configuração do Sistema", "📊 Gráficos", "📈 Análise de Garantia"])
     
+    # ========================================================================
+    # ABA 1: CONFIGURAÇÃO DO SISTEMA
+    # ========================================================================
     with tab1:
         st.header("Configuração do Hidrossistema")
 
+        # ---- badge: sistema atual ----
         if st.session_state.get('ultimo_preset_carregado'):
             modo_info = ""
             if st.session_state.get('modo_operacao_predefinido'):
@@ -599,6 +671,9 @@ def main():
         elif st.session_state.reservatorios_selecionados and st.session_state['modo_criacao'] == 'custom':
             st.info(f"📌 **Sistema Custom** — {len(st.session_state.reservatorios_selecionados)} reservatório(s) | 🔧 Modo: livre")
 
+        # ========================================================================
+        # TOGGLE  preset ↔ custom
+        # ========================================================================
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             btn_preset_active = (st.session_state['modo_criacao'] == 'preset')
@@ -606,6 +681,7 @@ def main():
                          type="primary" if btn_preset_active else "secondary",
                          use_container_width=True):
                 if not btn_preset_active:
+                    # reset tudo e mudar modo
                     st.session_state.reservatorios_selecionados = []
                     st.session_state.resultados_simulacao       = None
                     st.session_state['mostrar_plano_secas']     = False
@@ -614,6 +690,7 @@ def main():
                     st.session_state['plano_secas_custom']      = {}
                     st.session_state.pop('ultimo_preset_carregado',   None)
                     st.session_state.pop('modo_operacao_predefinido', None)
+                    # limpar estado interno dos widgets de parâmetros
                     st.session_state.pop('modo_op',     None)
                     st.session_state.pop('vazao_conj',  None)
                     st.session_state['modo_criacao'] = 'preset'
@@ -633,6 +710,7 @@ def main():
                     st.session_state['plano_secas_custom']      = {}
                     st.session_state.pop('ultimo_preset_carregado',   None)
                     st.session_state.pop('modo_operacao_predefinido', None)
+                    # limpar estado interno dos widgets de parâmetros
                     st.session_state.pop('modo_op',     None)
                     st.session_state.pop('vazao_conj',  None)
                     st.session_state['modo_criacao'] = 'custom'
@@ -640,6 +718,9 @@ def main():
 
         st.markdown("---")
 
+        # ========================================================================
+        # BLOCO A — SISTEMA PREDEFINIDO
+        # ========================================================================
         if st.session_state['modo_criacao'] == 'preset':
 
             if st.session_state.resultados_simulacao is not None:
@@ -655,6 +736,7 @@ def main():
             with col2:
                 if st.button("🔄 Carregar Sistema", type="primary"):
                     if preset_selecionado != "--- Selecione um Sistema ---":
+                        # reset
                         st.session_state.reservatorios_selecionados = []
                         st.session_state.resultados_simulacao       = None
                         st.session_state['mostrar_plano_secas']     = False
@@ -662,6 +744,7 @@ def main():
                         st.session_state['plano_secas_editado']     = {}
                         st.session_state['plano_secas_custom']      = {}
                         st.session_state.pop('ultimo_preset_carregado', None)
+                        # limpar estado interno dos widgets de parâmetros
                         st.session_state.pop('modo_op',     None)
                         st.session_state.pop('vazao_conj',  None)
 
@@ -688,6 +771,7 @@ def main():
                         st.session_state['modo_operacao_predefinido'] = modo_predefinido
                         st.rerun()
 
+            # ---- tabela de reservatórios ----
             if st.session_state.reservatorios_selecionados:
                 df_edit = pd.DataFrame(st.session_state.reservatorios_selecionados)
                 df_edit['ordem'] = range(1, len(df_edit) + 1)
@@ -713,6 +797,9 @@ def main():
             else:
                 st.info("ℹ️ Nenhum sistema carregado. Selecione um preset acima.")
 
+        # ========================================================================
+        # BLOCO B — SISTEMA CUSTOMIZADO
+        # ========================================================================
         else:   # modo_criacao == 'custom'
             acudes = data['acudes_original']
             lista_nomes = sorted(acudes['CORPO'].tolist())
@@ -745,6 +832,7 @@ def main():
                         })
                         st.rerun()
 
+            # ---- tabela editável ----
             if st.session_state.reservatorios_selecionados:
                 df_edit = pd.DataFrame(st.session_state.reservatorios_selecionados)
                 df_edit['ordem'] = range(1, len(df_edit) + 1)
@@ -761,6 +849,7 @@ def main():
                     st.session_state.reservatorios_selecionados[idx]['demanda']     = row['Demanda (m³/s)']
                     st.session_state.reservatorios_selecionados[idx]['gatilho']     = row['Gatilho (%)']
 
+                # remover reservatório individual
                 nomes_atual = [r['nome'] for r in st.session_state.reservatorios_selecionados]
                 col_r1, col_r2 = st.columns([3, 1])
                 with col_r1:
@@ -783,6 +872,9 @@ def main():
             else:
                 st.info("ℹ️ Busque e adicione açudes acima para montar seu sistema.")
 
+        # ========================================================================
+        # BOTÕES VER / EDITAR PLANO DE SECAS  (comum aos dois modos)
+        # ========================================================================
         if st.session_state.reservatorios_selecionados:
             st.markdown("")
             col_ver, col_edit = st.columns(2)
@@ -799,13 +891,15 @@ def main():
                     st.session_state['mostrar_plano_secas']  = False
                     st.rerun()
 
+            # --- Visualização das curvas (usa plano efetivo com edições) ---
             if st.session_state.get('mostrar_plano_secas', False):
                 st.markdown("#### 📈 Curvas de Racionamento")
                 fig = visualizar_plano_secas(_plano_efetivo(data),
-                                             st.session_state.reservatorios_selecionados)
+                                            st.session_state.reservatorios_selecionados)
                 st.pyplot(fig)
                 plt.close(fig)
 
+            # --- Editor inline ---
             if st.session_state.get('mostrar_editor_secas', False):
                 st.markdown("#### ✏️ Editar Planos de Secas")
                 editar_plano_secas(
@@ -816,6 +910,7 @@ def main():
 
         st.markdown("---")
         
+        # Parâmetros da Simulação
         st.subheader("Parâmetros da Simulação")
         
         col1, col2, col3, col4 = st.columns(4)
@@ -824,16 +919,16 @@ def main():
             mes_inicial = st.selectbox("Mês Inicial:", list(ordem_meses.keys()), key="mes_ini")
         
         with col2:
-            ano_inicial = st.number_input("Ano Inicial:", min_value=1900, max_value=2100, 
-                                          value=1990, key="ano_ini")
+            ano_inicial = st.number_input("Ano Inicial:", min_value=1911, max_value=2016, 
+                                         value=1911, key="ano_ini")
         
         with col3:
             mes_final = st.selectbox("Mês Final:", list(ordem_meses.keys()), 
-                                     index=11, key="mes_fim")
+                                    index=11, key="mes_fim")
         
         with col4:
-            ano_final = st.number_input("Ano Final:", min_value=1900, max_value=2100, 
-                                        value=2020, key="ano_fim")
+            ano_final = st.number_input("Ano Final:", min_value=1912, max_value=2017, 
+                                       value=2017, key="ano_fim")
         
         col5, col6 = st.columns(2)
         
@@ -843,6 +938,7 @@ def main():
             if n_res >= 2:
                 modo_options = ["Paralelo", "Individual", "Série"]
             
+            # modo travado só no modo preset com modo_operacao_predefinido
             if st.session_state.get('modo_operacao_predefinido'):
                 modo_predefinido = st.session_state['modo_operacao_predefinido']
                 modo = st.selectbox(
@@ -866,11 +962,14 @@ def main():
                 key="vazao_conj"
             )
 
+        # Forçar zero quando o modo não usa vazão conjunta.
+        # Necessário porque o number_input com key retém o valor anterior mesmo desabilitado.
         if modo == "Individual":
             vazao_conjunta = 0.0
         
         st.markdown("---")
         
+        # Botão de processamento
         if st.button("🚀 PROCESSAR SIMULAÇÃO", type="primary", use_container_width=True):
             if not st.session_state.reservatorios_selecionados:
                 st.error("⚠️ Adicione reservatórios antes de processar!")
@@ -878,11 +977,14 @@ def main():
                 with st.spinner("Processando simulação..."):
                     try:
                         processar_simulacao(data, modo, vazao_conjunta, 
-                                            mes_inicial, ano_inicial, mes_final, ano_final)
+                                          mes_inicial, ano_inicial, mes_final, ano_final)
                         st.success("✅ Simulação concluída com sucesso!")
                     except Exception as e:
                         st.error(f"❌ Erro na simulação: {str(e)}")
     
+    # ========================================================================
+    # ABA 2: RESULTADOS
+    # ========================================================================
     with tab2:
         st.header("Resultados da Simulação")
         
@@ -891,6 +993,9 @@ def main():
         else:
             exibir_resultados()
     
+    # ========================================================================
+    # ABA 3: ANÁLISE DE GARANTIA
+    # ========================================================================
     with tab3:
         st.header("Análise de Permanência e Garantia")
         
@@ -899,15 +1004,19 @@ def main():
         else:
             exibir_analise_garantia()
 
+
 def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, ano_fim):
+    """Processa a simulação hidrológica"""
     segundos_mes = 2.592e6
 
+    # plano com todas as edições + custom aplicadas
     plano_eff = _plano_efetivo(data)
     
     lista_dfs_input = []
     lista_params = []
     
     for res in st.session_state.reservatorios_selecionados:
+        # Carregar vazões usando o caminho armazenado
         df_vazao = carregar_vazao_reservatorio(data['caminho_vazoes'], res['nome'])
         
         if df_vazao is None:
@@ -916,6 +1025,7 @@ def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, a
         
         df_long = wide_to_long_monthly(df_vazao, mes_ini, ano_ini, mes_fim, ano_fim)
         
+        # Adicionar evaporação
         cod_evap = str(res['est_evap']).replace('.0', '').strip()
         evap_row = data['evaporacao'][data['evaporacao']["COD"] == cod_evap]
         
@@ -924,6 +1034,7 @@ def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, a
         else:
             df_long["Evaporação (m)"] = 0.0
         
+        # Criar função de interpolação CAV
         cod_acude = str(res['cod'])
         cav_data = data['cav'][data['cav']["COD"] == cod_acude]
         
@@ -949,6 +1060,7 @@ def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, a
             except:
                 func_interp = interpolate.interp1d(x_vol, y_area, fill_value="extrapolate")
         
+        # Carregar plano de secas do plano efetivo (inclui edições + custom)
         plano = plano_eff[plano_eff['COD'].astype(str) == cod_acude].copy()
         regras_mes = {}
         
@@ -970,8 +1082,10 @@ def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, a
             'gatilho': res['gatilho']
         })
     
+    # Executar simulação
     dfs_resultados = simular_sistema_n(lista_dfs_input, lista_params, modo, vazao_conjunta)
     
+    # Salvar resultados no session_state
     st.session_state.resultados_simulacao = {
         'dfs': dfs_resultados,
         'params': lista_params,
@@ -979,11 +1093,14 @@ def processar_simulacao(data, modo, vazao_conjunta, mes_ini, ano_ini, mes_fim, a
         'vazao_conjunta': vazao_conjunta
     }
 
+
 def exibir_resultados():
+    """Exibe os gráficos de resultados da simulação"""
     resultados = st.session_state.resultados_simulacao
     dfs = resultados['dfs']
     n = len(dfs)
     
+    # Criar figura com subplots
     fig, axes = plt.subplots(n, 1, figsize=(15, 4 * n), dpi=100)
     
     if n == 1:
@@ -999,16 +1116,18 @@ def exibir_resultados():
         ax.plot(datas, vol_pct, label='Volume (%)', color='blue', linewidth=2)
         ax.fill_between(datas, 0, vol_pct, alpha=0.3, color='blue')
         
+        # Marcar falhas
         falhas = df[df['Falha'] == 'Sim']
         if not falhas.empty:
             ax.scatter(falhas['Data'], [0] * len(falhas), color='red', 
-                       marker='x', s=100, label='Falha', zorder=5)
+                      marker='x', s=100, label='Falha', zorder=5)
         
+        # Marcar transferências
         transf_recebida = df[df['Transferência Recebida (m³/s)'] > 0]
         if not transf_recebida.empty:
             ax.scatter(transf_recebida['Data'], 
-                       (transf_recebida['Armazenamento Final'] / cap) * 100,
-                       color='orange', marker='v', s=80, label='Transferência', zorder=5)
+                      (transf_recebida['Armazenamento Final'] / cap) * 100,
+                      color='orange', marker='v', s=80, label='Transferência', zorder=5)
         
         ax.set_title(f"{nome} (Capacidade: {cap:.1f} hm³)", fontsize=12, fontweight='bold')
         ax.set_ylabel("Volume (%)", fontsize=10)
@@ -1019,6 +1138,7 @@ def exibir_resultados():
     plt.tight_layout()
     st.pyplot(fig)
     
+    # Botão de download
     st.markdown("---")
     
     buffer = criar_excel_resultados(dfs)
@@ -1031,7 +1151,9 @@ def exibir_resultados():
         use_container_width=True
     )
 
+
 def criar_excel_resultados(dfs):
+    """Cria arquivo Excel com os resultados"""
     output = BytesIO()
     
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -1062,7 +1184,9 @@ def criar_excel_resultados(dfs):
     output.seek(0)
     return output
 
+
 def exibir_analise_garantia():
+    """Exibe a análise de garantia e permanência"""
     resultados = st.session_state.resultados_simulacao
     dfs = resultados['dfs']
     params = resultados['params']
@@ -1071,12 +1195,17 @@ def exibir_analise_garantia():
     
     total_meses = len(dfs[0])
     
+    # ========================================================================
+    # ANÁLISE DE VAZÕES TOTAIS DO SISTEMA
+    # ========================================================================
     st.subheader("💧 Análise de Vazões Totais do Hidrossistema")
     
+    # Calcular vazões totais agregadas
     vazoes_sistema = np.zeros(total_meses)
     for df in dfs:
         vazoes_sistema += df['Demanda Atendida (m³/s)'].to_numpy()
     
+    # Calcular falhas do sistema
     falhas_conjuntas = np.zeros(total_meses, dtype=bool)
     if modo == "Paralelo":
         for df in dfs:
@@ -1088,20 +1217,24 @@ def exibir_analise_garantia():
             mask_falha = (df['Falha'] == 'Sim').to_numpy()
             falhas_conjuntas = falhas_conjuntas & mask_falha
     
+    # Criar DataFrame para análise
     df_vazoes = pd.DataFrame({
         'vazao': vazoes_sistema,
         'falha': falhas_conjuntas
     })
     df_vazoes['vazao_round'] = df_vazoes['vazao'].round(3)
     
+    # Separar sucessos e falhas
     df_sucesso = df_vazoes[df_vazoes['falha'] == False]
     df_falha_sistema = df_vazoes[df_vazoes['falha'] == True]
     
+    # Agrupar vazões de sucesso
     resumo_vazoes = df_sucesso.groupby('vazao_round').size().reset_index(name='permanencia')
     resumo_vazoes = resumo_vazoes.sort_values('vazao_round', ascending=False)
     resumo_vazoes['frequencia'] = (resumo_vazoes['permanencia'] / total_meses * 100).round(2)
     resumo_vazoes['garantia'] = resumo_vazoes['frequencia'].cumsum().round(2)
     
+    # Adicionar falhas se houver
     count_falhas = len(df_falha_sistema)
     if count_falhas > 0:
         falha_row = pd.DataFrame({
@@ -1112,8 +1245,10 @@ def exibir_analise_garantia():
         })
         resumo_vazoes = pd.concat([resumo_vazoes, falha_row], ignore_index=True)
     
+    # Renomear colunas para exibição
     resumo_vazoes.columns = ['Vazão Total Sistema (m³/s)', 'Permanência (meses)', 'Frequência (%)', 'Garantia Acumulada (%)']
     
+    # Exibir tabela
     st.dataframe(
         resumo_vazoes,
         use_container_width=True,
@@ -1131,6 +1266,7 @@ def exibir_analise_garantia():
         }
     )
     
+    # Estatísticas resumidas
     col1, col2, col3, col4 = st.columns(4)
     
     vazao_media = vazoes_sistema[~falhas_conjuntas].mean() if np.any(~falhas_conjuntas) else 0
@@ -1146,6 +1282,9 @@ def exibir_analise_garantia():
     
     st.markdown("---")
     
+    # ========================================================================
+    # ANÁLISE DO SISTEMA (RESUMO)
+    # ========================================================================
     st.subheader("📊 Resumo do Sistema")
     
     demanda_nominal_sistema = sum([p['demanda_nominal'] for p in params]) + vazao_conjunta
@@ -1158,6 +1297,9 @@ def exibir_analise_garantia():
     
     st.markdown("---")
     
+    # ========================================================================
+    # ANÁLISE INDIVIDUAL POR RESERVATÓRIO
+    # ========================================================================
     st.subheader("📋 Detalhamento por Reservatório")
     
     for i, df in enumerate(dfs):
@@ -1203,6 +1345,7 @@ def exibir_analise_garantia():
             
             df_garantia = pd.DataFrame(dados_tabela)
             st.dataframe(df_garantia, use_container_width=True, hide_index=True)
+
 
 if __name__ == "__main__":
     main()
