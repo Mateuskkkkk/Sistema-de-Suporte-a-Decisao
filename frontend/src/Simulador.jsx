@@ -811,18 +811,37 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         const demConj = idx===0 ? (vazaoConjunta||0) : 0
         const demTot = demNom + demConj
 
-        const niveis = [...new Set(df.map(d => parseFloat(d['Racionamento (%)'])||0))].sort((a,b)=>a-b)
+        // Agrupar por (nomeFaixa + rac) para que níveis com rac=0 mas nomes
+        // diferentes (ex: "Normal" e "Acima do Teto") sejam contabilizados separadamente
+        const gruposVistos = new Set()
+        const grupos = []
+        df.forEach(d => {
+          if (d['Falha'] === 'Sim') return
+          const rac      = parseFloat(d['Racionamento (%)']) || 0
+          const nome     = d['Modo Operação'] || 'Normal'
+          const chave    = `${nome}__${rac}`
+          if (!gruposVistos.has(chave)) {
+            gruposVistos.add(chave)
+            grupos.push({ nome, rac, chave })
+          }
+        })
+        // Ordenar: primeiro pelo racionamento crescente, depois pelo nome
+        grupos.sort((a,b) => a.rac - b.rac || a.nome.localeCompare(b.nome))
+
         let cumG = 0
         const tabelaRes = []
 
-        niveis.forEach(rac => {
-          const filtro = df.filter(d => (parseFloat(d['Racionamento (%)'])||0)===rac && d['Falha']==='Não')
+        grupos.forEach(({ nome, rac, chave }) => {
+          const filtro = df.filter(d =>
+            d['Falha'] === 'Não' &&
+            (parseFloat(d['Racionamento (%)']) || 0) === rac &&
+            (d['Modo Operação'] || 'Normal') === nome
+          )
           if (!filtro.length) return
-          const nomeFaixa = filtro[0]['Modo Operação']
-          const vazAlvo   = demTot*(1-rac/100)
-          const freq      = (filtro.length/totalMeses)*100
+          const vazAlvo = demTot * (1 - rac / 100)
+          const freq    = (filtro.length / totalMeses) * 100
           cumG += freq
-          tabelaRes.push({ faixa:nomeFaixa, rac:rac.toFixed(1), vazAlvo:vazAlvo.toFixed(3), count:filtro.length, freq:freq.toFixed(2), garantia:cumG.toFixed(2) })
+          tabelaRes.push({ faixa:nome, rac:rac.toFixed(1), vazAlvo:vazAlvo.toFixed(3), count:filtro.length, freq:freq.toFixed(2), garantia:cumG.toFixed(2) })
         })
         const cntFalha = df.filter(d=>d['Falha']==='Sim').length
         if (cntFalha>0) tabelaRes.push({ faixa:'⚠️ FALHA', rac:'FALHA', vazAlvo:'0.000', count:cntFalha, freq:(cntFalha/totalMeses*100).toFixed(2), garantia:'-' })
@@ -1127,7 +1146,140 @@ function PlanoSecasPanel({ api, reservatorios }) {
       ):(
         <Card style={{padding:'28px',textAlign:'center'}}><div style={{fontSize:12,color:'var(--text-light)'}}>Nenhuma faixa definida. Clique em <strong>+ Faixa</strong> para adicionar.</div></Card>
       )}
+
+      {/* Gráfico dos Níveis Meta */}
+      {faixas && faixas.length > 0 && <NiveisMeta faixas={faixas}/>}
     </div>
+  )
+}
+
+// Gráfico de visualização dos Níveis Meta
+// Interpolação verde→vermelho: índice 0 = verde (nível superior, volume alto)
+//                               índice N-1 = vermelho (nível crítico, volume baixo)
+function nivelColor(idx, total) {
+  if (total <= 1) return '#2a9d8f'
+  // t=0 → verde, t=1 → vermelho, passando por amarelo e laranja
+  const t = idx / (total - 1)
+  // Verde: #2a9d8f  Amarelo: #d4a017  Laranja: #e07b2a  Vermelho: #d94040
+  const stops = [
+    [42,157,143],   // verde-teal
+    [212,160,23],   // amarelo
+    [224,123,42],   // laranja
+    [217,64,64],    // vermelho
+  ]
+  const seg  = (stops.length - 1) * t
+  const lo   = Math.floor(seg)
+  const hi   = Math.min(lo + 1, stops.length - 1)
+  const frac = seg - lo
+  const r = Math.round(stops[lo][0] + (stops[hi][0]-stops[lo][0]) * frac)
+  const g = Math.round(stops[lo][1] + (stops[hi][1]-stops[lo][1]) * frac)
+  const b = Math.round(stops[lo][2] + (stops[hi][2]-stops[lo][2]) * frac)
+  return `rgb(${r},${g},${b})`
+}
+
+function NiveisMeta({ faixas }) {
+  const n = faixas.length
+
+  // Ordenar as faixas do limite MAIS ALTO para o MAIS BAIXO
+  // (as faixas com limites mais altos ficam no topo do gráfico = verde)
+  // Usamos a média dos valores mensais como proxy do "nível no gráfico"
+  const faixasOrdenadas = [...faixas].sort((a, b) => {
+    const mediaA = MESES.reduce((s,m) => s + (parseFloat(a[m])||0), 0) / 12
+    const mediaB = MESES.reduce((s,m) => s + (parseFloat(b[m])||0), 0) / 12
+    return mediaB - mediaA  // descendente: maior limite = primeiro = verde
+  })
+
+  // Cor de cada faixa na ordem ordenada
+  const cores = faixasOrdenadas.map((_, i) => nivelColor(i, n))
+
+  // Dados para o AreaChart
+  // Cada área representa a FAIXA entre o seu limite e o do nível abaixo
+  // Usamos type="number" no eixo X para posicionar correctamente
+  // Recharts AreaChart com areas sobrepostas (não empilhadas): cada area vai de 0 ao seu limite
+  // A ordem de renderização (de baixo para cima) determina o preenchimento visível entre faixas.
+  // Renderizamos da faixa MAIOR para a MENOR — assim a menor fica por cima e "recorta" a maior.
+  const data = MESES.map(mes => {
+    const ponto = { mes }
+    faixasOrdenadas.forEach(f => {
+      ponto[f.Faixa] = parseFloat(f[mes]) || 0
+    })
+    return ponto
+  })
+
+  const Tip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    // Mostrar apenas valores únicos (sem duplicatas por sobreposição)
+    const vistos = new Set()
+    const items  = payload.filter(p => { if(vistos.has(p.name)) return false; vistos.add(p.name); return true })
+    return (
+      <div style={{ background:'#fff', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
+        <div style={{ fontWeight:700, marginBottom:5, color:'var(--text)' }}>{label}</div>
+        {items.map((p,i) => (
+          <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
+            <div style={{ width:7, height:7, borderRadius:'50%', background:p.color }}/>
+            <span style={{ color:'var(--text-mid)' }}>{p.name}:</span>
+            <span style={{ fontWeight:600, fontFamily:'JetBrains Mono', color:'var(--text)' }}>≤ {p.value}%</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="sim-fade" style={{ padding:'16px 18px' }}>
+      <div style={{ marginBottom:14 }}>
+        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Activação por Mês</div>
+        <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
+          Volume máximo (% da capacidade) que activa cada nível — verde = volume alto, vermelho = nível crítico
+        </div>
+      </div>
+      <div style={{ height:260 }}>
+        <ResponsiveContainer>
+          <AreaChart data={data} margin={{top:4,right:20,left:0,bottom:4}}>
+            <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+            <XAxis dataKey="mes" tick={{fontSize:10,fill:'var(--text-light)'}}/>
+            <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
+              label={{value:'% Cap.',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+            <Tooltip content={<Tip/>}/>
+            {/* Renderizar da faixa MAIOR para a MENOR para que as menores
+                fiquem por cima e criem o efeito de bandas coloridas entre linhas */}
+            {faixasOrdenadas.map((f, i) => (
+              <Area
+                key={f.Faixa}
+                type="monotone"
+                dataKey={f.Faixa}
+                stroke={cores[i]}
+                strokeWidth={2.5}
+                fill={cores[i]}
+                fillOpacity={0.30}
+                dot={{ r:3.5, fill:cores[i], strokeWidth:0 }}
+                activeDot={{ r:5, fill:cores[i], strokeWidth:0 }}
+                legendType="none"
+              />
+            ))}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legenda manual com gradiente de cor */}
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+        {faixasOrdenadas.map((f, i) => {
+          const cor = cores[i]
+          const rac = parseFloat(f.Racionamento) || 0
+          return (
+            <span key={i} style={{
+              display:'inline-flex', alignItems:'center', gap:6,
+              fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600,
+              background:`${cor}18`, color:cor,
+              border:`1.5px solid ${cor}55`,
+            }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
+              {f.Faixa}{rac > 0 ? ` — ${rac}% corte` : ' — sem corte'}
+            </span>
+          )
+        })}
+      </div>
+    </Card>
   )
 }
 
