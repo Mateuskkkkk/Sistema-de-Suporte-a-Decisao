@@ -444,7 +444,7 @@ function Charts({ resultados, params, modo }) {
         <div style={{ height:250 }}>
           <ResponsiveContainer>
             <AreaChart data={volData} margin={{top:4,right:28,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray="3" stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
               <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'Afluência(hm³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
