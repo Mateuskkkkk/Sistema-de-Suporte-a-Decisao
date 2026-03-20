@@ -1022,14 +1022,11 @@ function PlanoSecasPanel({ api, reservatorios }) {
     setMsg({type:'info',text:'Revertido para o estado salvo na base de dados.'})
   }
 
-  // Salvar apenas na sessão: mantém as faixas em memória para a simulação,
-  // mas NÃO persiste na BD. As alterações somem ao fechar o browser.
+
   const saveSession=()=>{
     setMsg({type:'session',text:'Aplicado na sessão. As alterações serão usadas na simulação, mas não foram salvas na base de dados.'})
   }
 
-  // Salvar na BD desactivado — plano gerido apenas na sessão
-  // Para persistir, edite directamente o banco_site.db com DB Browser for SQLite
 
   const hasChanges = faixasOriginal !== null && JSON.stringify(faixas) !== JSON.stringify(faixasOriginal)
   const isSessionOnly = hasChanges  // alterações existem mas ainda não foram à BD
@@ -1146,14 +1143,12 @@ function PlanoSecasPanel({ api, reservatorios }) {
 //                               índice N-1 = vermelho (nível crítico, volume baixo)
 function nivelColor(idx, total) {
   if (total <= 1) return '#2a9d8f'
-  // t=0 → verde, t=1 → vermelho, passando por amarelo e laranja
   const t = idx / (total - 1)
-  // Verde: #2a9d8f  Amarelo: #d4a017  Laranja: #e07b2a  Vermelho: #d94040
   const stops = [
-    [42,157,143],   // verde-teal
-    [212,160,23],   // amarelo
-    [224,123,42],   // laranja
-    [217,64,64],    // vermelho
+    [42,157,143],
+    [212,160,23],
+    [224,123,42],
+    [217,64,64],
   ]
   const seg  = (stops.length - 1) * t
   const lo   = Math.floor(seg)
@@ -1168,45 +1163,41 @@ function nivelColor(idx, total) {
 function NiveisMeta({ faixas }) {
   const n = faixas.length
 
-  // Ordenar as faixas do limite MAIS ALTO para o MAIS BAIXO
-  // (as faixas com limites mais altos ficam no topo do gráfico = verde)
-  // Usamos a média dos valores mensais como proxy do "nível no gráfico"
   const faixasOrdenadas = [...faixas].sort((a, b) => {
-    const mediaA = MESES.reduce((s,m) => s + (parseFloat(a[m])||0), 0) / 12
-    const mediaB = MESES.reduce((s,m) => s + (parseFloat(b[m])||0), 0) / 12
-    return mediaB - mediaA  // descendente: maior limite = primeiro = verde
+    const ma = MESES.reduce((s,m) => s+(parseFloat(a[m])||0), 0)
+    const mb = MESES.reduce((s,m) => s+(parseFloat(b[m])||0), 0)
+    return mb - ma
   })
 
-  // Cor de cada faixa na ordem ordenada
   const cores = faixasOrdenadas.map((_, i) => nivelColor(i, n))
+  const faixasAsc = [...faixasOrdenadas].reverse()
 
-  // Dados para o AreaChart
-  // Cada área representa a FAIXA entre o seu limite e o do nível abaixo
-  // Usamos type="number" no eixo X para posicionar correctamente
-  // Recharts AreaChart com areas sobrepostas (não empilhadas): cada area vai de 0 ao seu limite
-  // A ordem de renderização (de baixo para cima) determina o preenchimento visível entre faixas.
-  // Renderizamos da faixa MAIOR para a MENOR — assim a menor fica por cima e "recorta" a maior.
   const data = MESES.map(mes => {
+    const limites = faixasAsc.map(f => parseFloat(f[mes])||0)
     const ponto = { mes }
-    faixasOrdenadas.forEach(f => {
-      ponto[f.Faixa] = parseFloat(f[mes]) || 0
-    })
+    ponto[`_banda_0`] = limites[0]
+    for (let i = 1; i < faixasAsc.length; i++) {
+      ponto[`_banda_${i}`] = Math.max(0, limites[i] - limites[i-1])
+    }
+    ponto[`_banda_${faixasAsc.length}`] = Math.max(0, 100 - limites[faixasAsc.length-1])
     return ponto
   })
 
+  const coresBandas = [
+    ...faixasAsc.map((_, i) => nivelColor(n-1-i, n)),
+    '#e8e0d4',
+  ]
+
   const Tip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
-    // Mostrar apenas valores únicos (sem duplicatas por sobreposição)
-    const vistos = new Set()
-    const items  = payload.filter(p => { if(vistos.has(p.name)) return false; vistos.add(p.name); return true })
     return (
       <div style={{ background:'#fff', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
-        <div style={{ fontWeight:700, marginBottom:5, color:'var(--text)' }}>{label}</div>
-        {items.map((p,i) => (
+        <div style={{ fontWeight:700, marginBottom:6, color:'var(--text)' }}>{label}</div>
+        {faixasOrdenadas.map((f, i) => (
           <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
-            <div style={{ width:7, height:7, borderRadius:'50%', background:p.color }}/>
-            <span style={{ color:'var(--text-mid)' }}>{p.name}:</span>
-            <span style={{ fontWeight:600, fontFamily:'JetBrains Mono', color:'var(--text)' }}>≤ {p.value}%</span>
+            <div style={{ width:7, height:7, borderRadius:'50%', background:cores[i] }}/>
+            <span style={{ color:'var(--text-mid)' }}>{f.Faixa}:</span>
+            <span style={{ fontWeight:600, fontFamily:'JetBrains Mono', color:'var(--text)' }}>≤ {parseFloat(f[label])||0}%</span>
           </div>
         ))}
       </div>
@@ -1218,7 +1209,7 @@ function NiveisMeta({ faixas }) {
       <div style={{ marginBottom:14 }}>
         <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Activação por Mês</div>
         <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
-          Volume máximo (% da capacidade) que activa cada nível — verde = volume alto, vermelho = nível crítico
+          Bandas de volume: verde = zona segura · vermelho = nível crítico activo
         </div>
       </div>
       <div style={{ height:260 }}>
@@ -1229,43 +1220,39 @@ function NiveisMeta({ faixas }) {
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
               label={{value:'% Cap.',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
             <Tooltip content={<Tip/>}/>
-            {/* Renderizar da faixa MAIOR para a MENOR para que as menores
-                fiquem por cima e criem o efeito de bandas coloridas entre linhas */}
-            {faixasOrdenadas.map((f, i) => (
+            {coresBandas.map((cor, i) => (
               <Area
-                key={f.Faixa}
+                key={i}
                 type="monotone"
-                dataKey={f.Faixa}
-                stroke={cores[i]}
-                strokeWidth={2.5}
-                fill={cores[i]}
-                fillOpacity={0.30}
-                dot={{ r:3.5, fill:cores[i], strokeWidth:0 }}
-                activeDot={{ r:5, fill:cores[i], strokeWidth:0 }}
+                dataKey={`_banda_${i}`}
+                stackId="s"
+                stroke={i === coresBandas.length-1 ? 'none' : cor}
+                strokeWidth={i === coresBandas.length-1 ? 0 : 2}
+                fill={cor}
+                fillOpacity={i === coresBandas.length-1 ? 0.12 : 0.55}
+                dot={false}
+                activeDot={false}
                 legendType="none"
               />
             ))}
           </AreaChart>
         </ResponsiveContainer>
       </div>
-
-      {/* Legenda manual com gradiente de cor */}
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
         {faixasOrdenadas.map((f, i) => {
           const cor = cores[i]
           const rac = parseFloat(f.Racionamento) || 0
           return (
-            <span key={i} style={{
-              display:'inline-flex', alignItems:'center', gap:6,
-              fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600,
-              background:`${cor}18`, color:cor,
-              border:`1.5px solid ${cor}55`,
-            }}>
+            <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:`${cor}22`, color:cor, border:`1.5px solid ${cor}66` }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
-              {f.Faixa}{rac > 0 ? ` — ${rac}% de Racionamento` : ' — Sem Racionamento'}
+              {f.Faixa}{rac > 0 ? ` — ${rac}% corte` : ' — sem corte'}
             </span>
           )
         })}
+        <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:'#e8e0d422', color:'var(--text-light)', border:'1.5px solid #e8e0d466' }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:'#c8b8a0', display:'inline-block', flexShrink:0 }}/>
+          Sem restrição
+        </span>
       </div>
     </Card>
   )
