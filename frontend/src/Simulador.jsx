@@ -1089,7 +1089,7 @@ function PlanoSecasPanel({ api, reservatorios }) {
       </Card>
       <div style={{display:'flex',gap:8,padding:'9px 13px',background:'var(--blue-pale)',borderRadius:'var(--radius-sm)',alignItems:'flex-start'}}>
         <Info size={13} color="var(--blue)" style={{flexShrink:0,marginTop:1}}/>
-        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que activa o nível nesse mês. <strong>Racionamento</strong> =(%) de redução na demanda. As alterações feitas aqui são válidas apenas para esta sessão — para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
+        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que ativa o nível nesse mês. <strong>Racionamento</strong> =(%) de redução na demanda. As alterações feitas aqui são válidas apenas para esta sessão — para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
       </div>
       {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregando…</div></Card>
       :faixas&&faixas.length>0?(
@@ -1207,7 +1207,7 @@ function NiveisMeta({ faixas }) {
   return (
     <Card className="sim-fade" style={{ padding:'16px 18px' }}>
       <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Activação por Mês</div>
+        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Ativação por Mês</div>
         <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
           Bandas de volume: verde = zona segura · vermelho = nível crítico activo
         </div>
@@ -1223,7 +1223,7 @@ function NiveisMeta({ faixas }) {
             {coresBandas.map((cor, i) => (
               <Area
                 key={i}
-                type="monotone"
+                type="linear"
                 dataKey={`_banda_${i}`}
                 stackId="s"
                 stroke={i === coresBandas.length-1 ? 'none' : cor}
