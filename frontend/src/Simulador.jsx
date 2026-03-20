@@ -1085,7 +1085,7 @@ function PlanoSecasPanel({ api, reservatorios }) {
       </Card>
       <div style={{display:'flex',gap:8,padding:'9px 13px',background:'var(--blue-pale)',borderRadius:'var(--radius-sm)',alignItems:'flex-start'}}>
         <Info size={13} color="var(--blue)" style={{flexShrink:0,marginTop:1}}/>
-        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que activa o nível nesse mês. <strong>Racionamento</strong> = corte (%) aplicado na demanda. As alterações feitas aqui são válidas apenas para esta sessão — para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
+        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que activa o nível nesse mês. <strong>Racionamento</strong> =(%) de redução na demanda. As alterações feitas aqui são válidas apenas para esta sessão — para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
       </div>
       {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregando…</div></Card>
       :faixas&&faixas.length>0?(
@@ -1245,7 +1245,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
 }
 
 function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset }) {
-  const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}])
+  const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
@@ -1261,7 +1261,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.5:0,demanda:0.5,gatilho:30}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.:0,demanda:0,gatilho:10}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
@@ -1294,7 +1294,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {presets.length>0&&(
         <>
-          <Label icon={Zap}>Hidrossistema (Preset)</Label>
+          <Label icon={Zap}>Hidrossistema</Label>
           <div style={{display:'flex',gap:5}}>
             <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
               <option value="">Configuração manual…</option>
