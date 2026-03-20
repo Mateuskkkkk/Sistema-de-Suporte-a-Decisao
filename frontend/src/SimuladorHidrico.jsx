@@ -1,14 +1,4 @@
-/**
- * SimuladorHidrico.jsx — v2
- * Novidades vs v1:
- *  - Endpoints /api/plano-secas corrigidos (nunca lança 404 em lista vazia)
- *  - Aba "Detalhamento das Vazões" (série mensal por reservatório)
- *  - Aba "Análise de Garantia" (permanência + garantia acumulada, fiel ao Streamlit)
- *  - Card "Meses Abastecidos" por reservatório
- *  - Preset: modo de operação travado + "(modo)" removido do label
- *  - Modo Individual: campo Gatilho oculto
- *  - Exportação Excel (SheetJS)
- */
+
 
 import React, { useState, useEffect, useMemo } from 'react'
 import {
@@ -375,7 +365,7 @@ function ResSel({ resultados, sel, onChange }) {
   if (resultados.length <= 1) return null
   return (
     <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
-      <button onClick={()=>onChange('todos')} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel==='todos'?'var(--orange)':'var(--border)'}`,background:sel==='todos'?'var(--orange-pale)':'none',color:sel==='todos'?'var(--orange-deep)':'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>Sobrepostos</button>
+      <button onClick={()=>onChange('todos')} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel==='todos'?'var(--orange)':'var(--border)'}`,background:sel==='todos'?'var(--orange-pale)':'none',color:sel==='todos'?'var(--orange-deep)':'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>Sistema</button>
       {resultados.map((r,i)=>(
         <button key={i} onClick={()=>onChange(i)} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel===i?COLORS[i%4].stroke:'var(--border)'}`,background:sel===i?'rgba('+hexToRgb(COLORS[i%4].stroke)+',0.1)':'none',color:sel===i?COLORS[i%4].stroke:'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>{r.reservatorio}</button>
       ))}
@@ -844,7 +834,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
                 <thead>
                   <tr style={{ background:'var(--bg)' }}>
-                    {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Meses Responsável','Frequência (%)','Garantia (%)'].map(h=>(
+                    {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Total de Meses','Frequência (%)','Garantia (%)'].map(h=>(
                       <th key={h} style={{ padding:'7px 12px', textAlign:'right', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--text-light)', borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap', '&:first-child':{textAlign:'left'} }}>
                         {h}
                       </th>
@@ -1261,7 +1251,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.5:0,demanda:0.5,gatilho:30}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0:0,demanda:0,gatilho:0}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
@@ -1271,7 +1261,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const clearPreset=()=>{
     setPresetSel('')
     setModoLocked(false)
-    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}]
+    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:0}]
     setItems(empty)
     onResChange&&onResChange(empty)
     onReset&&onReset()   // limpa resultados ao limpar preset
@@ -1294,7 +1284,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {presets.length>0&&(
         <>
-          <Label icon={Zap}>Hidrossistema (Preset)</Label>
+          <Label icon={Zap}>Hidrossistema</Label>
           <div style={{display:'flex',gap:5}}>
             <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
               <option value="">Configuração manual…</option>
@@ -1303,7 +1293,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
             </FC>
             {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
           </div>
-          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo travado: <strong>{modo}</strong></div>}
+          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operação: <strong>{modo}</strong></div>}
         </>
       )}
 
@@ -1311,7 +1301,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
       {items.map((res,i)=>(
         <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
       ))}
-      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}])}
+      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:0}])}
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-light)';e.currentTarget.style.background='none'}}>
