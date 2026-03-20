@@ -439,7 +439,7 @@ function Charts({ resultados, params, modo }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {/* Volume em % */}
-      <ChartCard title="Volume Armazenado (%)" subtitle="Volume final como % da capacidade máxima + Afluência">
+      <ChartCard title="Volume Armazenado (%)>
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
@@ -477,7 +477,7 @@ function Charts({ resultados, params, modo }) {
 
       {/* Racionamento */}
       {racKeys.length>0 && (
-        <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — corte aplicado (%)">
+        <ChartCard title="Racionamento Mensal" subtitle="Redução (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
