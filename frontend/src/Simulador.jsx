@@ -439,7 +439,7 @@ function Charts({ resultados, params, modo }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {/* Volume em % */}
-      <ChartCard title="Volume Armazenado (%)>
+      <ChartCard title="Volume Armazenado (%)">
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
