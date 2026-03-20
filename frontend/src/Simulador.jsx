@@ -1,4 +1,14 @@
-
+/**
+ * SimuladorHidrico.jsx — v2
+ * Novidades vs v1:
+ *  - Endpoints /api/plano-secas corrigidos (nunca lança 404 em lista vazia)
+ *  - Aba "Detalhamento das Vazões" (série mensal por reservatório)
+ *  - Aba "Análise de Garantia" (permanência + garantia acumulada, fiel ao Streamlit)
+ *  - Card "Meses Abastecidos" por reservatório
+ *  - Preset: modo de operação travado + "(modo)" removido do label
+ *  - Modo Individual: campo Gatilho oculto
+ *  - Exportação Excel (SheetJS)
+ */
 
 import React, { useState, useEffect, useMemo } from 'react'
 import {
@@ -365,7 +375,7 @@ function ResSel({ resultados, sel, onChange }) {
   if (resultados.length <= 1) return null
   return (
     <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
-      <button onClick={()=>onChange('todos')} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel==='todos'?'var(--orange)':'var(--border)'}`,background:sel==='todos'?'var(--orange-pale)':'none',color:sel==='todos'?'var(--orange-deep)':'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>Sistema</button>
+      <button onClick={()=>onChange('todos')} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel==='todos'?'var(--orange)':'var(--border)'}`,background:sel==='todos'?'var(--orange-pale)':'none',color:sel==='todos'?'var(--orange-deep)':'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>Sobrepostos</button>
       {resultados.map((r,i)=>(
         <button key={i} onClick={()=>onChange(i)} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel===i?COLORS[i%4].stroke:'var(--border)'}`,background:sel===i?'rgba('+hexToRgb(COLORS[i%4].stroke)+',0.1)':'none',color:sel===i?COLORS[i%4].stroke:'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>{r.reservatorio}</button>
       ))}
@@ -439,18 +449,18 @@ function Charts({ resultados, params, modo }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {/* Volume em % */}
-      <ChartCard title="Volume Armazenado (%)">
+      <ChartCard title="Volume Armazenado (%)" subtitle="Volume final como % da capacidade máxima + Afluência">
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
             <AreaChart data={volData} margin={{top:4,right:28,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
               <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'Afluência(hm³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
-              {aflKeys.map((k,i)=><Line key={k} yAxisId="afl" type="monotone" dataKey={k} stroke={COLORS[(i+2)%4].stroke} strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>)}
+              {aflKeys.map((k,i)=><Line key={k} yAxisId="afl" type="monotone" dataKey={k} stroke={COLORS[(i+2)%4].stroke} strokeWidth={1.5} dot={false} strokeDasharray={"4 2"}/>)}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -462,12 +472,12 @@ function Charts({ resultados, params, modo }) {
         <div style={{ height:200 }}>
           <ResponsiveContainer>
             <LineChart data={demData} margin={{top:4,right:20,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {activeRes(selDem).map((r,i)=>{const gi=resultados.indexOf(r);return[
-                <Line key={`s${gi}`} type="monotone" dataKey={`Sol.(${r.reservatorio})`} stroke={COLORS[gi%4].stroke} strokeWidth={2} strokeDasharray="5 3" dot={false}/>,
+                <Line key={`s${gi}`} type="monotone" dataKey={`Sol.(${r.reservatorio})`} stroke={COLORS[gi%4].stroke} strokeWidth={2} strokeDasharray={"5 3"} dot={false}/>,
                 <Line key={`a${gi}`} type="monotone" dataKey={`At.(${r.reservatorio})`}  stroke={COLORS[gi%4].stroke} strokeWidth={2} dot={false}/>,
               ]})}
             </LineChart>
@@ -477,12 +487,12 @@ function Charts({ resultados, params, modo }) {
 
       {/* Racionamento */}
       {racKeys.length>0 && (
-        <ChartCard title="Racionamento Mensal" subtitle="Redução (%)">
+        <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — corte aplicado (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
               <BarChart data={racData} margin={{top:4,right:20,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -499,7 +509,7 @@ function Charts({ resultados, params, modo }) {
         <div style={{ height:185 }}>
           <ResponsiveContainer>
             <BarChart data={balData} margin={{top:4,right:20,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hm³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -520,7 +530,7 @@ function Charts({ resultados, params, modo }) {
           <div style={{ height:180 }}>
             <ResponsiveContainer>
               <BarChart data={trData} margin={{top:4,right:20,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -607,7 +617,7 @@ function VazoesDetail({ resultados, modo }) {
         <div style={{ height:220 }}>
           <ResponsiveContainer>
             <LineChart data={serieData} margin={{top:4,right:20,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -752,7 +762,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           <div style={{ height:230 }}>
             <ResponsiveContainer>
               <AreaChart data={curvData} margin={{top:4,right:20,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="garantia" type="number" domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'Garantia Acumulada (%)',position:'insideBottom',offset:-2,fill:'var(--text-light)',fontSize:10}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'Vazão (m³/s)',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/>
@@ -834,7 +844,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
                 <thead>
                   <tr style={{ background:'var(--bg)' }}>
-                    {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Total de Meses','Frequência (%)','Garantia (%)'].map(h=>(
+                    {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Meses Responsável','Frequência (%)','Garantia (%)'].map(h=>(
                       <th key={h} style={{ padding:'7px 12px', textAlign:'right', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--text-light)', borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap', '&:first-child':{textAlign:'left'} }}>
                         {h}
                       </th>
@@ -1239,8 +1249,8 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
-  const [mesIni,setMesIni]=useState('OUT'),[anoIni,setAnoIni]=useState(1910)
-  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
+  const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
+  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(1915)
   const [presetSel,setPresetSel]=useState('')
 
   const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
@@ -1251,7 +1261,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0:0,demanda:0,gatilho:0}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.5:0,demanda:0.5,gatilho:30}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
@@ -1261,7 +1271,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const clearPreset=()=>{
     setPresetSel('')
     setModoLocked(false)
-    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:0}]
+    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}]
     setItems(empty)
     onResChange&&onResChange(empty)
     onReset&&onReset()   // limpa resultados ao limpar preset
@@ -1284,7 +1294,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {presets.length>0&&(
         <>
-          <Label icon={Zap}>Hidrossistema</Label>
+          <Label icon={Zap}>Hidrossistema (Preset)</Label>
           <div style={{display:'flex',gap:5}}>
             <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
               <option value="">Configuração manual…</option>
@@ -1293,7 +1303,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
             </FC>
             {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
           </div>
-          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operação: <strong>{modo}</strong></div>}
+          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo travado: <strong>{modo}</strong></div>}
         </>
       )}
 
@@ -1301,7 +1311,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
       {items.map((res,i)=>(
         <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
       ))}
-      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:0}])}
+      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}])}
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-light)';e.currentTarget.style.background='none'}}>
