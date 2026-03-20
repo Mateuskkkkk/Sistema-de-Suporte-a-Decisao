@@ -1239,8 +1239,8 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
-  const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
-  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(1915)
+  const [mesIni,setMesIni]=useState('OUT'),[anoIni,setAnoIni]=useState(1910)
+  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
 
   const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
