@@ -1245,7 +1245,7 @@ function NiveisMeta({ faixas }) {
           return (
             <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:`${cor}22`, color:cor, border:`1.5px solid ${cor}66` }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
-              {f.Faixa}{rac > 0 ? ` — ${rac}% corte` : ' — sem corte'}
+              {f.Faixa}{rac > 0 ? ` — ${rac}% de Racionamento` : ' — Sem Racionamento'}
             </span>
           )
         })}
