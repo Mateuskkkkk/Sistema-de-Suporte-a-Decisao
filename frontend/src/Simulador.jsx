@@ -6,7 +6,7 @@
  *  - Aba "Análise de Garantia" (permanência + garantia acumulada, fiel ao Streamlit)
  *  - Card "Meses Abastecidos" por reservatório
  *  - Preset: modo de operação travado + "(modo)" removido do label
- *  - Modo Individual: campo Gatilho oculto
+ *  - Modo Individual: campo Gatilho oculto 
  *  - Exportação Excel (SheetJS)
  */
 
