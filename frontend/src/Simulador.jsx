@@ -1250,7 +1250,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
   const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
-  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(1915)
+  const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
 
   const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
@@ -1303,7 +1303,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
             </FC>
             {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
           </div>
-          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo travado: <strong>{modo}</strong></div>}
+          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operação: <strong>{modo}</strong></div>}
         </>
       )}
 
