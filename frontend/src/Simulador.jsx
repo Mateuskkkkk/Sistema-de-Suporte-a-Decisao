@@ -1,14 +1,3 @@
-/**
- * SimuladorHidrico.jsx — v2
- * Novidades vs v1:
- *  - Endpoints /api/plano-secas corrigidos (nunca lança 404 em lista vazia)
- *  - Aba "Detalhamento das Vazões" (série mensal por reservatório)
- *  - Aba "Análise de Garantia" (permanência + garantia acumulada, fiel ao Streamlit)
- *  - Card "Meses Abastecidos" por reservatório
- *  - Preset: modo de operação travado + "(modo)" removido do label
- *  - Modo Individual: campo Gatilho oculto 
- *  - Exportação Excel (SheetJS)
- */
 
 import React, { useState, useEffect, useMemo } from 'react'
 import {
@@ -487,7 +476,7 @@ function Charts({ resultados, params, modo }) {
 
       {/* Racionamento */}
       {racKeys.length>0 && (
-        <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — corte aplicado (%)">
+        <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — Racionamento aplicado (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
@@ -1274,7 +1263,7 @@ function NiveisMeta({ faixas }) {
               border:`1.5px solid ${cor}55`,
             }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
-              {f.Faixa}{rac > 0 ? ` — ${rac}% corte` : ' — sem corte'}
+              {f.Faixa}{rac > 0 ? ` — ${rac}% de Racionamento` : ' — Sem Racionamento'}
             </span>
           )
         })}
