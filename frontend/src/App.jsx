@@ -14,8 +14,8 @@ export default function App() {
         position:'sticky', top:0, zIndex:200
       }}>
         {[
-          { id:'simulador',  label:'🌊 Simulador'   },
-          { id:'otimizador', label:'⚙️ Optimizador' },
+          { id:'simulador',  label:'Simulador'   },
+          { id:'otimizador', label:'Otimizador' },
         ].map(p => (
           <button key={p.id} onClick={() => setPagina(p.id)} style={{
             padding:'7px 16px', borderRadius:9, border:'none', cursor:'pointer',
