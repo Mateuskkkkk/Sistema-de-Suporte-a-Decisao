@@ -1,18 +1,3 @@
-/**
- * Otimizador.jsx
- * Página autónoma do Optimizador de Curvas Guia (NSGA-II).
- * Design idêntico ao Simulador.jsx.
- *
- * Props:
- *   apiUrl  — URL base do backend (ex: "http://localhost:8000")
- *
- * Uso:
- *   import Otimizador from './Otimizador'
- *   <Otimizador apiUrl={import.meta.env.VITE_API_URL} />
- *
- * Dependências: react, recharts, lucide-react, xlsx
- */
-
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   AreaChart, Area, ScatterChart, Scatter,
@@ -398,7 +383,7 @@ function ProgressBar({ running, nGen }) {
     <div style={{ marginTop:10 }}>
       <div style={{ display:'flex',justifyContent:'space-between',
         fontSize:10.5,color:'var(--text-light)',marginBottom:4 }}>
-        <span className="ot-pulse">A optimizar curvas guia…</span>
+        <span className="ot-pulse">A otimizar curvas guia…</span>
         <span style={{ fontFamily:'JetBrains Mono' }}>{Math.round(pct)}%</span>
       </div>
       <div style={{ height:6,background:'var(--border)',borderRadius:99,overflow:'hidden' }}>
@@ -498,7 +483,7 @@ export default function Otimizador({ apiUrl, onAplicarCurvas }) {
     resList.filter(r => r.CORPO.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 50),
     [resList, searchQuery])
 
-  // Submeter optimização
+  // Submeter otimização
   const handleRun = async () => {
     if (!cod) return
     setRunning(true); setError(null); setResultado(null)
@@ -559,7 +544,7 @@ export default function Otimizador({ apiUrl, onAplicarCurvas }) {
             <Cpu size={21} color="var(--orange)" strokeWidth={2}/>
             <h2 style={{ fontSize:19, fontWeight:800, color:'var(--text)',
               letterSpacing:'-0.01em', margin:0 }}>
-              Optimizador de Curvas Guia
+              Otimizador de Curvas Guia
             </h2>
           </div>
           <p style={{ fontSize:11.5, color:'var(--text-light)', margin:0 }}>
@@ -735,9 +720,9 @@ export default function Otimizador({ apiUrl, onAplicarCurvas }) {
             onMouseLeave={e=>e.currentTarget.style.transform='none'}>
             {running
               ? <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                  <RefreshCw size={14} className="ot-spin"/> A optimizar…
+                  <RefreshCw size={14} className="ot-spin"/> A otimizar…
                 </span>
-              : '▶ Iniciar Optimização'}
+              : '▶ Iniciar Otimização'}
           </button>
         </Card>
 
@@ -793,11 +778,11 @@ export default function Otimizador({ apiUrl, onAplicarCurvas }) {
               </div>
               <div style={{ textAlign:'center' }}>
                 <div style={{ fontSize:14.5, fontWeight:800, color:'var(--text)', marginBottom:5 }}>
-                  Pronto para optimizar
+                  Pronto para otimizar
                 </div>
                 <div style={{ fontSize:11.5, color:'var(--text-light)', maxWidth:320 }}>
                   Selecione um reservatório, defina o período e a demanda alvo,
-                  e clique em <strong>Iniciar Optimização</strong>.
+                  e clique em <strong>Iniciar Otimização</strong>.
                 </div>
               </div>
             </Card>
@@ -845,7 +830,7 @@ export default function Otimizador({ apiUrl, onAplicarCurvas }) {
                 <Card className="ot-fade" style={{ padding:'16px 18px' }}>
                   <div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>
-                      Curvas Guia Optimizadas — {resultado.reservatorio_nome}
+                      Curvas Guia Otimizadas — {resultado.reservatorio_nome}
                     </div>
                     <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
                       Bandas mensais de volume: verde = seguro · vermelho = crítico
