@@ -1451,7 +1451,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.:0,demanda:0,gatilho:10}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.5:0,demanda:0,gatilho:10}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
