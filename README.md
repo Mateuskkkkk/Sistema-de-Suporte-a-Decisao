@@ -78,4 +78,4 @@ Antes de começar, você precisará ter instalado:
 ---
 
 
-Desenvolvido por: [Mateus]
+Desenvolvido por: Mateus
