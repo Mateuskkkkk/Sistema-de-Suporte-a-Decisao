@@ -1,3 +1,4 @@
+# importações necessárias pra API funcionar
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,12 +10,10 @@ from scipy import interpolate
 from scipy.interpolate import PchipInterpolator
 from typing import List, Dict, Optional
 
-# ── DEAP (algoritmo genético NSGA-II) ────────────────────────────────────────
-from deap import base, creator, tools, algorithms
-import random
-
+# cria a aplicação FastAPI
 app = FastAPI(title="API do Simulador Hidrológico", version="1.0")
 
+# libera acesso de qualquer origem (CORS aberto)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,17 +22,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# caminho do banco de dados SQLite na mesma pasta do script
 DB_PATH = os.path.join(os.path.abspath("."), "banco_site.db")
 
+# dicionário pra converter nome do mês em número (JAN=1, FEV=2, ...)
 ordem_meses = {
     'JAN': 1, 'FEV': 2, 'MAR': 3, 'ABR': 4, 'MAI': 5, 'JUN': 6,
     'JUL': 7, 'AGO': 8, 'SET': 9, 'OUT': 10, 'NOV': 11, 'DEZ': 12
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODELOS DE DADOS
-# ─────────────────────────────────────────────────────────────────────────────
 
+# modelo de dados de um reservatório individual
 class Reservatorio(BaseModel):
     nome: str
     cod: str
@@ -43,6 +42,7 @@ class Reservatorio(BaseModel):
     demanda: float
     gatilho: float
 
+# modelo de dados que o front manda pra iniciar uma simulação
 class SimulacaoRequest(BaseModel):
     reservatorios: List[Reservatorio]
     modo: str
@@ -52,20 +52,9 @@ class SimulacaoRequest(BaseModel):
     mes_final: str
     ano_final: int
 
-class OtimizacaoRequest(BaseModel):
-    """Parâmetros para o optimizador NSGA-II de curvas guia."""
-    cod: str
-    ano_inicial: int
-    ano_final: int
-    demanda_alvo: float           # m³/s
-    vol_inicial_pct: float = 50.0 # % da capacidade para iniciar
-    n_gen: int = 80               # número de gerações
-    pop_size: int = 200           # tamanho da população (múltiplo de 4)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# FUNÇÕES MATEMÁTICAS ORIGINAIS
-# ─────────────────────────────────────────────────────────────────────────────
-
+# retorna o coeficiente de evaporação (Kp) de acordo com o tamanho da área do açude
+# quanto maior o açude, menor o Kp (mais perde pra evaporação)
 def obter_k_dinamico(area_km2):
     ha = area_km2 * 100.0
     if ha <= 5:    return 0.90
@@ -74,12 +63,16 @@ def obter_k_dinamico(area_km2):
     elif ha <= 50: return 0.75
     else:          return 0.70
 
+
+# função principal que roda a simulação mês a mês pra todos os reservatórios
+# recebe os dataframes com as vazões, os parâmetros de cada açude, o modo de operação
+# (Série, Paralelo ou Individual) e a vazão conjunta do sistema
 def simular_sistema_n(dfs, params, modo, vazao_conjunta):
-    """Motor original de simulação Pandas — mantido sem alterações."""
     n_res    = len(dfs)
     n_meses  = len(dfs[0])
-    segundos_mes = 2.592e6
+    segundos_mes = 2.592e6  # quantos segundos tem num mês médio (30 dias)
 
+    # inicializa todas as colunas de resultado com zero
     colunas_init = [
         'Armazenamento Inicial', 'Armazenamento Final',
         'Demanda Solicitada (m³/s)', 'Demanda Atendida (m³/s)',
@@ -93,20 +86,24 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         df['Falha']        = 'Não'
         df['Modo Operação'] = 'Normal'
 
+    # começa com o volume inicial de cada reservatório
     volumes_atueis = [p['vol_ini'] for p in params]
 
+    # loop mês a mês
     for t in range(n_meses):
         demandas_iniciais        = []
         racionamentos            = []
         nomes_faixas_atuais      = []
         prev_volumes_pos_natureza = []
 
+        # processa cada reservatório no mês atual
         for i in range(n_res):
             p       = params[i]
             vol_ini = volumes_atueis[i]
-            pct_vol = (vol_ini / p['capacidade']) * 100
+            pct_vol = (vol_ini / p['capacidade']) * 100  # volume atual em % da capacidade
             mes_atual = dfs[i].loc[t, 'Mês']
 
+            # verifica se tem racionamento ativo baseado no plano de secas
             rac        = 0.0
             nome_faixa = "Normal"
             if p['regras_secas']:
@@ -123,28 +120,36 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
+            # calcula evaporação usando a área do espelho d'água e o Kp dinâmico
             area          = p['func_area'](vol_ini)
             kp_dinamico   = obter_k_dinamico(area)
             evap_tanque_mm = dfs[i].loc[t, 'Evaporação (m)']
             evap_hm3      = (evap_tanque_mm * kp_dinamico * area) / 1000.0
+
+            # converte vazão de m³/s pra hm³/mês
             afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
 
             dfs[i].loc[t, 'Evaporação (hm³)']    = evap_hm3
             dfs[i].loc[t, 'Afluências (hm³/mês)'] = afluencia_hm3
 
+            # volume depois de considerar a chuva (afluência) e a evaporação, nunca negativo
             vol_pos_natureza = max(0.0, vol_ini + afluencia_hm3 - evap_hm3)
             prev_volumes_pos_natureza.append(vol_pos_natureza)
 
+        # soma o volume disponível em todos os açudes do sistema
         total_vol_disponivel = sum(prev_volumes_pos_natureza)
 
+        # calcula a demanda conjunta considerando racionamento do primeiro açude
         rac_inicial_conjunta      = racionamentos[0] if racionamentos else 0.0
         demanda_conjunta_estimada = vazao_conjunta * (1 - rac_inicial_conjunta / 100.0) * (segundos_mes / 1e6)
 
+        # soma a demanda de todos os reservatórios com o racionamento aplicado
         total_demanda_necessaria = demanda_conjunta_estimada
         for i in range(n_res):
             dem_esp_hm3 = params[i]['demanda_nominal'] * (1 - racionamentos[i] / 100.0) * (segundos_mes / 1e6)
             total_demanda_necessaria += dem_esp_hm3
 
+        # verifica se o sistema entrou em falha (não tem água suficiente pra nada)
         sistema_em_falha = False
         if modo == "Paralelo" and total_vol_disponivel < total_demanda_necessaria:
             sistema_em_falha = True
@@ -156,14 +161,18 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         transferencias_registradas = [0.0] * n_res
         transferencias_enviadas    = [0.0] * n_res
 
+        # só calcula demanda e transferências se não tiver em falha geral
         if not sistema_em_falha:
             responsabilidade_especifica = [p['demanda_nominal'] for p in params]
 
             if modo == "Paralelo":
+                # no modo paralelo, a vazão conjunta começa toda no primeiro açude
                 alocacao_conjunta_bruta = [0.0] * n_res
                 if n_res > 0:
                     alocacao_conjunta_bruta[0] = vazao_conjunta
 
+                # tenta passar a responsabilidade da vazão conjunta pro próximo açude
+                # se o atual estiver abaixo do gatilho e o próximo tiver água suficiente
                 for i in range(n_res - 1):
                     p = params[i]
                     vol_gatilho          = p['capacidade'] * (p['gatilho'] / 100)
@@ -178,16 +187,19 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                             alocacao_conjunta_bruta[i]     = 0.0
                             alocacao_conjunta_bruta[i+1]  += carga_para_mover_bruta
 
+                # calcula demanda final de cada açude com racionamento aplicado
                 for k in range(n_res):
                     dem_esp  = responsabilidade_especifica[k] * (1 - racionamentos[k] / 100.0)
                     dem_conj = alocacao_conjunta_bruta[k]     * (1 - racionamentos[k] / 100.0)
                     demandas_finais[k] = dem_esp + dem_conj
 
+                # demanda bruta solicitada (sem racionamento, só pra registro)
                 demandas_solicitadas_paralelo = [
                     responsabilidade_especifica[k] + alocacao_conjunta_bruta[k]
                     for k in range(n_res)
                 ]
 
+                # registra transferências entre açudes quando a carga conjunta mudou de dono
                 for k in range(1, n_res):
                     if alocacao_conjunta_bruta[k] > 0:
                         val = alocacao_conjunta_bruta[k] * (1 - racionamentos[k] / 100.0)
@@ -195,10 +207,12 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         transferencias_enviadas[k - 1]  = val
 
             elif modo == "Série":
+                # no modo série, o primeiro açude recebe a vazão conjunta
                 for k in range(n_res):
                     base_demand = demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0)
                     demandas_finais[k] = base_demand * (1 - racionamentos[k] / 100.0)
 
+                # transferência em série: o açude seguinte ajuda o anterior se ele estiver seco
                 for i in range(1, n_res):
                     idx_sender   = i
                     idx_receiver = i - 1
@@ -209,6 +223,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         disponivel_sender  = prev_volumes_pos_natureza[idx_sender]
                         qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
 
+                        # atualiza os volumes com a transferência
                         prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
                         prev_volumes_pos_natureza[idx_sender]   -= qtd_transferir_hm3
 
@@ -216,9 +231,11 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         transferencias_registradas[idx_receiver] += fluxo_transf
                         transferencias_enviadas[idx_sender]       += fluxo_transf
             else:
+                # modo individual: cada açude atende só sua própria demanda
                 for k in range(n_res):
                     demandas_finais[k] = demandas_iniciais[k] * (1 - racionamentos[k] / 100.0)
         else:
+            # em caso de falha sistêmica, calcula o que daria pra atender de qualquer forma
             for k in range(n_res):
                 base = demandas_iniciais[k] + (vazao_conjunta if modo == "Paralelo" and k == 0 else 0)
                 demandas_finais[k] = base * (1 - racionamentos[k] / 100.0)
@@ -228,12 +245,14 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                     for k in range(n_res)
                 ]
 
+        # grava os resultados de cada açude no dataframe e calcula o volume final do mês
         for i in range(n_res):
             p   = params[i]
             df  = dfs[i]
             vol_ini     = volumes_atueis[i]
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
+            # registra demandas e transferências conforme o modo de operação
             if modo == "Paralelo":
                 df.loc[t, 'Demanda Solicitada (m³/s)']     = demandas_solicitadas_paralelo[i]
                 df.loc[t, 'Transferência Recebida (m³/s)'] = 0.0
@@ -248,9 +267,11 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             if not sistema_em_falha:
                 df.loc[t, 'Modo Operação'] = nomes_faixas_atuais[i]
 
+            # volume disponível pra retirada nesse mês
             vol_disp = (prev_volumes_pos_natureza[i] if modo == "Série"
                         else vol_ini + dfs[i].loc[t, 'Afluências (hm³/mês)'] - dfs[i].loc[t, 'Evaporação (hm³)'])
 
+            # calcula quanto da demanda realmente foi atendida (pode ser menos se faltar água)
             if sistema_em_falha:
                 demanda_atendida_real_hm3 = max(0, min(vol_disp, demanda_hm3))
             else:
@@ -262,6 +283,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
             df.loc[t, 'Demanda Atendida (m³/s)'] = demanda_atendida_real_hm3 * (1e6 / segundos_mes)
 
+            # calcula volume final e verifica se transbordou (vertimento)
             vol_final  = vol_disp - demanda_atendida_real_hm3
             vertimento = 0.0
             if vol_final > p['capacidade']:
@@ -271,123 +293,12 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
             df.loc[t, 'Vertimento (hm³)']   = vertimento
             df.loc[t, 'Armazenamento Final'] = vol_final
-            volumes_atueis[i]                = vol_final
+            volumes_atueis[i]                = vol_final  # atualiza pra usar no próximo mês
 
     return dfs
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SIMULADOR NUMPY — usado exclusivamente dentro do DEAP (zero Pandas no loop)
-# ─────────────────────────────────────────────────────────────────────────────
 
-def simular_numpy(individuo, vazoes_np, evap_np, areas_np, kp_np,
-                  capacidade_hm3, vol_inicial_hm3, demanda_alvo_hm3):
-    """
-    Balanço hídrico mês-a-mês em NumPy puro para a função de fitness do DEAP.
-
-    Cromossomo (48 genes):
-        [0:12]  → Normal      (% cap)
-        [12:24] → Atenção     (% cap)
-        [24:36] → Seca        (% cap)
-        [36:48] → Seca Severa (% cap)
-
-    Factores de liberação:
-        Vol ≥ Normal      → 100%
-        Normal > Vol ≥ Atenção  → 80%
-        Atenção > Vol ≥ Seca    → 60%
-        Seca > Vol ≥ Seca Sev.  → 30%
-        Vol < Seca Severa       → 10%
-
-    Retorna (F1, F2):
-        F1 = Σ (demanda_alvo − liberado)²
-        F2 = Σ vertimento
-    """
-    ind = individuo   # lista de 48 floats
-
-    n_meses = len(vazoes_np)
-    vol     = vol_inicial_hm3
-    f1      = 0.0
-    f2      = 0.0
-
-    FATORES = (1.0, 0.80, 0.60, 0.30, 0.10)
-
-    for t in range(n_meses):
-        m = t % 12   # índice do mês (0 = JAN)
-
-        # Evaporação
-        area = float(np.interp(vol, areas_np[0], areas_np[1]))
-        evap = (evap_np[t] * kp_np[t] * area) / 1000.0   # hm³
-        vol_pos = max(0.0, vol + vazoes_np[t] - evap)
-
-        # Nível da curva guia pelo volume actual em %
-        pct = (vol_pos / capacidade_hm3) * 100.0 if capacidade_hm3 > 0 else 0.0
-
-        if   pct >= ind[m]:       fator = FATORES[0]
-        elif pct >= ind[12 + m]:  fator = FATORES[1]
-        elif pct >= ind[24 + m]:  fator = FATORES[2]
-        elif pct >= ind[36 + m]:  fator = FATORES[3]
-        else:                     fator = FATORES[4]
-
-        liberado = min(vol_pos, demanda_alvo_hm3 * fator)
-        deficit  = demanda_alvo_hm3 - liberado
-        f1      += deficit * deficit
-
-        vol_pos -= liberado
-        if vol_pos > capacidade_hm3:
-            f2     += vol_pos - capacidade_hm3
-            vol_pos = capacidade_hm3
-
-        vol = max(0.0, vol_pos)
-
-    return f1, f2
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FUNÇÃO REPAIR — garante Normal ≥ Atenção ≥ Seca ≥ Seca Severa por mês
-# ─────────────────────────────────────────────────────────────────────────────
-
-def repair(individuo):
-    """Ordena decrescentemente os 4 limites de cada mês."""
-    for m in range(12):
-        vals = sorted(
-            [individuo[m], individuo[12+m], individuo[24+m], individuo[36+m]],
-            reverse=True
-        )
-        individuo[m]      = vals[0]
-        individuo[12 + m] = vals[1]
-        individuo[24 + m] = vals[2]
-        individuo[36 + m] = vals[3]
-    return individuo
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SETUP DEAP — executado uma vez no arranque do servidor
-# ─────────────────────────────────────────────────────────────────────────────
-
-if not hasattr(creator, "FitnessMulti"):
-    creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0))
-if not hasattr(creator, "Individual"):
-    creator.create("Individual", list, fitness=creator.FitnessMulti)
-
-_toolbox = base.Toolbox()
-
-def _criar_individuo():
-    ind = [random.uniform(0.0, 100.0) for _ in range(48)]
-    repair(ind)
-    return creator.Individual(ind)
-
-_toolbox.register("individual", _criar_individuo)
-_toolbox.register("population", tools.initRepeat, list, _toolbox.individual)
-_toolbox.register("select",     tools.selNSGA2)
-_toolbox.register("mate",       tools.cxSimulatedBinaryBounded,
-                  low=0.0, up=100.0, eta=20.0)
-_toolbox.register("mutate",     tools.mutPolynomialBounded,
-                  low=0.0, up=100.0, eta=20.0, indpb=1.0 / 48.0)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ROTAS ORIGINAIS — mantidas sem alterações
-# ─────────────────────────────────────────────────────────────────────────────
-
+# rota que retorna a lista de todos os reservatórios cadastrados no banco
 @app.get("/api/reservatorios")
 def listar_reservatorios():
     if not os.path.exists(DB_PATH):
@@ -396,11 +307,13 @@ def listar_reservatorios():
     df = pd.read_sql_query(
         "SELECT CORPO, COD, [CAPAC (m³)], [Est. Evap.] FROM acudes", conexao)
     conexao.close()
+    # converte capacidade de m³ pra hm³
     df['CAPAC (m³)'] = df['CAPAC (m³)'] / 1e6
     df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
 
 
+# rota que retorna os hidrossistemas pré-configurados (presets de simulação)
 @app.get("/api/presets")
 def listar_presets():
     conexao = sqlite3.connect(DB_PATH)
@@ -408,6 +321,7 @@ def listar_presets():
         df_hidro = pd.read_sql_query("SELECT * FROM hidrossistemas", conexao)
         presets  = []
         for nome_sis, group in df_hidro.groupby('hidrossistema'):
+            # detecta o modo de operação pelo texto salvo no banco
             modo = group['operação'].iloc[0]
             modo_operacao = ("Série"    if 'ser'   in str(modo).lower() else
                              "Paralelo" if 'paral' in str(modo).lower() else
@@ -422,17 +336,20 @@ def listar_presets():
         conexao.close()
 
 
+# rota principal que executa a simulação e devolve os resultados mês a mês
 @app.post("/api/simular")
 def processar_simulacao_api(req: SimulacaoRequest):
     conexao          = sqlite3.connect(DB_PATH)
     lista_dfs_input  = []
     lista_params     = []
 
+    # carrega tabelas auxiliares uma vez só
     df_evap  = pd.read_sql_query("SELECT * FROM evaporacao", conexao)
     df_cav   = pd.read_sql_query("SELECT * FROM cav", conexao)
     df_plano = pd.read_sql_query("SELECT * FROM plano_secas", conexao)
 
     for res in req.reservatorios:
+        # busca as vazões históricas do reservatório
         df_vazoes = pd.read_sql_query(
             "SELECT * FROM vazoes WHERE nome_reservatorio = ?",
             conexao, params=(res.nome,))
@@ -442,6 +359,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
             raise HTTPException(status_code=404,
                                 detail=f"Vazões não encontradas para {res.nome}")
 
+        # monta coluna de data pra filtrar pelo período solicitado
         df_vazoes['Ordem_Mês'] = df_vazoes['Mês'].map(ordem_meses)
         df_vazoes['Data'] = pd.to_datetime(
             df_vazoes['Ano'].astype(str) + '-' +
@@ -451,22 +369,26 @@ def processar_simulacao_api(req: SimulacaoRequest):
         d_ini  = pd.to_datetime(f"{req.ano_inicial}-{mi}-01")
         d_fim  = pd.to_datetime(f"{req.ano_final}-{mf}-01") + pd.offsets.MonthEnd(0)
 
+        # filtra só o período pedido e ordena por data
         df_long = (df_vazoes[(df_vazoes['Data'] >= d_ini) & (df_vazoes['Data'] <= d_fim)]
                    .sort_values('Data').reset_index(drop=True))
 
+        # adiciona a evaporação mensal correspondente a cada linha
         evap_row = df_evap[df_evap["COD"] == str(res.est_evap).replace('.0', '')]
         df_long["Evaporação (m)"] = (
             df_long["Mês"].map(evap_row.iloc[0][list(ordem_meses.keys())])
             if not evap_row.empty else 0.0)
 
+        # monta função de interpolação volume → área usando a curva cota-área-volume (CAV)
         cav_res = df_cav[df_cav["COD"] == str(res.cod)]
         if len(cav_res) < 2:
-            func_interp = lambda v: 0.0
+            func_interp = lambda v: 0.0  # sem dados suficientes, retorna área zero
         else:
             x_vol  = cav_res["VOLUME (m³)"].values / 1e6
             y_area = cav_res["AREA (km²)"].values
             func_interp = interpolate.interp1d(x_vol, y_area, fill_value="extrapolate")
 
+        # monta as regras de racionamento do plano de secas por mês
         plano_res  = df_plano[df_plano['COD'].astype(str) == str(res.cod)]
         regras_mes = {}
         if not plano_res.empty:
@@ -488,9 +410,11 @@ def processar_simulacao_api(req: SimulacaoRequest):
 
     conexao.close()
 
+    # roda a simulação com todos os reservatórios
     dfs_resultados = simular_sistema_n(lista_dfs_input, lista_params,
                                        req.modo, req.vazao_conjunta)
 
+    # formata os resultados e devolve como JSON
     resultados_json = []
     for i, df in enumerate(dfs_resultados):
         df_limpo = df.replace({np.nan: None})
@@ -503,6 +427,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
     return {"status": "sucesso", "resultados": resultados_json}
 
 
+# rota que retorna o plano de secas (faixas de racionamento) de um açude específico
 @app.get("/api/plano-secas/{cod_acude}")
 def obter_plano_secas(cod_acude: str):
     try:
@@ -512,182 +437,9 @@ def obter_plano_secas(cod_acude: str):
             conexao, params=(cod_acude,))
         conexao.close()
         df = df.replace({np.nan: None})
+        # renomeia a coluna pra simplificar o nome no JSON de resposta
         if "Racionamento (%)" in df.columns:
             df.rename(columns={"Racionamento (%)": "Racionamento"}, inplace=True)
         return df.to_dict(orient="records")
     except Exception:
         return []
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NOVA ROTA — /api/otimizar-curvas  (NSGA-II)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@app.post("/api/otimizar-curvas")
-def otimizar_curvas(req: OtimizacaoRequest):
-    """
-    Optimiza as 4 curvas guia mensais (Normal, Atenção, Seca, Seca Severa)
-    usando NSGA-II (DEAP).
-
-    Fluxo:
-      1. Carrega dados do SQLite UMA vez → converte para NumPy.
-      2. Função de fitness chama simular_numpy (zero Pandas).
-      3. NSGA-II corre por n_gen gerações com pop_size indivíduos.
-      4. Extrai a Fronteira de Pareto e devolve o indivíduo com menor F1.
-    """
-    if not os.path.exists(DB_PATH):
-        raise HTTPException(status_code=500, detail="Base de dados não encontrada.")
-
-    SEGUNDOS_MES = 2.592e6
-
-    # ── 1. Carregar dados (única vez) ─────────────────────────────────────────
-    conexao = sqlite3.connect(DB_PATH)
-    try:
-        # Reservatório
-        df_acude = pd.read_sql_query(
-            "SELECT CORPO, [CAPAC (m³)], [Est. Evap.] FROM acudes WHERE COD = ?",
-            conexao, params=(req.cod,))
-        if df_acude.empty:
-            raise HTTPException(status_code=404,
-                                detail=f"Reservatório {req.cod} não encontrado.")
-
-        capacidade_m3  = float(df_acude.iloc[0]['CAPAC (m³)'])
-        capacidade_hm3 = capacidade_m3 / 1e6
-        cod_evap       = str(df_acude.iloc[0]['Est. Evap.']).replace('.0', '').strip()
-        nome_res       = df_acude.iloc[0]['CORPO']
-
-        # Vazões
-        df_vaz = pd.read_sql_query(
-            "SELECT * FROM vazoes WHERE nome_reservatorio = ?",
-            conexao, params=(nome_res,))
-        if df_vaz.empty:
-            raise HTTPException(status_code=404,
-                                detail=f"Vazões não encontradas para {nome_res}.")
-
-        df_vaz['Ordem_Mês'] = df_vaz['Mês'].map(ordem_meses)
-        df_vaz['Data'] = pd.to_datetime(
-            df_vaz['Ano'].astype(str) + '-' +
-            df_vaz['Ordem_Mês'].astype(str) + '-01')
-
-        d_ini  = pd.to_datetime(f"{req.ano_inicial}-01-01")
-        d_fim  = pd.to_datetime(f"{req.ano_final}-12-01") + pd.offsets.MonthEnd(0)
-        df_vaz = (df_vaz[(df_vaz['Data'] >= d_ini) & (df_vaz['Data'] <= d_fim)]
-                  .sort_values('Data').reset_index(drop=True))
-
-        if df_vaz.empty:
-            raise HTTPException(status_code=404,
-                                detail="Nenhuma vazão no período solicitado.")
-
-        # Arrays NumPy da série histórica
-        vazoes_np  = df_vaz['Vazão (m³/s)'].values.astype(float) * SEGUNDOS_MES / 1e6
-        mes_idx_np = df_vaz['Ordem_Mês'].values.astype(int) - 1   # 0-based
-
-        # Evaporação mensal (metros) → array por passo de tempo
-        df_evap  = pd.read_sql_query("SELECT * FROM evaporacao", conexao)
-        evap_row = df_evap[df_evap["COD"] == cod_evap]
-        evap_mensal_m = (evap_row.iloc[0][list(ordem_meses.keys())].values.astype(float)
-                         if not evap_row.empty else np.zeros(12))
-        evap_np = evap_mensal_m[mes_idx_np]
-
-        # CAV → arrays de interpolação (volume hm³, área km²)
-        df_cav  = pd.read_sql_query("SELECT * FROM cav", conexao)
-        cav_res = df_cav[df_cav["COD"] == str(req.cod)]
-        if len(cav_res) >= 2:
-            cav_sorted = cav_res.sort_values("VOLUME (m³)")
-            x_vol_hm3  = cav_sorted["VOLUME (m³)"].values.astype(float) / 1e6
-            y_area_km2 = cav_sorted["AREA (km²)"].values.astype(float)
-        else:
-            x_vol_hm3  = np.array([0.0, capacidade_hm3])
-            y_area_km2 = np.array([0.0, max(1.0, capacidade_hm3 * 0.5)])
-
-        areas_np = np.array([x_vol_hm3, y_area_km2])   # shape (2, M)
-
-        # Kp pré-calculado: volume médio como referência para cada mês
-        area_media   = float(np.interp(capacidade_hm3 * 0.5, areas_np[0], areas_np[1]))
-        kp_fixo      = obter_k_dinamico(area_media)
-        kp_np        = np.full(len(vazoes_np), kp_fixo)   # constante por simplicidade
-
-    finally:
-        conexao.close()
-
-    # ── 2. Parâmetros derivados ───────────────────────────────────────────────
-    vol_inicial_hm3  = capacidade_hm3 * (req.vol_inicial_pct / 100.0)
-    demanda_alvo_hm3 = req.demanda_alvo * SEGUNDOS_MES / 1e6
-    pop_size         = max(40, (req.pop_size // 4) * 4)   # múltiplo de 4
-
-    # ── 3. Função de avaliação (closure sobre arrays NumPy) ───────────────────
-    def evaluate(individuo):
-        return simular_numpy(
-            individuo,
-            vazoes_np, evap_np, areas_np, kp_np,
-            capacidade_hm3, vol_inicial_hm3, demanda_alvo_hm3
-        )
-
-    _toolbox.register("evaluate", evaluate)
-
-    # ── 4. Executar NSGA-II ───────────────────────────────────────────────────
-    random.seed(42)
-    pop = _toolbox.population(n=pop_size)
-
-    # Avaliação inicial
-    for ind, fit in zip(pop, map(_toolbox.evaluate, pop)):
-        ind.fitness.values = fit
-
-    for gen in range(req.n_gen):
-        # Selecção de pais (torneio binário com crowding distance)
-        offspring = tools.selTournamentDCD(pop, len(pop))
-        offspring = [_toolbox.clone(ind) for ind in offspring]
-
-        # Cruzamento SBX (prob. 90%)
-        for c1, c2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() < 0.9:
-                _toolbox.mate(c1, c2)
-                repair(c1); repair(c2)
-                del c1.fitness.values
-                del c2.fitness.values
-
-        # Mutação polinomial (prob. 10% por indivíduo)
-        for mut in offspring:
-            if random.random() < 0.1:
-                _toolbox.mutate(mut)
-                repair(mut)
-                del mut.fitness.values
-
-        # Reavaliação dos indivíduos modificados
-        invalidos = [ind for ind in offspring if not ind.fitness.valid]
-        for ind, fit in zip(invalidos, map(_toolbox.evaluate, invalidos)):
-            ind.fitness.values = fit
-
-        # Próxima geração via NSGA-II
-        pop = _toolbox.select(pop + offspring, pop_size)
-
-    # ── 5. Fronteira de Pareto → melhor F1 ───────────────────────────────────
-    pareto = tools.sortNondominated(pop, len(pop), first_front_only=True)[0]
-    melhor = min(pareto, key=lambda ind: ind.fitness.values[0])
-    repair(melhor)
-
-    ind = list(melhor)
-
-    # ── 6. Resposta ───────────────────────────────────────────────────────────
-    return {
-        "status":            "sucesso",
-        "reservatorio_cod":  req.cod,
-        "reservatorio_nome": nome_res,
-        "demanda_alvo":      req.demanda_alvo,
-        "periodo": {
-            "ano_inicial": req.ano_inicial,
-            "ano_final":   req.ano_final,
-            "n_meses":     int(len(vazoes_np))
-        },
-        "fitness_vencedor": {
-            "f1_deficit_quadratico": round(melhor.fitness.values[0], 4),
-            "f2_vertimento_hm3":     round(melhor.fitness.values[1], 4)
-        },
-        "n_solucoes_pareto": len(pareto),
-        "curvas_guia_percentual": {
-            "normal":      [round(v, 2) for v in ind[0:12]],
-            "atencao":     [round(v, 2) for v in ind[12:24]],
-            "seca":        [round(v, 2) for v in ind[24:36]],
-            "seca_severa": [round(v, 2) for v in ind[36:48]]
-        }
-    }
