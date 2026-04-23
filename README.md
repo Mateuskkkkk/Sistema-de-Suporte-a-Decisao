@@ -1,67 +1,82 @@
-# Sistema-de-Suporte-a-Decisao
-🌊 Simulador de Balanço Hídrico
-Este projeto é um Sistema de Suporte à Decisão (SSD) para simulação de balanço hídrico de reservatórios, permitindo análises em modos Individual, Série e Paralelo.
 
-🛠️ Pré-requisitos
-Antes de começar, você precisará ter instalado em sua máquina:
+# 🌊 Simulador de Balanço Hídrico - SSD
 
-Node.js (versão 18 ou superior)
+Este é um **Sistema de Suporte à Decisão (SSD)** desenvolvido para a simulação e análise do balanço hídrico de reservatórios. O sistema permite modelar operações em níveis individuais ou integrados (Série e Paralelo), sendo uma ferramenta essencial para o planejamento de recursos hídricos.
 
-Python (versão 3.9 ou superior)
+---
 
-📁 Estrutura do Projeto
-O repositório está dividido em duas partes principais:
+## 🚀 Como Executar o Projeto
 
-/frontend: Interface em React.
+O projeto é dividido em duas partes: **Backend** (API em Python) e **Frontend** (Interface em React).
 
-/backend: API em FastAPI.
+### 📋 Pré-requisitos
 
-🚀 Como Rodar o Back-end (API)
-Navegue até a pasta do servidor:
+Antes de começar, você precisará ter instalado:
+* [Python 3.9+](https://www.python.org/)
+* [Node.js 18+](https://nodejs.org/)
 
-Bash
-cd backend
-(Opcional) Crie um ambiente virtual:
+---
 
-Bash
-python -m venv venv
-# No Windows:
-.\venv\Scripts\activate
-# No Linux/Mac:
-source venv/bin/activate
-Instale as dependências:
+## ⚙️ Configuração do Back-end (API)
 
-Bash
-pip install fastapi uvicorn pandas numpy scipy pydantic
-Banco de Dados: Certifique-se de que o arquivo banco_site.db está na raiz da pasta backend.
+1. **Acesse a pasta do servidor:**
+   ```bash
+   cd backend
 
-Inicie o servidor:
+2. **Instale as dependências necessárias:**
+   ```bash
+   pip install fastapi uvicorn pandas numpy scipy pydantic
+   ```
 
-Bash
-uvicorn main:app --reload
-A API estará disponível em: http://localhost:8000
+3. **Banco de Dados:**
+   Certifique-se de que o arquivo `banco_site.db` está localizado na raiz da pasta `backend`. Sem ele, a API não conseguirá consultar os dados dos açudes.
 
-💻 Como Rodar o Front-end (Interface)
-Navegue até a pasta do frontend:
+4. **Inicie o servidor:**
+   ```bash
+   uvicorn main:app --reload
+   ```
+   *A API estará rodando em: `http://localhost:8000`*
 
-Bash
-cd frontend
-Instale as dependências do projeto:
+---
 
-Bash
-npm install
-Configuração de Ambiente:
+## 💻 Configuração do Front-end (Interface)
 
-Localize o arquivo .env.example.
+1. **Acesse a pasta do cliente:**
+   ```bash
+   cd frontend
+   ```
 
-Crie uma cópia e renomeie para .env.
+2. **Instale as dependências do Node:**
+   ```bash
+   npm install
+   ```
 
-Certifique-se de que a variável VITE_API_URL aponta para a sua API local:
+3. **Variáveis de Ambiente:**
+   * Localize o arquivo `.env.example` na raiz do frontend.
+   * Crie uma cópia dele e renomeie para `.env`.
+   * Verifique se o conteúdo aponta para a sua API local:
+     ```env
+     VITE_API_URL=http://localhost:8000
+     ```
 
-Plaintext
-VITE_API_URL=http://localhost:8000
-Inicie o modo de desenvolvimento:
+4. **Inicie a aplicação:**
+   ```bash
+   npm run dev
+   ```
+   *Abra o navegador no endereço indicado (geralmente `http://localhost:5173`)*
 
-Bash
-npm run dev
-Acesse no navegador através da URL indicada no terminal (geralmente http://localhost:5173)
+---
+
+## 📊 Funcionalidades Principais
+
+* **Modos de Operação:** Suporte para simulação Individual, em Série (transferência física) e Paralelo (vazão conjunta).
+* **Níveis Meta:** Definição personalizada de faixas de volume (Normal, Alerta, Seca, etc.) e regras de racionamento.
+* **Análise de Garantia:** Geração automática de Curvas de Permanência e estatísticas de atendimento de demanda.
+* **Balanço Detalhado:** Cálculos mensais de evaporação (baseados em curvas cota-área-volume), afluência e vertimento.
+* **Exportação de Dados:** Gere relatórios completos em formato **Excel (.xlsx)** ou **JSON**.
+
+---
+
+
+Desenvolvido por: [Mateus]
+```
