@@ -13,12 +13,13 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
-
+// nomes dos meses abreviados, usados em vários lugares do app
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+
+// lista de anos disponíveis pra seleção: de 1911 até 2020
 const ANOS  = Array.from({ length: 110 }, (_, i) => 1911 + i)
+
+// paleta de cores usada nos gráficos quando tem mais de um reservatório
 const COLORS = [
   { stroke: '#264fa3', fill: '#264fa3', fillOp: 0.15 },
   { stroke: '#e07b2a', fill: '#e07b2a', fillOp: 0.15 },
@@ -26,6 +27,8 @@ const COLORS = [
   { stroke: '#9b2dca', fill: '#9b2dca', fillOp: 0.15 },
 ]
 
+// CSS global injetado no componente — define as variáveis de cor, fontes,
+// animações e os estilos das classes reutilizáveis (.sim-tab, .sim-ghost, etc.)
 const CSS = `
   .sim-root *, .sim-root *::before, .sim-root *::after { box-sizing: border-box; }
   .sim-root {
@@ -63,13 +66,15 @@ const CSS = `
   .sim-tr:hover td { background: var(--orange-pale) !important; }
 `
 
-// ─────────────────────────────────────────────────────────────────────────────
-// API
-// ─────────────────────────────────────────────────────────────────────────────
-
+// cria o objeto de API com os métodos de busca e simulação
+// usa a URL passada como prop ou a variável de ambiente VITE_API_URL
 function makeApi(base) {
   const b = base || import.meta.env?.VITE_API_URL || 'http://localhost:8000'
+
+  // faz um GET simples e retorna o JSON; lança erro se der ruim
   const get  = async (p) => { const r = await fetch(`${b}${p}`); if (!r.ok) throw new Error(`Erro ${r.status}: ${p}`); return r.json() }
+
+  // faz um POST com body JSON; trata os erros de validação do backend
   const post = async (p, body) => {
     const r = await fetch(`${b}${p}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     if (!r.ok) {
@@ -79,24 +84,22 @@ function makeApi(base) {
     }
     return r.json()
   }
+
   return {
-    fetchReservatorios: () => get('/api/reservatorios'),
-    fetchPresets:       () => get('/api/presets'),
-    fetchPlanoSecas:    (cod) => get(`/api/plano-secas/${cod}`).catch(() => []),
-    // savePlanoSecas removido — o plano é gerido apenas na sessão
-    runSimulacao:       (payload) => post('/api/simular', payload),
+    fetchReservatorios: () => get('/api/reservatorios'),   // lista todos os reservatórios disponíveis
+    fetchPresets:       () => get('/api/presets'),          // busca os hidrossistemas pré-configurados
+    fetchPlanoSecas:    (cod) => get(`/api/plano-secas/${cod}`).catch(() => []),  // busca os níveis meta do reservatório; retorna [] se não encontrar
+    runSimulacao:       (payload) => post('/api/simular', payload),  // manda os parâmetros e roda a simulação
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EXCEL EXPORT (SheetJS)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// exporta os resultados da simulação pra um arquivo Excel (.xlsx)
 function exportExcel(resultados, modo) {
   const wb = XLSX.utils.book_new()
-  const segundos = 2.592e6
+  const segundos = 2.592e6   // segundos em um mês (30 dias)
   const isSerie = modo === 'Série'
 
+  // cada reservatório vira uma aba separada no Excel
   resultados.forEach(r => {
     const rows = r.dados.map(d => {
       const row = {
@@ -113,7 +116,8 @@ function exportExcel(resultados, modo) {
         'Falha':                       d['Falha'] ?? 'Não',
         'Modo Operação':               d['Modo Operação'] ?? 'Normal',
       }
-      // Transferência física apenas no modo Série
+
+      // coluna de transferência só aparece no modo Série (nos outros não tem transferência física)
       if (isSerie) {
         row['Transferência Recebida (m³/s)'] = parseFloat(d['Transferência Recebida (m³/s)'] ?? 0)
         row['Transferência Enviada (m³/s)']  = parseFloat(d['Transferência Enviada (m³/s)'] ?? 0)
@@ -121,20 +125,18 @@ function exportExcel(resultados, modo) {
       return row
     })
     const ws = XLSX.utils.json_to_sheet(rows)
-    XLSX.utils.book_append_sheet(wb, ws, r.reservatorio.slice(0, 31))
+    XLSX.utils.book_append_sheet(wb, ws, r.reservatorio.slice(0, 31))  // nome da aba limitado a 31 chars (limite do Excel)
   })
 
   XLSX.writeFile(wb, 'simulacao_hidrica.xlsx')
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SMALL ATOMS
-// ─────────────────────────────────────────────────────────────────────────────
-
+// card genérico com borda e sombra — envolve qualquer conteúdo
 function Card({ children, style, className = '' }) {
   return <div className={className} style={{ background:'var(--card)', border:'1.5px solid var(--border)', borderRadius:'var(--radius)', boxShadow:'var(--shadow)', ...style }}>{children}</div>
 }
 
+// rótulo de campo com ícone opcional — usado acima dos inputs do painel
 function Label({ icon: Icon, children }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:10.5, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7, marginTop:15 }}>
@@ -143,6 +145,8 @@ function Label({ icon: Icon, children }) {
   )
 }
 
+// campo de formulário genérico — renderiza <input> ou <select> com estilo padronizado
+// muda a cor da borda ao focar e ao tirar o foco
 function FC({ as='input', children, style, ...props }) {
   const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'#fff', color:'var(--text)', fontSize:12.5, outline:'none', transition:'border-color 0.15s', ...style }
   const onF = e => e.target.style.borderColor = 'var(--orange)'
@@ -151,6 +155,8 @@ function FC({ as='input', children, style, ...props }) {
   return <input style={base} onFocus={onF} onBlur={onB} {...props} />
 }
 
+// tooltip personalizado dos gráficos Recharts
+// mostra os valores de cada série com bolinhas coloridas
 const CTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
@@ -167,12 +173,11 @@ const CTip = ({ active, payload, label }) => {
   )
 }
 
+// formata o eixo X dos gráficos: de "2010-01" para "01/10"
 function tickFmt(v) { if (!v) return ''; const p=v.split('-'); return `${p[1]}/${p[0]?.slice(2)}` }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// METRICS ROW
-// ─────────────────────────────────────────────────────────────────────────────
-
+// card de métrica individual — mostra um número grande com cor de status
+// variant pode ser: default (laranja), success (verde), danger (vermelho), info (azul), yellow
 function MCard({ label, value, sub, variant='default', icon:Icon }) {
   const C = { default:{a:'var(--orange)',b:'var(--orange-pale)',t:'var(--orange)'}, success:{a:'var(--teal)',b:'var(--teal-pale)',t:'var(--teal)'}, danger:{a:'var(--red)',b:'var(--red-pale)',t:'var(--red)'}, info:{a:'var(--blue)',b:'var(--blue-pale)',t:'var(--blue)'}, yellow:{a:'var(--yellow)',b:'var(--yellow-pale)',t:'var(--yellow)'} }[variant]
   return (
@@ -188,22 +193,26 @@ function MCard({ label, value, sub, variant='default', icon:Icon }) {
   )
 }
 
-// Falha sistémica: Paralelo=qualquer falha, Série/Individual=TODOS falham
+// calcula os meses em que TODOS os reservatórios falharam ao mesmo tempo
+// isso é considerado falha sistêmica independente do modo de operação
 function calcFalhasConjuntas(resultados, modo) {
   if (!resultados?.length) return []
   const n = resultados[0].dados.length
-  // Falha sistémica em todos os modos: apenas quando TODOS os reservatórios falham
   return Array.from({length:n}, (_,t) =>
     resultados.every(r=>r.dados[t]?.['Falha']==='Sim')
   )
 }
 
+// linha de métricas resumidas no topo dos resultados
+// calcula frequência de falha, atendimento médio, racionamento médio, evaporação, vertimento e transferências
 function MetricsRow({ resultados, modo }) {
   if (!resultados?.length) return null
-  const totalMeses = resultados[0].dados.length  // período do sistema, não soma
+  const totalMeses = resultados[0].dados.length
   const falhasConj = calcFalhasConjuntas(resultados, modo)
   const falhasSist = falhasConj.filter(Boolean).length
   let rac=0, racM=0, atend=0, solic=0, vert=0, evap=0, transf=0
+
+  // soma os valores de todos os reservatórios e todos os meses
   resultados.forEach(r => r.dados.forEach(d => {
     const rc = parseFloat(d['Racionamento (%)'])||0
     if (rc>0){rac+=rc;racM++}
@@ -213,12 +222,15 @@ function MetricsRow({ resultados, modo }) {
     evap   += parseFloat(d['Evaporação (hm³)'])||0
     transf += parseFloat(d['Transferência Recebida (m³/s)'])||0
   }))
+
   const freq  = totalMeses>0?((falhasSist/totalMeses)*100).toFixed(1):'0.0'
   const at    = solic>0?((atend/solic)*100).toFixed(1):'100.0'
   const rm    = racM>0?(rac/racM).toFixed(1):'0.0'
   const ok    = parseFloat(freq)===0
+
   return (
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10 }}>
+      {/* card de frequência de falha — fica verde se não houve nenhuma falha */}
       <div className="sim-fade" style={{ background:'var(--card)', border:`1.5px solid ${ok?'var(--teal-pale)':'var(--red-pale)'}`, borderRadius:'var(--radius)', padding:'14px 16px', boxShadow:'var(--shadow)', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:ok?'var(--teal)':'var(--red)', borderRadius:'4px 4px 0 0' }} />
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
@@ -240,13 +252,11 @@ function MetricsRow({ resultados, modo }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MESES ABASTECIDOS (por reservatório)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// mostra quantos meses cada reservatório conseguiu abastecer
+// no modo Paralelo, só conta os meses em que aquele reservatório era responsável
 function MesesAbastecidos({ resultados, modo, params }) {
   if (!resultados?.length) return null
-  const totalSist = resultados[0].dados.length  // período do sistema
+  const totalSist = resultados[0].dados.length
   return (
     <Card className="sim-fade" style={{ padding:'16px 20px' }}>
       <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
@@ -257,9 +267,8 @@ function MesesAbastecidos({ resultados, modo, params }) {
         {resultados.map((r,i) => {
           const isParalelo = modo === 'Paralelo'
 
-          // No Paralelo: cada reservatório só é responsável nos meses em que Dem.Sol. > 0
-          // (quando Dem.Sol.=0 a responsabilidade estava no outro reservatório)
-          // Base = meses com responsabilidade; Atendidos = base com Falha=Não
+          // no modo Paralelo, só conta os meses em que o reservatório tinha demanda solicitada
+          // (quando dem.sol.=0, o outro reservatório estava atendendo)
           const mesesComResp = isParalelo
             ? r.dados.filter(d => (parseFloat(d['Demanda Solicitada (m³/s)'])||0) > 0)
             : r.dados
@@ -268,6 +277,7 @@ function MesesAbastecidos({ resultados, modo, params }) {
           const base  = mesesComResp.length
           const pct   = base > 0 ? ((atend / base) * 100) : 0
 
+          // cor muda conforme o percentual: verde acima de 95%, amarelo acima de 80%, vermelho abaixo
           const cor     = pct>=95?'var(--teal)':pct>=80?'var(--yellow)':'var(--red)'
           const corPale = pct>=95?'var(--teal-pale)':pct>=80?'var(--yellow-pale)':'var(--red-pale)'
 
@@ -280,6 +290,7 @@ function MesesAbastecidos({ resultados, modo, params }) {
                   {isParalelo ? `/ ${base} meses c/ responsabilidade` : `/ ${totalSist} meses`}
                 </span>
               </div>
+              {/* barra de progresso de atendimento */}
               <div style={{ height:6, background:'var(--border)', borderRadius:99, overflow:'hidden' }}>
                 <div style={{ width:`${pct}%`, height:'100%', background:cor, borderRadius:99, transition:'width 0.6s ease' }}/>
               </div>
@@ -300,10 +311,8 @@ function MesesAbastecidos({ resultados, modo, params }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FAILURE DETAIL
-// ─────────────────────────────────────────────────────────────────────────────
-
+// lista detalhada de cada mês que teve falha, com os valores de volume, demanda e racionamento
+// se não houve nenhuma falha, exibe uma mensagem de sucesso
 function FailureDetail({ resultados }) {
   if (!resultados?.length) return null
   const falhas = []
@@ -342,10 +351,7 @@ function FailureDetail({ resultados }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CHARTS (simulação)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// wrapper de card pra gráficos — título, subtítulo e o conteúdo do gráfico embaixo
 function ChartCard({ title, subtitle, children }) {
   return (
     <Card className="sim-fade" style={{ padding:'16px 18px' }}>
@@ -358,7 +364,8 @@ function ChartCard({ title, subtitle, children }) {
   )
 }
 
-// Seletor de reservatório para gráficos
+// botões de seleção de reservatório nos gráficos
+// aparece só se tiver mais de um reservatório; a opção "Sobrepostos" mostra todos juntos
 function ResSel({ resultados, sel, onChange }) {
   if (resultados.length <= 1) return null
   return (
@@ -370,8 +377,12 @@ function ResSel({ resultados, sel, onChange }) {
     </div>
   )
 }
+
+// converte uma cor hexadecimal (#264fa3) pra "r,g,b" — usado pra criar rgba() no botão selecionado
 function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `${r},${g},${b}`}
 
+// componente com todos os gráficos da simulação:
+// volume em %, demanda, racionamento, balanço hídrico e transferências
 function Charts({ resultados, params, modo }) {
   const [selVol,setSelVol]=useState('todos')
   const [selDem,setSelDem]=useState('todos')
@@ -380,13 +391,17 @@ function Charts({ resultados, params, modo }) {
   const [selTr,setSelTr]=useState('todos')
 
   if (!resultados?.length) return null
+
+  // lista de datas únicas ordenadas — eixo X de todos os gráficos
   const allD = [...new Set(resultados.flatMap(r => r.dados.map(d => d.Data)))].sort()
+
+  // calcula o intervalo do eixo X pra não ficar lotado de datas
   const iv   = Math.max(0, Math.floor(allD.length/12)-1)
 
-  // filtrar reservatórios conforme seletor
+  // filtra a lista de resultados conforme o seletor (todos ou um específico)
   const resSel = (sel) => sel==='todos' ? resultados : [resultados[sel]]
 
-  // Volume em %
+  // monta os dados de volume em % e afluência para cada data
   const mkVolData = (sel) => {
     const res = resSel(sel)
     return allD.map(data => {
@@ -404,18 +419,26 @@ function Charts({ resultados, params, modo }) {
       return p
     })
   }
+
+  // monta os dados de demanda solicitada e atendida
   const mkDemData = (sel) => {
     const res = resSel(sel)
     return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Sol.(${r.reservatorio})`]=parseFloat(d['Demanda Solicitada (m³/s)'])||0; p[`At.(${r.reservatorio})`]=parseFloat(d['Demanda Atendida (m³/s)'])||0} }); return p })
   }
+
+  // monta os dados de racionamento por reservatório
   const mkRacData = (sel) => {
     const res = resSel(sel)
     return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d) p[r.reservatorio]=parseFloat(d['Racionamento (%)'])||0 }); return p })
   }
+
+  // monta os dados de afluência, evaporação e vertimento (balanço hídrico)
   const mkBalData = (sel) => {
     const res = resSel(sel)
     return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Afluência(${r.reservatorio})`]=parseFloat(d['Afluências (hm³/mês)'])||0; p[`Evap.(${r.reservatorio})`]=parseFloat(d['Evaporação (hm³)'])||0; p[`Vertimento(${r.reservatorio})`]=parseFloat(d['Vertimento (hm³)'])||0} }); return p })
   }
+
+  // monta os dados de transferências físicas entre reservatórios (só modo Série)
   const mkTrData = (sel) => {
     const res = resSel(sel)
     return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){const rc=parseFloat(d['Transferência Recebida (m³/s)'])||0; const ev=parseFloat(d['Transferência Enviada (m³/s)'])||0; if(rc>0||ev>0){p[`Rec.(${r.reservatorio})`]=rc; p[`Env.(${r.reservatorio})`]=ev}} }); return p })
@@ -426,9 +449,11 @@ function Charts({ resultados, params, modo }) {
   const racData = mkRacData(selRac)
   const balData = mkBalData(selBal)
   const trData  = mkTrData(selTr)
-  // Transferência física só existe no modo Série
+
+  // transferência física só existe no modo Série — só exibe o gráfico se houver dados
   const hasTransf = modo==='Série' && allD.some(data=>{ const p=mkTrData('todos').find(x=>x.data===data); return p&&Object.keys(p).length>1 })
 
+  // nomes das chaves de volume e afluência nos dados (variam conforme o reservatório selecionado)
   const volKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Vol.')) : []
   const aflKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Afluência')) : []
   const racKeys = racData[0] ? Object.keys(racData[0]).filter(k=>k!=='data') : []
@@ -436,7 +461,7 @@ function Charts({ resultados, params, modo }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {/* Volume em % */}
+      {/* gráfico de volume armazenado em % com afluência no eixo direito */}
       <ChartCard title="Volume Armazenado (%)">
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
         <div style={{ height:250 }}>
@@ -454,7 +479,7 @@ function Charts({ resultados, params, modo }) {
         </div>
       </ChartCard>
 
-      {/* Demanda */}
+      {/* gráfico de demanda: linha tracejada = solicitada, linha sólida = atendida */}
       <ChartCard title="Demanda: Solicitada vs Atendida" subtitle="m³/s mensal">
         <ResSel resultados={resultados} sel={selDem} onChange={setSelDem}/>
         <div style={{ height:200 }}>
@@ -473,7 +498,7 @@ function Charts({ resultados, params, modo }) {
         </div>
       </ChartCard>
 
-      {/* Racionamento */}
+      {/* gráfico de racionamento em barras — só aparece se teve algum mês com racionamento */}
       {racKeys.length>0 && (
         <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — Racionamento aplicado (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
@@ -491,7 +516,7 @@ function Charts({ resultados, params, modo }) {
         </ChartCard>
       )}
 
-      {/* Balanço */}
+      {/* gráfico de balanço hídrico: afluência, evaporação e vertimento em barras */}
       <ChartCard title="Balanço Hídrico" subtitle="Afluência, Evaporação e Vertimento (hm³/mês)">
         <ResSel resultados={resultados} sel={selBal} onChange={setSelBal}/>
         <div style={{ height:185 }}>
@@ -511,7 +536,7 @@ function Charts({ resultados, params, modo }) {
         </div>
       </ChartCard>
 
-      {/* Transferências */}
+      {/* gráfico de transferências físicas — só aparece no modo Série quando há dados */}
       {hasTransf && (
         <ChartCard title="Transferências entre Reservatórios" subtitle="m³/s mensal">
           <ResSel resultados={resultados} sel={selTr} onChange={setSelTr}/>
@@ -532,14 +557,11 @@ function Charts({ resultados, params, modo }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DETALHAMENTO DAS VAZÕES
-// ─────────────────────────────────────────────────────────────────────────────
-
+// aba de detalhamento de vazões: gráfico da série histórica + tabela paginada com todos os campos
 function VazoesDetail({ resultados, modo }) {
   const [sel, setSel] = useState(0)
   const [page, setPage] = useState(0)
-  const PAGE = 18
+  const PAGE = 18  // quantas linhas por página na tabela
 
   if (!resultados?.length) return null
 
@@ -548,7 +570,7 @@ function VazoesDetail({ resultados, modo }) {
   const allD  = [...new Set(resultados.flatMap(x => x.dados.map(d => d.Data)))].sort()
   const iv    = Math.max(0, Math.floor(allD.length/12)-1)
 
-  // Série de vazões (afluência)
+  // monta a série de vazões afluentes de todos os reservatórios para o gráfico
   const serieData = allD.map(data => {
     const p = { data }
     resultados.forEach(res => {
@@ -558,10 +580,11 @@ function VazoesDetail({ resultados, modo }) {
     return p
   })
 
-  // Tabela paginada
+  // paginação da tabela
   const totalPg = Math.ceil(dados.length / PAGE)
   const pagDados = dados.slice(page * PAGE, (page+1)*PAGE)
 
+  // colunas da tabela — todas as colunas disponíveis
   const VCOLS_ALL = [
     { key:'Data',                           label:'Mês/Ano',     mono:true  },
     { key:'Vazão (m³/s)',                   label:'Vazão (m³/s)',mono:true  },
@@ -578,8 +601,11 @@ function VazoesDetail({ resultados, modo }) {
     { key:'Falha',                          label:'Falha',       align:'center'},
     { key:'Modo Operação',                  label:'Modo',        align:'center'},
   ]
+
+  // no modo Série mostra tudo; nos outros modos esconde as colunas de transferência
   const VCOLS = modo==='Série' ? VCOLS_ALL : VCOLS_ALL.filter(c=>!c.key.startsWith('Transferência'))
 
+  // formata o valor de cada célula da tabela
   function fv(val,key){
     if(val===null||val===undefined||val==='') return '—'
     if(key==='Falha'||key==='Modo Operação'||key==='Data') return val
@@ -588,7 +614,7 @@ function VazoesDetail({ resultados, modo }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {/* Tabs reservatório */}
+      {/* tabs para trocar de reservatório quando tem mais de um */}
       {resultados.length>1 && (
         <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
           {resultados.map((res,i)=>(
@@ -600,7 +626,7 @@ function VazoesDetail({ resultados, modo }) {
         </div>
       )}
 
-      {/* Gráfico série de vazões */}
+      {/* gráfico da série histórica de vazões afluentes */}
       <ChartCard title="Série de Vazões Afluentes" subtitle="Vazão mensal afluente a cada reservatório (m³/s)">
         <div style={{ height:220 }}>
           <ResponsiveContainer>
@@ -617,7 +643,7 @@ function VazoesDetail({ resultados, modo }) {
         </div>
       </ChartCard>
 
-      {/* Tabela mensal */}
+      {/* tabela mensal paginada com todos os dados do reservatório selecionado */}
       <Card style={{ overflow:'hidden' }}>
         <div style={{ padding:'11px 16px', borderBottom:'1.5px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg)' }}>
           <div>
@@ -665,6 +691,7 @@ function VazoesDetail({ resultados, modo }) {
             </tbody>
           </table>
         </div>
+        {/* controles de paginação — só aparece se tiver mais de uma página */}
         {totalPg>1 && (
           <div style={{ padding:'9px 16px', borderTop:'1.5px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <span style={{ fontSize:10.5, color:'var(--text-light)' }}>Pág. {page+1}/{totalPg} · {dados.length} registros</span>
@@ -679,31 +706,30 @@ function VazoesDetail({ resultados, modo }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ANÁLISE DE GARANTIA (fiel ao Streamlit)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// análise de garantia do sistema: curva de permanência, KPIs e tabelas por reservatório
 function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   if (!resultados?.length) return null
 
   const totalMeses = resultados[0].dados.length
   const dfs = resultados.map(r => r.dados)
 
-  // Vazões do sistema = soma das demandas atendidas
+  // soma as demandas atendidas de todos os reservatórios para obter a vazão do sistema em cada mês
   const vazoesSystem = new Array(totalMeses).fill(0)
   dfs.forEach(df => df.forEach((d,t) => { vazoesSystem[t] += parseFloat(d['Demanda Atendida (m³/s)'])||0 }))
 
-  // Falhas conjuntas — usa a mesma lógica de MetricsRow
+  // reutiliza a mesma lógica de falha sistêmica do MetricsRow
   const falhasConj = calcFalhasConjuntas(resultados, modo)
 
   const numFalhas  = falhasConj.filter(Boolean).length
   const garantiaSistema = ((totalMeses - numFalhas) / totalMeses * 100)
+
+  // estatísticas só dos meses sem falha
   const vazoesSemFalha  = vazoesSystem.filter((_,t) => !falhasConj[t])
   const vazaoMedia   = vazoesSemFalha.length ? vazoesSemFalha.reduce((a,b)=>a+b,0)/vazoesSemFalha.length : 0
   const vazaoMaxima  = vazoesSemFalha.length ? Math.max(...vazoesSemFalha) : 0
   const vazaoMinima  = vazoesSemFalha.length ? Math.min(...vazoesSemFalha) : 0
 
-  // Tabela de permanência/garantia do SISTEMA
+  // agrupa as vazões por valor para montar a tabela de permanência do sistema
   const grouped = {}
   vazoesSystem.forEach((v,t) => {
     if (!falhasConj[t]) {
@@ -719,22 +745,24 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
     cumFreq += freq
     return { vazao:k, perm, freq:freq.toFixed(2), garantia:cumFreq.toFixed(2) }
   })
+
+  // adiciona linha de falha no fim da tabela se houver meses com falha
   if (numFalhas>0) resumo.push({ vazao:'FALHA', perm:numFalhas, freq:(numFalhas/totalMeses*100).toFixed(2), garantia:'-' })
 
-  // Curva de permanência para gráfico
+  // dados para o gráfico de curva de permanência
   const curvData = sortedKeys.map((k,i) => ({
     vazao: k,
     garantia: parseFloat(resumo[i].garantia),
     permanencia: parseFloat(resumo[i].freq),
   }))
 
-  // Demanda nominal sistema
+  // demanda nominal total do sistema (soma de todos os reservatórios + vazão conjunta)
   const demNominal = (params||[]).reduce((s,p)=>s+(p?.demanda_nominal||0),0) + (vazaoConjunta||0)
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
-      {/* KPIs sistema */}
+      {/* KPIs do sistema */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10 }}>
         <MCard label="Garantia Sistema"  value={`${garantiaSistema.toFixed(2)}%`} sub="Meses sem falha / total" variant={garantiaSistema>=95?'success':garantiaSistema>=80?'yellow':'danger'} icon={Shield}/>
         <MCard label="Meses Simulados"   value={totalMeses}  sub={`${numFalhas} com falha`}     variant="info"    icon={TrendingDown}/>
@@ -744,7 +772,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         <MCard label="Vazão Mínima"       value={vazaoMinima.toFixed(3)} sub="m³/s" variant={vazaoMinima>0?'info':'danger'} icon={Waves}/>
       </div>
 
-      {/* Curva de permanência */}
+      {/* curva de permanência — só aparece se tiver pelo menos 2 pontos distintos */}
       {curvData.length>1 && (
         <ChartCard title="Curva de Permanência e Garantia" subtitle="Garantia acumulada (%) × Vazão total do sistema (m³/s)">
           <div style={{ height:230 }}>
@@ -761,7 +789,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         </ChartCard>
       )}
 
-      {/* Tabela resumo sistema */}
+      {/* tabela de permanência, frequência e garantia do sistema */}
       <ChartCard title="Análise de Vazões Totais do Sistema" subtitle="Permanência, frequência e garantia acumulada">
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
@@ -786,7 +814,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         </div>
       </ChartCard>
 
-      {/* Detalhamento por reservatório */}
+      {/* detalhamento por reservatório: agrupa os meses por nível meta e calcula garantia individual */}
       <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginTop:4, display:'flex', alignItems:'center', gap:8 }}>
         <Database size={14} color="var(--orange)"/>
         Detalhamento por Reservatório
@@ -796,11 +824,11 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         const df    = r.dados
         const p     = params?.[idx]
         const demNom = p?.demanda_nominal || 0
-        const demConj = idx===0 ? (vazaoConjunta||0) : 0
+        const demConj = idx===0 ? (vazaoConjunta||0) : 0   // vazão conjunta só entra no primeiro reservatório
         const demTot = demNom + demConj
 
-        // Agrupar por (nomeFaixa + rac) para que níveis com rac=0 mas nomes
-        // diferentes (ex: "Normal" e "Acima do Teto") sejam contabilizados separadamente
+        // agrupa os meses por combinação de (nome do nível + % de racionamento)
+        // assim níveis diferentes com o mesmo racionamento ficam separados
         const gruposVistos = new Set()
         const grupos = []
         df.forEach(d => {
@@ -813,7 +841,8 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
             grupos.push({ nome, rac, chave })
           }
         })
-        // Ordenar: primeiro pelo racionamento crescente, depois pelo nome
+
+        // ordena do menor racionamento pro maior, depois por nome
         grupos.sort((a,b) => a.rac - b.rac || a.nome.localeCompare(b.nome))
 
         let cumG = 0
@@ -831,6 +860,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           cumG += freq
           tabelaRes.push({ faixa:nome, rac:rac.toFixed(1), vazAlvo:vazAlvo.toFixed(3), count:filtro.length, freq:freq.toFixed(2), garantia:cumG.toFixed(2) })
         })
+
         const cntFalha = df.filter(d=>d['Falha']==='Sim').length
         if (cntFalha>0) tabelaRes.push({ faixa:'⚠️ FALHA', rac:'FALHA', vazAlvo:'0.000', count:cntFalha, freq:(cntFalha/totalMeses*100).toFixed(2), garantia:'-' })
 
@@ -879,21 +909,23 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RESULTS TABLE
-// ─────────────────────────────────────────────────────────────────────────────
-
+// colunas base da tabela de resultados
 const RCOLS_BASE = [
   {key:'Data',label:'Data',align:'left'},{key:'Armazenamento Inicial',label:'Vol. Ini (hm³)',mono:true},{key:'Afluências (hm³/mês)',label:'Afluência (hm³)',mono:true},{key:'Evaporação (hm³)',label:'Evap. (hm³)',mono:true},{key:'Demanda Solicitada (m³/s)',label:'Dem. Sol.',mono:true},{key:'Demanda Atendida (m³/s)',label:'Dem. At.',mono:true},{key:'Transferência Recebida (m³/s)',label:'Tr. Rec.',mono:true},{key:'Transferência Enviada (m³/s)',label:'Tr. Env.',mono:true},{key:'Racionamento (%)',label:'Rac.(%)',mono:true},{key:'Vertimento (hm³)',label:'Vertimento',mono:true},{key:'Armazenamento Final',label:'Vol. Fin.',mono:true},{key:'Falha',label:'Falha',align:'center'},{key:'Modo Operação',label:'Modo',align:'center'},
 ]
-// No Paralelo não há transferência física — ocultar colunas
+
+// no modo Paralelo e Individual não tem transferência — esconde essas colunas
 function getRCols(modo) {
   if (modo === 'Série') return RCOLS_BASE
   return RCOLS_BASE.filter(c => !c.key.startsWith('Transferência'))
 }
-const PG=15
+
+const PG=15  // linhas por página na tabela de dados
+
+// formata o valor de uma célula: deixa texto como está, número com 2 casas decimais
 function fmtR(v,k){if(v===null||v===undefined||v==='')return'—';if(k==='Falha'||k==='Modo Operação'||k==='Data')return v;const n=parseFloat(v);return isNaN(n)?v:n.toFixed(2)}
 
+// tabela de dados completa com seletor de reservatório e paginação
 function ResultsTable({ resultados, modo }) {
   const [sel,setSel]=useState(0)
   const [pg,setPg]=useState(0)
@@ -904,6 +936,7 @@ function ResultsTable({ resultados, modo }) {
   const pagD=r.dados.slice(pg*PG,(pg+1)*PG)
   return (
     <div>
+      {/* botões de seleção de reservatório — só aparece se tiver mais de um */}
       {resultados.length>1&&(
         <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap'}}>
           {resultados.map((x,i)=>(
@@ -947,6 +980,7 @@ function ResultsTable({ resultados, modo }) {
             </tbody>
           </table>
         </div>
+        {/* paginação da tabela */}
         {totalPg>1&&(
           <div style={{padding:'9px 16px',borderTop:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <span style={{fontSize:10.5,color:'var(--text-light)'}}>Pág. {pg+1}/{totalPg}</span>
@@ -961,10 +995,7 @@ function ResultsTable({ resultados, modo }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PLANO DE SECAS
-// ─────────────────────────────────────────────────────────────────────────────
-
+// cores de cada faixa do plano de secas — usadas na tabela e nos inputs
 const FAIXAS_COR = {
   'Acima do Teto':{bg:'var(--teal-pale)',t:'var(--teal)'},
   'Normal':{bg:'var(--blue-pale)',t:'var(--blue)'},
@@ -973,9 +1004,11 @@ const FAIXAS_COR = {
   'Emergência':{bg:'var(--red-pale)',t:'var(--red)'},
 }
 
+// painel de edição dos níveis meta (plano de secas)
+// permite adicionar, editar e remover faixas de volume com seus limites mensais e racionamentos
 function PlanoSecasPanel({ api, reservatorios }) {
-  const [faixas,setFaixas]=useState(null)           // estado de trabalho da sessão
-  const [faixasOriginal,setFaixasOriginal]=useState(null)  // snapshot da BD (nunca perde sem Save na Base)
+  const [faixas,setFaixas]=useState(null)           // faixas sendo editadas na sessão atual
+  const [faixasOriginal,setFaixasOriginal]=useState(null)  // snapshot vindo da API — serve de base para "Reverter"
   const [loading,setLoading]=useState(false)
   const [saving,setSaving]=useState(false)
   const [msg,setMsg]=useState(null)
@@ -983,13 +1016,13 @@ function PlanoSecasPanel({ api, reservatorios }) {
   const [selRes, setSelRes] = useState(0)
   const reservatorio = reservatorios?.[selRes] || null
 
-  // chave estável — recalculada apenas quando os CODs realmente mudam
+  // chave estável baseada nos códigos dos reservatórios — só muda quando o hidrossistema muda
   const resKey = useMemo(
     ()=>(reservatorios||[]).map(r=>r.cod).join(','),
     [reservatorios]
   )
 
-  // Ao mudar de hidrossistema: volta ao primeiro e limpa
+  // quando o hidrossistema muda, volta pro primeiro reservatório e limpa tudo
   useEffect(()=>{
     setSelRes(0)
     setFaixas(null)
@@ -997,40 +1030,46 @@ function PlanoSecasPanel({ api, reservatorios }) {
     setMsg(null)
   },[resKey])
 
-  // Ao mudar de reservatório: busca da BD
+  // quando o reservatório selecionado muda, busca os dados da API
   useEffect(()=>{
     if(!reservatorio?.cod) return
     setFaixas(null); setFaixasOriginal(null)
     setLoading(true); setMsg(null)
     api.fetchPlanoSecas(reservatorio.cod)
       .then(d=>{
-        setFaixas(JSON.parse(JSON.stringify(d)))
-        setFaixasOriginal(JSON.parse(JSON.stringify(d)))
+        setFaixas(JSON.parse(JSON.stringify(d)))         // cópia pra edição
+        setFaixasOriginal(JSON.parse(JSON.stringify(d))) // cópia imutável pra reverter
       })
       .catch(()=>{ setFaixas([]); setFaixasOriginal([]) })
       .finally(()=>setLoading(false))
   },[reservatorio?.cod])
 
+  // atualiza um campo de uma faixa específica
   const set=(idx,f,v)=>setFaixas(p=>p.map((x,i)=>i===idx?{...x,[f]:v}:x))
+
+  // adiciona uma nova faixa com valores padrão
   const add=()=>setFaixas(p=>[...(p||[]),{Faixa:'Novo Nível',Racionamento:0,...Object.fromEntries(MESES.map(m=>[m,100]))}])
+
+  // remove uma faixa da lista
   const del=(idx)=>setFaixas(p=>p.filter((_,i)=>i!==idx))
 
-  // Reverter: volta ao snapshot da BD (desfaz edições da sessão)
+  // reverte as edições para o estado que veio da API
   const revert=()=>{
     if(!faixasOriginal) return
     setFaixas(JSON.parse(JSON.stringify(faixasOriginal)))
     setMsg({type:'info',text:'Revertido para o estado salvo na base de dados.'})
   }
 
-
+  // aplica as alterações apenas na sessão (sem salvar na base de dados)
   const saveSession=()=>{
     setMsg({type:'session',text:'Aplicado na sessão. As alterações serão usadas na simulação, mas não foram salvas na base de dados.'})
   }
 
-
+  // verifica se há alterações não salvas comparando com o snapshot original
   const hasChanges = faixasOriginal !== null && JSON.stringify(faixas) !== JSON.stringify(faixasOriginal)
-  const isSessionOnly = hasChanges  // alterações existem mas ainda não foram à BD
+  const isSessionOnly = hasChanges
 
+  // se não tem reservatório selecionado, pede pro usuário escolher um
   if(!reservatorios?.length || !reservatorio?.cod) return (
     <Card style={{padding:'32px 24px',textAlign:'center'}}>
       <Shield size={28} color="var(--text-light)" style={{marginBottom:10,opacity:0.35}}/>
@@ -1044,6 +1083,7 @@ function PlanoSecasPanel({ api, reservatorios }) {
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
           <div>
             <div style={{fontSize:13.5,fontWeight:800,color:'var(--text)',display:'flex',alignItems:'center',gap:8}}><Shield size={15} color="var(--orange)"/>Níveis Meta</div>
+            {/* tabs de seleção de reservatório quando tem mais de um */}
             {reservatorios?.length>1&&(
               <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:6}}>
                 {reservatorios.map((r,i)=>(
@@ -1058,6 +1098,8 @@ function PlanoSecasPanel({ api, reservatorios }) {
               <strong>{reservatorio.nome}</strong> · Cod: <span style={{fontFamily:'JetBrains Mono'}}>{reservatorio.cod}</span>
             </div>
           </div>
+
+          {/* botões de ação do painel */}
           <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
             {isSessionOnly && (
               <span style={{fontSize:10,background:'var(--yellow-pale)',color:'var(--yellow)',borderRadius:20,padding:'2px 8px',fontWeight:700,border:'1px solid var(--yellow)'}}>
@@ -1077,20 +1119,17 @@ function PlanoSecasPanel({ api, reservatorios }) {
                 <Save size={11}/> Aplicar na Sessão
               </button>
             )}
-
           </div>
         </div>
-        {msg&&<div style={{marginTop:9,padding:'7px 11px',borderRadius:'var(--radius-xs)',
-          background:msg.type==='success'?'var(--teal-pale)':msg.type==='info'?'var(--blue-pale)':msg.type==='session'?'var(--yellow-pale)':'var(--red-pale)',
-          color:msg.type==='success'?'var(--teal)':msg.type==='info'?'var(--blue)':msg.type==='session'?'var(--yellow)':'var(--red)',
-          fontSize:11.5,fontWeight:600,lineHeight:1.5}}>
-          {msg.type==='success'?'✓':msg.type==='session'?'⚡':msg.type==='info'?'ℹ':'✗'} {msg.text}
-        </div>}
       </Card>
+
+      {/* aviso explicando o que os valores da tabela significam */}
       <div style={{display:'flex',gap:8,padding:'9px 13px',background:'var(--blue-pale)',borderRadius:'var(--radius-sm)',alignItems:'flex-start'}}>
         <Info size={13} color="var(--blue)" style={{flexShrink:0,marginTop:1}}/>
         <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que ativa o nível nesse mês. <strong>Racionamento</strong> =(%) de redução na demanda. As alterações feitas aqui são válidas apenas para esta sessão — para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
       </div>
+
+      {/* tabela de edição das faixas ou spinner de carregamento */}
       {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregando…</div></Card>
       :faixas&&faixas.length>0?(
         <Card style={{overflow:'hidden'}}>
@@ -1113,6 +1152,7 @@ function PlanoSecasPanel({ api, reservatorios }) {
                       <td style={{padding:'6px 5px',borderBottom:'1px solid var(--border-light)'}}>
                         <input type="number" className="sim-plano-inp" min="0" max="100" step="1" value={f.Racionamento} onChange={e=>set(i,'Racionamento',e.target.value)}/>
                       </td>
+                      {/* um input por mês para definir o limite de ativação */}
                       {MESES.map(m=>(
                         <td key={m} style={{padding:'6px 3px',borderBottom:'1px solid var(--border-light)'}}>
                           <input type="number" className="sim-plano-inp" min="0" max="100" step="0.1" value={f[m]} onChange={e=>set(i,m,e.target.value)}/>
@@ -1132,37 +1172,48 @@ function PlanoSecasPanel({ api, reservatorios }) {
         <Card style={{padding:'28px',textAlign:'center'}}><div style={{fontSize:12,color:'var(--text-light)'}}>Nenhuma faixa definida. Clique em <strong>+ Faixa</strong> para adicionar.</div></Card>
       )}
 
-      {/* Gráfico dos Níveis Meta */}
+      {/* mensagem de feedback (sucesso, erro, sessão, etc.) */}
+      {msg&&<div style={{marginTop:9,padding:'7px 11px',borderRadius:'var(--radius-xs)',
+        background:msg.type==='success'?'var(--teal-pale)':msg.type==='info'?'var(--blue-pale)':msg.type==='session'?'var(--yellow-pale)':'var(--red-pale)',
+        color:msg.type==='success'?'var(--teal)':msg.type==='info'?'var(--blue)':msg.type==='session'?'var(--yellow)':'var(--red)',
+        fontSize:11.5,fontWeight:600,lineHeight:1.5}}>
+        {msg.type==='success'?'✓':msg.type==='session'?'⚡':msg.type==='info'?'ℹ':'✗'} {msg.text}
+      </div>}
+
+      {/* gráfico visual dos níveis meta em bandas de cor */}
       {faixas && faixas.length > 0 && <NiveisMeta faixas={faixas}/>}
     </div>
   )
 }
 
-// Gráfico de visualização dos Níveis Meta
-// Interpolação verde→vermelho: índice 0 = verde (nível superior, volume alto)
-//                               índice N-1 = vermelho (nível crítico, volume baixo)
+// calcula a cor de cada faixa em um gradiente do verde (seguro) ao vermelho (crítico)
+// idx 0 = nível mais alto (mais volume) → verde; idx N-1 = nível crítico → vermelho
 function nivelColor(idx, total) {
   if (total <= 1) return '#2a9d8f'
   const t = idx / (total - 1)
   const stops = [
-    [42,157,143],
-    [212,160,23],
-    [224,123,42],
-    [217,64,64],
+    [42,157,143],   // verde-água
+    [212,160,23],   // amarelo
+    [224,123,42],   // laranja
+    [217,64,64],    // vermelho
   ]
   const seg  = (stops.length - 1) * t
   const lo   = Math.floor(seg)
   const hi   = Math.min(lo + 1, stops.length - 1)
   const frac = seg - lo
+
+  // interpolação linear entre dois stops de cor
   const r = Math.round(stops[lo][0] + (stops[hi][0]-stops[lo][0]) * frac)
   const g = Math.round(stops[lo][1] + (stops[hi][1]-stops[lo][1]) * frac)
   const b = Math.round(stops[lo][2] + (stops[hi][2]-stops[lo][2]) * frac)
   return `rgb(${r},${g},${b})`
 }
 
+// gráfico de área empilhada mostrando as bandas dos níveis meta mês a mês
 function NiveisMeta({ faixas }) {
   const n = faixas.length
 
+  // ordena as faixas do maior limite pra o menor (do mais alto volume pro mais crítico)
   const faixasOrdenadas = [...faixas].sort((a, b) => {
     const ma = MESES.reduce((s,m) => s+(parseFloat(a[m])||0), 0)
     const mb = MESES.reduce((s,m) => s+(parseFloat(b[m])||0), 0)
@@ -1170,8 +1221,10 @@ function NiveisMeta({ faixas }) {
   })
 
   const cores = faixasOrdenadas.map((_, i) => nivelColor(i, n))
-  const faixasAsc = [...faixasOrdenadas].reverse()
+  const faixasAsc = [...faixasOrdenadas].reverse()  // ordem invertida para empilhar corretamente
 
+  // calcula as "bandas" para o AreaChart empilhado
+  // cada banda = diferença entre o limite atual e o limite da faixa abaixo
   const data = MESES.map(mes => {
     const limites = faixasAsc.map(f => parseFloat(f[mes])||0)
     const ponto = { mes }
@@ -1185,9 +1238,10 @@ function NiveisMeta({ faixas }) {
 
   const coresBandas = [
     ...faixasAsc.map((_, i) => nivelColor(n-1-i, n)),
-    '#e8e0d4',
+    '#e8e0d4',  // banda de "sem restrição" acima de todos os níveis
   ]
 
+  // tooltip customizado que mostra o limite de cada faixa no mês
   const Tip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
@@ -1238,6 +1292,7 @@ function NiveisMeta({ faixas }) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      {/* legenda das faixas com bolinha colorida */}
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
         {faixasOrdenadas.map((f, i) => {
           const cor = cores[i]
@@ -1258,26 +1313,24 @@ function NiveisMeta({ faixas }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFIG PANEL
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Busca de reservatório com filtragem em tempo real
+// campo de busca com autocomplete para selecionar o reservatório
+// filtra em tempo real conforme o usuário digita e fecha ao clicar fora
 function ResSearch({ resList, value, onChange }) {
   const [query, setQuery] = useState(value || '')
   const [open,  setOpen]  = useState(false)
   const ref = React.useRef(null)
 
-  // Sync external value changes (e.g. preset)
+  // sincroniza o texto do input quando o valor externo muda (ex: ao aplicar um preset)
   useEffect(() => { setQuery(value || '') }, [value])
 
-  // Close on outside click
+  // fecha o dropdown ao clicar em qualquer lugar fora do componente
   useEffect(() => {
     const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // filtra a lista de reservatórios pelo nome digitado (case insensitive), máximo 50 resultados
   const filtered = resList.filter(r =>
     r.CORPO.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 50)
@@ -1301,6 +1354,7 @@ function ResSearch({ resList, value, onChange }) {
         onFocusCapture={e=>e.target.style.borderColor='var(--orange)'}
         onBlurCapture={e=>e.target.style.borderColor='var(--border)'}
       />
+      {/* dropdown com os resultados filtrados */}
       {open && filtered.length > 0 && (
         <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',boxShadow:'var(--shadow)',zIndex:999,maxHeight:200,overflowY:'auto',marginTop:2}}>
           {filtered.map(r=>(
@@ -1319,9 +1373,11 @@ function ResSearch({ resList, value, onChange }) {
   )
 }
 
+// card de configuração de um reservatório individual no painel lateral
+// pode ser colapsado; o primeiro reservatório não pode ser removido
 function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) {
   const [open,setOpen]=useState(true)
-  const showGatilho = modo !== 'Individual'  // gatilho shown only for index=0 below
+  const showGatilho = modo !== 'Individual'  // gatilho de transferência só faz sentido no modo Série/Paralelo
   return (
     <div style={{background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',marginBottom:6,overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',cursor:'pointer',borderBottom:open?'1.5px solid var(--border-light)':'none'}} onClick={()=>setOpen(!open)}>
@@ -1338,6 +1394,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
         <div style={{padding:'10px 10px 12px'}}>
           <div style={{marginBottom:8}}>
             <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Reservatório</div>
+            {/* busca de reservatório com autocomplete */}
             <ResSearch resList={resList} value={res.nome} onChange={val=>{
               const s=resList.find(r=>r.CORPO===val)
               onChange(index,{nome:val,cod:s?.COD||'',capacidade:s?parseFloat(s['CAPAC (m³)']):0,est_evap:s?.['Est. Evap.']||'',volPct:50,vol_inicial:s?parseFloat(s['CAPAC (m³)'])*0.5:0})
@@ -1347,6 +1404,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
           <div style={{display:'grid',gridTemplateColumns:showGatilho?'1fr 1fr':'1fr 1fr',gap:6}}>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Vol. Inicial (%)</div>
+              {/* ao mudar o %, recalcula o volume inicial em hm³ */}
               <FC type="number" min="0" max="100" step="1" value={res.volPct??50} onChange={e=>{const p=parseFloat(e.target.value)||0;onChange(index,{volPct:p,vol_inicial:(res.capacidade*p)/100})}}/>
               {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
             </div>
@@ -1354,6 +1412,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (m³/s)</div>
               <FC type="number" min="0" step="0.1" value={res.demanda} onChange={e=>onChange(index,{demanda:parseFloat(e.target.value)||0})}/>
             </div>
+            {/* gatilho de transferência — só aparece no primeiro reservatório no modo Série/Paralelo */}
             {showGatilho && index===0 &&(
               <div>
                 <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Gatilho Transf. (%)</div>
@@ -1362,6 +1421,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
             )}
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Est. Evap.</div>
+              {/* campo somente leitura — vem preenchido automaticamente ao selecionar o reservatório */}
               <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'JetBrains Mono'}}>{res.est_evap||'—'}</div>
             </div>
           </div>
@@ -1371,17 +1431,20 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
   )
 }
 
+// painel lateral de configuração com todos os parâmetros da simulação
 function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset }) {
   const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
-  const [modoLocked,setModoLocked]=useState(false)
+  const [modoLocked,setModoLocked]=useState(false)   // quando um preset é selecionado, o modo é travado
   const [vazaoConj,setVazaoConj]=useState(0)
   const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
   const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
 
+  // atualiza os dados de um reservatório específico e notifica o componente pai
   const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
 
+  // aplica um preset: preenche os reservatórios com os dados do hidrossistema selecionado
   const applyPreset=(nome)=>{
     const p=presets.find(x=>x.nome===nome)
     if(!p) return
@@ -1392,23 +1455,24 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     })
     setItems(ni)
     onResChange&&onResChange(ni)
-    onReset&&onReset()   // limpa resultados ao trocar hidrossistema
+    onReset&&onReset()  // limpa resultados antigos ao trocar o hidrossistema
   }
 
+  // limpa o preset selecionado e volta ao modo manual com um reservatório vazio
   const clearPreset=()=>{
     setPresetSel('')
     setModoLocked(false)
     const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}]
     setItems(empty)
     onResChange&&onResChange(empty)
-    onReset&&onReset()   // limpa resultados ao limpar preset
+    onReset&&onReset()
   }
 
+  // monta o payload e chama a simulação
   const submit=()=>{
     onSimulate({
       reservatorios:items.map(it=>({nome:String(it.nome||''),cod:String(it.cod||''),capacidade:parseFloat(it.capacidade)||0,est_evap:String(it.est_evap??''),vol_inicial:parseFloat(it.vol_inicial)||0,demanda:parseFloat(it.demanda)||0,gatilho:parseFloat(it.gatilho)||0})),
-      // Bug fix: modo Individual nunca envia vazão conjunta
-      modo:String(modo),vazao_conjunta:modo==='Individual'?0:(parseFloat(vazaoConj)||0),
+      modo:String(modo),vazao_conjunta:modo==='Individual'?0:(parseFloat(vazaoConj)||0),  // Individual nunca manda vazão conjunta
       mes_inicial:String(mesIni),ano_inicial:parseInt(anoIni),
       mes_final:String(mesFim),ano_final:parseInt(anoFim),
     })
@@ -1419,13 +1483,13 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
       <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:2}}>Configuração</div>
       <div style={{fontSize:11,color:'var(--text-light)',marginBottom:14}}>Cenário: <strong style={{color:'var(--orange-deep)'}}>{items[0]?.nome||'Nenhum selecionado'}</strong></div>
 
+      {/* seletor de hidrossistema pré-configurado */}
       {presets.length>0&&(
         <>
           <Label icon={Zap}>Hidrossistema</Label>
           <div style={{display:'flex',gap:5}}>
             <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
               <option value="">Configuração manual…</option>
-              {/* REMOVIDO: modo entre parênteses no label */}
               {presets.map(p=><option key={p.nome} value={p.nome}>{p.nome}</option>)}
             </FC>
             {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
@@ -1434,10 +1498,13 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         </>
       )}
 
+      {/* lista de reservatórios configurados */}
       <Label icon={Database}>Reservatórios</Label>
       {items.map((res,i)=>(
         <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
       ))}
+
+      {/* botão pra adicionar mais um reservatório */}
       <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}])}
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
@@ -1445,6 +1512,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         <Plus size={10} style={{marginRight:4}}/> Adicionar Reservatório
       </button>
 
+      {/* seletor de modo de operação */}
       <Label icon={Settings2}>Modo de Operação</Label>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5,marginBottom:4}}>
         {['Individual','Série','Paralelo'].map(m=>(
@@ -1454,6 +1522,8 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
           </button>
         ))}
       </div>
+
+      {/* campo de vazão conjunta — só aparece nos modos Série e Paralelo */}
       {modo!=='Individual'&&(
         <div style={{marginTop:9}}>
           <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Vazão Conjunta (m³/s)</div>
@@ -1461,6 +1531,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         </div>
       )}
 
+      {/* seletores de período inicial e final */}
       <Label icon={Calendar}>Período</Label>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
         <div>
@@ -1479,6 +1550,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         </div>
       </div>
 
+      {/* botão principal — desabilitado enquanto carrega ou sem reservatório selecionado */}
       <button onClick={submit} disabled={loading||!items[0].nome}
         style={{width:'100%',marginTop:16,padding:12,background:loading||!items[0].nome?'var(--border)':'linear-gradient(135deg,var(--orange),var(--orange-deep))',border:'none',borderRadius:'var(--radius-sm)',color:loading||!items[0].nome?'var(--text-light)':'#fff',fontSize:13,fontWeight:800,cursor:loading||!items[0].nome?'not-allowed':'pointer',boxShadow:loading?'none':'0 4px 18px var(--orange-glow)',transition:'all 0.2s',letterSpacing:'0.02em'}}
         onMouseEnter={e=>{if(!loading)e.currentTarget.style.transform='translateY(-1px)'}}
@@ -1489,11 +1561,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROOT
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Missing X import reference — add inline
+// ícone de X feito na mão — serve pro botão de limpar preset
 function X({ size=14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1502,12 +1570,15 @@ function X({ size=14 }) {
   )
 }
 
+// componente raiz — orquestra tudo
+// busca reservatórios e presets na inicialização
+// gerencia as abas, resultados, estado de loading e erros
 export default function SimuladorHidrico({ apiUrl }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [resList,setResList]=useState([])
   const [presets,setPresets]=useState([])
   const [resultados,setResultados]=useState(null)
-  const [simMeta,setSimMeta]=useState(null) // {modo, vazaoConjunta, params}
+  const [simMeta,setSimMeta]=useState(null)   // guarda modo, vazão conjunta e params da última simulação
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState(null)
   const [apiError,setApiError]=useState(null)
@@ -1515,12 +1586,14 @@ export default function SimuladorHidrico({ apiUrl }) {
   const [resultTab,setResultTab]=useState('graficos')
   const [activeRes,setActiveRes]=useState([])
 
+  // ao montar o componente, busca os dados base da API
   useEffect(()=>{
     Promise.all([api.fetchReservatorios(),api.fetchPresets()])
       .then(([r,p])=>{setResList(r);setPresets(p)})
       .catch(e=>setApiError(e.message))
   },[api])
 
+  // limpa os resultados e volta pra tela inicial
   const handleReset=()=>{
     setResultados(null)
     setSimMeta(null)
@@ -1529,23 +1602,25 @@ export default function SimuladorHidrico({ apiUrl }) {
     setResultTab('graficos')
   }
 
+  // roda a simulação e salva os resultados no estado
   const handleSimulate=async(payload)=>{
     setLoading(true);setError(null)
     try{
       const data=await api.runSimulacao(payload)
       setResultados(data.resultados)
-      // guardar meta para análise de garantia
       setSimMeta({
         modo:payload.modo,
         vazaoConjunta:payload.vazao_conjunta,
-        params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda, capacidade:r.capacidade}))
+        params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda,capacidade:r.capacidade}))
       })
       setActiveTab('sim');setResultTab('graficos')
+      // rola a tela até os resultados depois de um tempinho
       setTimeout(()=>document.getElementById('sim-anchor')?.scrollIntoView({behavior:'smooth',block:'start'}),200)
     }catch(e){setError(e.message)}
     finally{setLoading(false)}
   }
 
+  // definição das abas principais e das abas de resultado
   const MAIN_TABS=[
     {id:'sim',    label:'▶ Simulação'},
     {id:'secas',  label:'🛡 Níveis Meta'},
@@ -1561,7 +1636,7 @@ export default function SimuladorHidrico({ apiUrl }) {
     <div className="sim-root" style={{minHeight:600,paddingBottom:48}}>
       <style>{CSS}</style>
 
-      {/* Top bar */}
+      {/* cabeçalho com título, status do cenário e botões de exportação */}
       <div style={{padding:'18px 26px 0',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3}}>
@@ -1578,6 +1653,7 @@ export default function SimuladorHidrico({ apiUrl }) {
           <div style={{display:'flex',gap:3,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',padding:3,boxShadow:'var(--shadow-sm)'}}>
             {MAIN_TABS.map(t=><button key={t.id} className={`sim-tab ${activeTab===t.id?'on':'off'}`} onClick={()=>setActiveTab(t.id)}>{t.label}</button>)}
           </div>
+          {/* botões de download aparecem só quando tem resultados */}
           {resultados&&(
             <div style={{display:'flex',gap:6}}>
               <button className="sim-ghost" onClick={()=>exportExcel(resultados, simMeta?.modo||'Individual')}>
@@ -1591,7 +1667,7 @@ export default function SimuladorHidrico({ apiUrl }) {
         </div>
       </div>
 
-      {/* API error */}
+      {/* aviso quando a API não foi encontrada */}
       {apiError&&(
         <div style={{margin:'12px 26px 0',padding:'10px 14px',background:'#fffbea',border:'1.5px solid #f5c842',borderRadius:'var(--radius-sm)',display:'flex',gap:9,alignItems:'flex-start'}}>
           <AlertTriangle size={13} color="#b48a0c" style={{marginTop:1}}/>
@@ -1602,16 +1678,17 @@ export default function SimuladorHidrico({ apiUrl }) {
         </div>
       )}
 
-      {/* Main grid */}
+      {/* layout principal: painel de configuração à esquerda + área de conteúdo à direita */}
       <div style={{padding:'14px 26px 0',display:'grid',gridTemplateColumns:'295px 1fr',gap:16,alignItems:'start'}}>
 
         <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset}/>
 
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
-          {/* ── SIMULAÇÃO TAB ── */}
+          {/* aba de simulação */}
           {activeTab==='sim'&&(
             <>
+              {/* mensagem de erro da simulação */}
               {error&&(
                 <div style={{background:'var(--red-pale)',border:'1.5px solid var(--red)',borderRadius:'var(--radius-sm)',padding:'10px 14px',display:'flex',alignItems:'center',gap:9}}>
                   <AlertTriangle size={13} color="var(--red)"/>
@@ -1619,6 +1696,8 @@ export default function SimuladorHidrico({ apiUrl }) {
                   <button onClick={()=>setError(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1}}>×</button>
                 </div>
               )}
+
+              {/* spinner enquanto a simulação está rodando */}
               {loading&&(
                 <Card style={{padding:'46px 20px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
                   <RefreshCw size={32} color="var(--orange)" className="sim-spin"/>
@@ -1626,6 +1705,8 @@ export default function SimuladorHidrico({ apiUrl }) {
                   <div style={{fontSize:11,color:'var(--text-light)'}}>Processando série histórica e calculando balanço hídrico.</div>
                 </Card>
               )}
+
+              {/* tela inicial — aparece antes de qualquer simulação */}
               {!loading&&!resultados&&!error&&(
                 <Card style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'56px 20px',gap:13}}>
                   <div style={{width:64,height:64,borderRadius:'50%',background:'var(--orange-pale)',border:'2px solid var(--orange-light)',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1637,10 +1718,12 @@ export default function SimuladorHidrico({ apiUrl }) {
                   </div>
                 </Card>
               )}
+
+              {/* resultados — aparece quando a simulação terminar com sucesso */}
               {!loading&&resultados&&(
                 <>
                   <div id="sim-anchor"/>
-                  {/* result tabs */}
+                  {/* abas de resultado */}
                   <div style={{display:'flex',gap:3,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',padding:3,width:'fit-content',boxShadow:'var(--shadow-sm)',flexWrap:'wrap'}}>
                     {RES_TABS.map(t=><button key={t.id} className={`sim-tab ${resultTab===t.id?'on':'off'}`} onClick={()=>setResultTab(t.id)}>{t.label}</button>)}
                   </div>
@@ -1658,7 +1741,7 @@ export default function SimuladorHidrico({ apiUrl }) {
             </>
           )}
 
-          {/* ── PLANO DE SECAS TAB ── */}
+          {/* aba de níveis meta (plano de secas) */}
           {activeTab==='secas'&&(
             <PlanoSecasPanel api={api} reservatorios={activeRes}/>
           )}
