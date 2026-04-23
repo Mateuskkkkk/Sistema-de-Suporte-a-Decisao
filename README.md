@@ -5,7 +5,7 @@ Este é um **Sistema de Suporte à Decisão (SSD)** desenvolvido para a simulaç
 
 ---
 
-## 🚀 Como Executar o Projeto
+## 🚀 Como Executar o Projeto Localmemnte
 
 O projeto é dividido em duas partes: **Backend** (API em Python) e **Frontend** (Interface em React).
 
