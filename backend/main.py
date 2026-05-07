@@ -32,7 +32,27 @@ ordem_meses = {
 }
 
 
+# --- NOVO: modelo de uma faixa customizada do plano de secas ---
+# recebe os limites mensais (% do volume) e o racionamento de cada nível meta
+class FaixaCustom(BaseModel):
+    Faixa: str
+    Racionamento: float
+    JAN: float = 100
+    FEV: float = 100
+    MAR: float = 100
+    ABR: float = 100
+    MAI: float = 100
+    JUN: float = 100
+    JUL: float = 100
+    AGO: float = 100
+    SET: float = 100
+    OUT: float = 100
+    NOV: float = 100
+    DEZ: float = 100
+
+
 # modelo de dados de um reservatório individual
+# --- MODIFICADO: adicionado campo opcional plano_secas_custom ---
 class Reservatorio(BaseModel):
     nome: str
     cod: str
@@ -41,6 +61,8 @@ class Reservatorio(BaseModel):
     vol_inicial: float
     demanda: float
     gatilho: float
+    plano_secas_custom: Optional[List[FaixaCustom]] = None  # faixas editadas na sessão do frontend
+
 
 # modelo de dados que o front manda pra iniciar uma simulação
 class SimulacaoRequest(BaseModel):
@@ -388,15 +410,29 @@ def processar_simulacao_api(req: SimulacaoRequest):
             y_area = cav_res["AREA (km²)"].values
             func_interp = interpolate.interp1d(x_vol, y_area, fill_value="extrapolate")
 
-        # monta as regras de racionamento do plano de secas por mês
-        plano_res  = df_plano[df_plano['COD'].astype(str) == str(res.cod)]
+        # --- MODIFICADO: monta regras de racionamento ---
+        # Prioridade: faixas customizadas enviadas pelo frontend (editadas na sessão)
+        # Fallback: dados do banco de dados
         regras_mes = {}
-        if not plano_res.empty:
+
+        if res.plano_secas_custom:
+            # usa as faixas que o usuário editou na sessão do frontend
             for m in ordem_meses.keys():
-                regras = [(row[m], row['Racionamento (%)'], row['Faixa'])
-                          for _, row in plano_res.iterrows()]
+                regras = [
+                    (getattr(f, m), f.Racionamento, f.Faixa)
+                    for f in res.plano_secas_custom
+                ]
                 regras.sort(key=lambda x: x[0])
                 regras_mes[m] = regras
+        else:
+            # comportamento original: busca do banco de dados
+            plano_res = df_plano[df_plano['COD'].astype(str) == str(res.cod)]
+            if not plano_res.empty:
+                for m in ordem_meses.keys():
+                    regras = [(row[m], row['Racionamento (%)'], row['Faixa'])
+                              for _, row in plano_res.iterrows()]
+                    regras.sort(key=lambda x: x[0])
+                    regras_mes[m] = regras
 
         lista_dfs_input.append(df_long)
         lista_params.append({
