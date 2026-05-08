@@ -75,17 +75,6 @@ class SimulacaoRequest(BaseModel):
     ano_final: int
 
 
-# retorna o coeficiente de evaporação (Kp) de acordo com o tamanho da área do açude
-# quanto maior o açude, menor o Kp (mais perde pra evaporação)
-def obter_k_dinamico(area_km2):
-    ha = area_km2 * 100.0
-    if ha <= 5:    return 0.90
-    elif ha <= 10: return 0.85
-    elif ha <= 20: return 0.80
-    elif ha <= 50: return 0.75
-    else:          return 0.70
-
-
 # função principal que roda a simulação mês a mês pra todos os reservatórios
 # recebe os dataframes com as vazões, os parâmetros de cada açude, o modo de operação
 # (Série, Paralelo ou Individual) e a vazão conjunta do sistema
@@ -142,11 +131,10 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
-            # calcula evaporação usando a área do espelho d'água e o Kp dinâmico
+            # calcula evaporação usando a área do espelho d'água
             area          = p['func_area'](vol_ini)
-            kp_dinamico   = obter_k_dinamico(area)
             evap_tanque_mm = dfs[i].loc[t, 'Evaporação (m)']
-            evap_hm3      = (evap_tanque_mm * kp_dinamico * area) / 1000.0
+            evap_hm3      = (evap_tanque_mm * area) / 1000.0
 
             # converte vazão de m³/s pra hm³/mês
             afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
