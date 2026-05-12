@@ -418,7 +418,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
             x_vol  = cav_res["VOLUME (m³)"].values / 1e6
             y_area = cav_res["AREA (km²)"].values
             
-            func_interp = interpolate.interp1d(
+            func_interp = interpolate.interp1d()
                 x_vol, 
                 y_area, 
                 kind='linear',
