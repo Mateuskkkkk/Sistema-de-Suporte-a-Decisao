@@ -131,18 +131,39 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
-            # calcula evaporação usando a área do espelho d'água
-            area          = p['func_area'](vol_ini)
-            evap_tanque_mm = dfs[i].loc[t, 'Evaporação (m)']
-            evap_hm3      = (evap_tanque_mm * area) / 1000.0
-
-            # converte vazão de m³/s pra hm³/mês
+            
+            # 1. Converte afluência e evaporação para as unidades base (hm³ e m)
             afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
+            evap_taxa_m   = float(dfs[i].loc[t, 'Evaporação (m)']) / 1000.0
 
+            # 2. Calcula a "Retirada" total (Demanda do açude + Vazão Conjunta, se aplicável)
+            retirada_prevista_m3s = p['demanda_nominal']
+            if i == 0 and modo in ["Paralelo", "Série"]:
+                retirada_prevista_m3s += vazao_conjunta
+            
+            # Aplica o racionamento à retirada
+            retirada_hm3 = retirada_prevista_m3s * (1 - rac / 100.0) * (segundos_mes / 1e6)
+
+            # 3. Aplica os passos exatos do modelo matemático:
+            area_ini = float(p['func_area'](vol_ini))
+            
+            # Chute do volume final intermédio (Vol_Est = Vol_Ini + Aflu - Retirada - Evap * Area_Ini)
+            vol_est = vol_ini + afluencia_hm3 - retirada_hm3 - (evap_taxa_m * area_ini)
+            vol_est = max(0.0, vol_est) # Evita que a matemática intermédia desça abaixo de zero
+            
+            area_fin = float(p['func_area'](vol_est))
+            
+            # Média das áreas
+            area_med = (area_ini + area_fin) / 2.0
+            
+            # Evaporação real pelo método trapezoidal
+            evap_hm3 = evap_taxa_m * area_med
+
+            # Guarda os valores
             dfs[i].loc[t, 'Evaporação (hm³)']    = evap_hm3
             dfs[i].loc[t, 'Afluências (hm³/mês)'] = afluencia_hm3
 
-            # volume depois de considerar a chuva (afluência) e a evaporação, nunca negativo
+            # Volume parcial (apenas natureza) blindado contra valores negativos
             vol_pos_natureza = max(0.0, vol_ini + afluencia_hm3 - evap_hm3)
             prev_volumes_pos_natureza.append(vol_pos_natureza)
 
@@ -396,9 +417,14 @@ def processar_simulacao_api(req: SimulacaoRequest):
         else:
             x_vol  = cav_res["VOLUME (m³)"].values / 1e6
             y_area = cav_res["AREA (km²)"].values
-            func_interp = interpolate.interp1d(x_vol, y_area, fill_value="extrapolate")
-
-        # --- MODIFICADO: monta regras de racionamento ---
+            
+            func_interp = interpolate.interp1d(
+                x_vol, 
+                y_area, 
+                kind='linear',
+                bounds_error=False, 
+                fill_value=(float(y_area[0]), float(y_area[-1]))
+                
         # Prioridade: faixas customizadas enviadas pelo frontend (editadas na sessão)
         # Fallback: dados do banco de dados
         regras_mes = {}
