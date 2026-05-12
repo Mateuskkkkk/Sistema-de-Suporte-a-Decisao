@@ -415,8 +415,8 @@ def processar_simulacao_api(req: SimulacaoRequest):
         if len(cav_res) < 2:
             func_interp = lambda v: 0.0  # sem dados suficientes, retorna área zero
         else:
-            x_vol  = cav_res["VOLUME (m³)"].values / 1e6
-            y_area = cav_res["AREA (km²)"].values
+             x_vol  = cav_res["VOLUME (m³)"].values / 1e6
+             y_area = cav_res["AREA (km²)"].values
             
             func_interp = interpolate.interp1d()
                 x_vol, 
