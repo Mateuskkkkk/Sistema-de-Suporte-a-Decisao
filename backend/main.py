@@ -7,7 +7,6 @@ import numpy as np
 import sqlite3
 import os
 from scipy import interpolate
-from scipy.interpolate import PchipInterpolator
 from typing import List, Dict, Optional
 
 # cria a aplicação FastAPI
@@ -131,7 +130,6 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
-            
             # 1. Converte afluência e evaporação para as unidades base (hm³ e m)
             afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
             evap_taxa_m   = float(dfs[i].loc[t, 'Evaporação (m)']) / 1000.0
@@ -188,7 +186,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                 dfs[i].loc[t, 'Falha']        = 'Sim'
                 dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
-        demandas_finais           = [0.0] * n_res
+        demandas_finais            = [0.0] * n_res
         transferencias_registradas = [0.0] * n_res
         transferencias_enviadas    = [0.0] * n_res
 
@@ -415,15 +413,16 @@ def processar_simulacao_api(req: SimulacaoRequest):
         if len(cav_res) < 2:
             func_interp = lambda v: 0.0  # sem dados suficientes, retorna área zero
         else:
-             x_vol  = cav_res["VOLUME (m³)"].values / 1e6
-             y_area = cav_res["AREA (km²)"].values
+            x_vol  = cav_res["VOLUME (m³)"].values / 1e6
+            y_area = cav_res["AREA (km²)"].values
             
-            func_interp = interpolate.interp1d()
+            func_interp = interpolate.interp1d(
                 x_vol, 
                 y_area, 
                 kind='linear',
                 bounds_error=False, 
                 fill_value=(float(y_area[0]), float(y_area[-1]))
+            )
                 
         # Prioridade: faixas customizadas enviadas pelo frontend (editadas na sessão)
         # Fallback: dados do banco de dados
