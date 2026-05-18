@@ -31,7 +31,7 @@ ordem_meses = {
 }
 
 
-# --- NOVO: modelo de uma faixa customizada do plano de secas ---
+
 # recebe os limites mensais (% do volume) e o racionamento de cada nível meta
 class FaixaCustom(BaseModel):
     Faixa: str
@@ -51,7 +51,6 @@ class FaixaCustom(BaseModel):
 
 
 # modelo de dados de um reservatório individual
-# --- MODIFICADO: adicionado campo opcional plano_secas_custom ---
 class Reservatorio(BaseModel):
     nome: str
     cod: str
@@ -161,7 +160,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             dfs[i].loc[t, 'Evaporação (hm³)']    = evap_hm3
             dfs[i].loc[t, 'Afluências (hm³/mês)'] = afluencia_hm3
 
-            # Volume parcial (apenas natureza) blindado contra valores negativos
+            # Volume parcial 
             vol_pos_natureza = max(0.0, vol_ini + afluencia_hm3 - evap_hm3)
             prev_volumes_pos_natureza.append(vol_pos_natureza)
 
