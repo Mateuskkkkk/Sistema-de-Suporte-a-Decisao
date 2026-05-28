@@ -124,8 +124,11 @@ function exportExcel(resultados, modo) {
     const ws = XLSX.utils.json_to_sheet(rows)
     XLSX.utils.book_append_sheet(wb, ws, r.reservatorio.slice(0, 31))
   })
+  const nomeAcude = resultados[0]?.reservatorio 
+    ? resultados[0].reservatorio.replace(/\s+/g, '_') 
+    : 'hidrica'
 
-  XLSX.writeFile(wb, 'simulacao_hidrica.xlsx')
+  XLSX.writeFile(wb, `simulacao_${nomeAcude}.xlsx`)
 }
 
 function Card({ children, style, className = '' }) {
