@@ -188,7 +188,7 @@ function calcFalhasConjuntas(resultados, modo) {
   if (!resultados?.length) return []
   const n = resultados[0].dados.length
   return Array.from({length:n}, (_,t) =>
-    resultados.every(r=>r.dados[t]?.['Falha']==='Sim')
+    resultados.some(r=>r.dados[t]?.['Falha']==='Sim')
   )
 }
 
@@ -305,45 +305,27 @@ function MesesAbastecidos({ resultados, modo, params }) {
   )
 }
 
-function FailureDetail({ resultados, modo }) {
+function FailureDetail({ resultados }) {
   if (!resultados?.length) return null
   const falhas = []
   
-  if (modo === 'Individual') {
-    // Modo individual: contabiliza falhas de cada reservatório isoladamente
-    resultados.forEach(r => r.dados.forEach(d => {
-      if (d['Falha']==='Sim') falhas.push({ 
-        reservatorio:r.reservatorio, data:d.Data, 
+  resultados.forEach(r => r.dados.forEach(d => {
+    if (d['Falha']==='Sim') {
+      falhas.push({ 
+        reservatorio:r.reservatorio, 
+        data:d.Data, 
         volIni:parseFloat(d['Armazenamento Inicial']||0).toFixed(2), 
         demSol:parseFloat(d['Demanda Solicitada (m³/s)']||0).toFixed(3), 
         demAt:parseFloat(d['Demanda Atendida (m³/s)']||0).toFixed(3), 
         rac:parseFloat(d['Racionamento (%)']||0).toFixed(1), 
         modo:d['Modo Operação'] 
       })
-    }))
-  } else {
-    // Modo Rede (Série/Paralelo): agrupa a falha para não duplicar visualmente
-    const n = resultados[0].dados.length
-    for (let t = 0; t < n; t++) {
-      const falhaSistemica = resultados.every(r => r.dados[t]?.['Falha'] === 'Sim')
-      if (falhaSistemica) {
-        const d = resultados[0].dados[t]
-        const demSolSist = resultados.reduce((sum, r) => sum + (parseFloat(r.dados[t]['Demanda Solicitada (m³/s)'])||0), 0)
-        const demAtSist = resultados.reduce((sum, r) => sum + (parseFloat(r.dados[t]['Demanda Atendida (m³/s)'])||0), 0)
-        
-        falhas.push({
-          reservatorio: 'FALHA SISTÊMICA',
-          data: d.Data,
-          volIni: '—', 
-          demSol: demSolSist.toFixed(3),
-          demAt: demAtSist.toFixed(3),
-          rac: '—',
-          modo: 'FALHA GERAL'
-        })
-      }
     }
-  }
-  
+  }))
+
+  // Ordena cronologicamente para a tabela ficar bonita
+  falhas.sort((a,b) => a.data.localeCompare(b.data))
+
   return (
     <Card style={{ padding:'16px 20px', borderColor:falhas.length>0?'var(--red-pale)':'var(--teal-pale)' }}>
       <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:falhas.length?12:0 }}>
@@ -362,7 +344,7 @@ function FailureDetail({ resultados, modo }) {
                 <span style={{ fontSize:11.5, fontWeight:700, color:'var(--red)' }}>{f.reservatorio}</span>
               </div>
               <div style={{ display:'flex', gap:10, fontSize:10.5, color:'var(--text-mid)', flexWrap:'wrap' }}>
-                {f.volIni !== '—' && <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hm³</strong></span>}
+                <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hm³</strong></span>
                 <span>Sol.: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.demSol}</strong></span>
                 <span>At.: <strong style={{ fontFamily:'JetBrains Mono', color:'var(--red)' }}>{f.demAt}</strong></span>
                 {parseFloat(f.rac)>0 && <span>Rac: <strong>{f.rac}%</strong></span>}
