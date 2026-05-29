@@ -255,12 +255,14 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
         # Lista de controle para segurar as falhas do mês antes de escrever no DataFrame
         falhas_do_mes = []
-
-        # grava os resultados de cada açude no dataframe e calcula o volume final do mês
+        
+        # grava os resultados verificando individualmente se a água atendeu a demanda JÁ RACIONADA
         for i in range(n_res):
             p   = params[i]
             df  = dfs[i]
             vol_ini     = volumes_atueis[i]
+            
+            # A demanda alvo já considera a redução percentual do nível meta atual
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
             if modo == "Paralelo":
@@ -274,25 +276,21 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
             df.loc[t, 'Armazenamento Inicial'] = vol_ini
             df.loc[t, 'Racionamento (%)']      = racionamentos[i]
-            if not sistema_em_falha:
-                df.loc[t, 'Modo Operação'] = nomes_faixas_atuais[i]
+            df.loc[t, 'Modo Operação']         = nomes_faixas_atuais[i]
 
             vol_disp = (prev_volumes_pos_natureza[i] if modo == "Série"
                         else vol_ini + dfs[i].loc[t, 'Afluências (hm³/mês)'] - dfs[i].loc[t, 'Evaporação (hm³)'])
 
-            # Avalia a falha e guarda na lista de controle (não mais no df.loc direto)
-            falhou_agora = False
-            if sistema_em_falha:
-                demanda_atendida_real_hm3 = max(0, min(vol_disp, demanda_hm3))
-                falhou_agora = True
-            else:
-                if vol_disp < demanda_hm3:
-                    demanda_atendida_real_hm3 = max(0, vol_disp)
-                    falhou_agora = True
-                else:
-                    demanda_atendida_real_hm3 = demanda_hm3
 
-            falhas_do_mes.append(falhou_agora)
+            # Se a água disponível for menor que a meta racionada 
+            if round(vol_disp, 6) < round(demanda_hm3, 6):
+                demanda_atendida_real_hm3 = max(0, vol_disp)
+                df.loc[t, 'Falha'] = 'Sim'
+                falhas_do_mes.append(True)
+            else:
+                demanda_atendida_real_hm3 = demanda_hm3
+                df.loc[t, 'Falha'] = 'Não'
+                falhas_do_mes.append(False)
 
             df.loc[t, 'Demanda Atendida (m³/s)'] = demanda_atendida_real_hm3 * (1e6 / segundos_mes)
 
@@ -307,18 +305,13 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             df.loc[t, 'Armazenamento Final'] = vol_final
             volumes_atueis[i]                = vol_final 
 
-        # Só registra a falha se todos os açudes do sistema caíram simultaneamente
-        if modo in ["Paralelo", "Série"]:
-            falha_conjunta = all(falhas_do_mes)
+        # Se for um sistema interligado e TODOS secarem, avisa na coluna "Modo Operação"
+        # Isso NÃO apaga as falhas individuais calculadas acima.
+        if modo in ["Paralelo", "Série"] and all(falhas_do_mes) and len(falhas_do_mes) > 0:
             for i in range(n_res):
-                dfs[i].loc[t, 'Falha'] = 'Sim' if falha_conjunta else 'Não'
-        else:
-            # No modo individual, cada um é responsável pelo seu próprio déficit
-            for i in range(n_res):
-                dfs[i].loc[t, 'Falha'] = 'Sim' if falhas_do_mes[i] else 'Não'
+                dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
     return dfs
-
 
 # rota que retorna a lista de todos os reservatórios cadastrados no banco
 @app.get("/api/reservatorios")
