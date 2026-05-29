@@ -144,16 +144,12 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             # 3. Aplica os passos exatos do modelo matemático:
             area_ini = float(p['func_area'](vol_ini))
             
-            # Chute do volume final intermédio (Vol_Est = Vol_Ini + Aflu - Retirada - Evap * Area_Ini)
+            # Chute do volume final intermédio
             vol_est = vol_ini + afluencia_hm3 - retirada_hm3 - (evap_taxa_m * area_ini)
-            vol_est = max(0.0, vol_est) # Evita que a matemática intermédia desça abaixo de zero
+            vol_est = max(0.0, vol_est) 
             
             area_fin = float(p['func_area'](vol_est))
-            
-            # Média das áreas
             area_med = (area_ini + area_fin) / 2.0
-            
-            # Evaporação real pelo método trapezoidal
             evap_hm3 = evap_taxa_m * area_med
 
             # Guarda os valores
@@ -164,43 +160,35 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             vol_pos_natureza = max(0.0, vol_ini + afluencia_hm3 - evap_hm3)
             prev_volumes_pos_natureza.append(vol_pos_natureza)
 
-        # soma o volume disponível em todos os açudes do sistema
         total_vol_disponivel = sum(prev_volumes_pos_natureza)
 
-        # calcula a demanda conjunta considerando racionamento do primeiro açude
         rac_inicial_conjunta      = racionamentos[0] if racionamentos else 0.0
         demanda_conjunta_estimada = vazao_conjunta * (1 - rac_inicial_conjunta / 100.0) * (segundos_mes / 1e6)
 
-        # soma a demanda de todos os reservatórios com o racionamento aplicado
         total_demanda_necessaria = demanda_conjunta_estimada
         for i in range(n_res):
             dem_esp_hm3 = params[i]['demanda_nominal'] * (1 - racionamentos[i] / 100.0) * (segundos_mes / 1e6)
             total_demanda_necessaria += dem_esp_hm3
 
-        # verifica se o sistema entrou em falha (não tem água suficiente pra nada)
+        # verifica se o sistema entrou em falha 
         sistema_em_falha = False
         if modo == "Paralelo" and total_vol_disponivel < total_demanda_necessaria:
             sistema_em_falha = True
             for i in range(n_res):
-                dfs[i].loc[t, 'Falha']        = 'Sim'
                 dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
         demandas_finais            = [0.0] * n_res
         transferencias_registradas = [0.0] * n_res
         transferencias_enviadas    = [0.0] * n_res
 
-        # só calcula demanda e transferências se não tiver em falha geral
         if not sistema_em_falha:
             responsabilidade_especifica = [p['demanda_nominal'] for p in params]
 
             if modo == "Paralelo":
-                # no modo paralelo, a vazão conjunta começa toda no primeiro açude
                 alocacao_conjunta_bruta = [0.0] * n_res
                 if n_res > 0:
                     alocacao_conjunta_bruta[0] = vazao_conjunta
 
-                # tenta passar a responsabilidade da vazão conjunta pro próximo açude
-                # se o atual estiver abaixo do gatilho e o próximo tiver água suficiente
                 for i in range(n_res - 1):
                     p = params[i]
                     vol_gatilho          = p['capacidade'] * (p['gatilho'] / 100)
@@ -215,19 +203,16 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                             alocacao_conjunta_bruta[i]     = 0.0
                             alocacao_conjunta_bruta[i+1]  += carga_para_mover_bruta
 
-                # calcula demanda final de cada açude com racionamento aplicado
                 for k in range(n_res):
                     dem_esp  = responsabilidade_especifica[k] * (1 - racionamentos[k] / 100.0)
                     dem_conj = alocacao_conjunta_bruta[k]     * (1 - racionamentos[k] / 100.0)
                     demandas_finais[k] = dem_esp + dem_conj
 
-                # demanda bruta solicitada (sem racionamento, só pra registro)
                 demandas_solicitadas_paralelo = [
                     responsabilidade_especifica[k] + alocacao_conjunta_bruta[k]
                     for k in range(n_res)
                 ]
 
-                # registra transferências entre açudes quando a carga conjunta mudou de dono
                 for k in range(1, n_res):
                     if alocacao_conjunta_bruta[k] > 0:
                         val = alocacao_conjunta_bruta[k] * (1 - racionamentos[k] / 100.0)
@@ -235,12 +220,10 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         transferencias_enviadas[k - 1]  = val
 
             elif modo == "Série":
-                # no modo série, o primeiro açude recebe a vazão conjunta
                 for k in range(n_res):
                     base_demand = demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0)
                     demandas_finais[k] = base_demand * (1 - racionamentos[k] / 100.0)
 
-                # transferência em série: o açude seguinte ajuda o anterior se ele estiver seco
                 for i in range(1, n_res):
                     idx_sender   = i
                     idx_receiver = i - 1
@@ -251,7 +234,6 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         disponivel_sender  = prev_volumes_pos_natureza[idx_sender]
                         qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
 
-                        # atualiza os volumes com a transferência
                         prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
                         prev_volumes_pos_natureza[idx_sender]   -= qtd_transferir_hm3
 
@@ -259,11 +241,9 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                         transferencias_registradas[idx_receiver] += fluxo_transf
                         transferencias_enviadas[idx_sender]       += fluxo_transf
             else:
-                # modo individual: cada açude atende só sua própria demanda
                 for k in range(n_res):
                     demandas_finais[k] = demandas_iniciais[k] * (1 - racionamentos[k] / 100.0)
         else:
-            # em caso de falha sistêmica, calcula o que daria pra atender de qualquer forma
             for k in range(n_res):
                 base = demandas_iniciais[k] + (vazao_conjunta if modo == "Paralelo" and k == 0 else 0)
                 demandas_finais[k] = base * (1 - racionamentos[k] / 100.0)
@@ -273,6 +253,9 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                     for k in range(n_res)
                 ]
 
+        # Lista de controle para segurar as falhas do mês antes de escrever no DataFrame
+        falhas_do_mes = []
+
         # grava os resultados de cada açude no dataframe e calcula o volume final do mês
         for i in range(n_res):
             p   = params[i]
@@ -280,7 +263,6 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             vol_ini     = volumes_atueis[i]
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
-            # registra demandas e transferências conforme o modo de operação
             if modo == "Paralelo":
                 df.loc[t, 'Demanda Solicitada (m³/s)']     = demandas_solicitadas_paralelo[i]
                 df.loc[t, 'Transferência Recebida (m³/s)'] = 0.0
@@ -295,23 +277,25 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             if not sistema_em_falha:
                 df.loc[t, 'Modo Operação'] = nomes_faixas_atuais[i]
 
-            # volume disponível pra retirada nesse mês
             vol_disp = (prev_volumes_pos_natureza[i] if modo == "Série"
                         else vol_ini + dfs[i].loc[t, 'Afluências (hm³/mês)'] - dfs[i].loc[t, 'Evaporação (hm³)'])
 
-            # calcula quanto da demanda realmente foi atendida (pode ser menos se faltar água)
+            # Avalia a falha e guarda na lista de controle (não mais no df.loc direto)
+            falhou_agora = False
             if sistema_em_falha:
                 demanda_atendida_real_hm3 = max(0, min(vol_disp, demanda_hm3))
+                falhou_agora = True
             else:
                 if vol_disp < demanda_hm3:
                     demanda_atendida_real_hm3 = max(0, vol_disp)
-                    df.loc[t, 'Falha'] = 'Sim'
+                    falhou_agora = True
                 else:
                     demanda_atendida_real_hm3 = demanda_hm3
 
+            falhas_do_mes.append(falhou_agora)
+
             df.loc[t, 'Demanda Atendida (m³/s)'] = demanda_atendida_real_hm3 * (1e6 / segundos_mes)
 
-            # calcula volume final e verifica se transbordou (vertimento)
             vol_final  = vol_disp - demanda_atendida_real_hm3
             vertimento = 0.0
             if vol_final > p['capacidade']:
@@ -321,7 +305,17 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
             df.loc[t, 'Vertimento (hm³)']   = vertimento
             df.loc[t, 'Armazenamento Final'] = vol_final
-            volumes_atueis[i]                = vol_final  # atualiza pra usar no próximo mês
+            volumes_atueis[i]                = vol_final 
+
+        # Só registra a falha se todos os açudes do sistema caíram simultaneamente
+        if modo in ["Paralelo", "Série"]:
+            falha_conjunta = all(falhas_do_mes)
+            for i in range(n_res):
+                dfs[i].loc[t, 'Falha'] = 'Sim' if falha_conjunta else 'Não'
+        else:
+            # No modo individual, cada um é responsável pelo seu próprio déficit
+            for i in range(n_res):
+                dfs[i].loc[t, 'Falha'] = 'Sim' if falhas_do_mes[i] else 'Não'
 
     return dfs
 
