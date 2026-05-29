@@ -197,17 +197,37 @@ function MetricsRow({ resultados, modo }) {
   const totalMeses = resultados[0].dados.length
   const falhasConj = calcFalhasConjuntas(resultados, modo)
   const falhasSist = falhasConj.filter(Boolean).length
+  
   let rac=0, racM=0, atend=0, solic=0, vert=0, evap=0, transf=0
 
-  resultados.forEach(r => r.dados.forEach(d => {
-    const rc = parseFloat(d['Racionamento (%)'])||0
-    if (rc>0){rac+=rc;racM++}
-    atend += parseFloat(d['Demanda Atendida (m³/s)'])||0
-    solic  += parseFloat(d['Demanda Solicitada (m³/s)'])||0
-    vert   += parseFloat(d['Vertimento (hm³)'])||0
-    evap   += parseFloat(d['Evaporação (hm³)'])||0
-    transf += parseFloat(d['Transferência Recebida (m³/s)'])||0
-  }))
+  // Agrupa os dados por mês para não somar as métricas do sistema em dobro
+  for (let t = 0; t < totalMeses; t++) {
+    let teveRacNoMes = false
+    let racMaxNoMes = 0
+    
+    resultados.forEach(r => {
+      const d = r.dados[t]
+      if (!d) return
+      
+      const rc = parseFloat(d['Racionamento (%)'])||0
+      if (rc > 0) {
+        teveRacNoMes = true
+        racMaxNoMes = Math.max(racMaxNoMes, rc) // Pega o racionamento mais severo do sistema
+      }
+      
+      atend += parseFloat(d['Demanda Atendida (m³/s)'])||0
+      solic += parseFloat(d['Demanda Solicitada (m³/s)'])||0
+      vert  += parseFloat(d['Vertimento (hm³)'])||0
+      evap  += parseFloat(d['Evaporação (hm³)'])||0
+      transf += parseFloat(d['Transferência Recebida (m³/s)'])||0
+    })
+    
+    // Contabiliza o mês de racionamento apenas 1 vez para o sistema
+    if (teveRacNoMes) {
+      racM++
+      rac += racMaxNoMes
+    }
+  }
 
   const freq  = totalMeses>0?((falhasSist/totalMeses)*100).toFixed(1):'0.0'
   const at    = solic>0?((atend/solic)*100).toFixed(1):'100.0'
@@ -236,7 +256,6 @@ function MetricsRow({ resultados, modo }) {
     </div>
   )
 }
-
 function MesesAbastecidos({ resultados, modo, params }) {
   if (!resultados?.length) return null
   const totalSist = resultados[0].dados.length
@@ -286,12 +305,45 @@ function MesesAbastecidos({ resultados, modo, params }) {
   )
 }
 
-function FailureDetail({ resultados }) {
+function FailureDetail({ resultados, modo }) {
   if (!resultados?.length) return null
   const falhas = []
-  resultados.forEach(r => r.dados.forEach(d => {
-    if (d['Falha']==='Sim') falhas.push({ reservatorio:r.reservatorio, data:d.Data, volIni:parseFloat(d['Armazenamento Inicial']||0).toFixed(2), demSol:parseFloat(d['Demanda Solicitada (m³/s)']||0).toFixed(3), demAt:parseFloat(d['Demanda Atendida (m³/s)']||0).toFixed(3), rac:parseFloat(d['Racionamento (%)']||0).toFixed(1), modo:d['Modo Operação'] })
-  }))
+  
+  if (modo === 'Individual') {
+    // Modo individual: contabiliza falhas de cada reservatório isoladamente
+    resultados.forEach(r => r.dados.forEach(d => {
+      if (d['Falha']==='Sim') falhas.push({ 
+        reservatorio:r.reservatorio, data:d.Data, 
+        volIni:parseFloat(d['Armazenamento Inicial']||0).toFixed(2), 
+        demSol:parseFloat(d['Demanda Solicitada (m³/s)']||0).toFixed(3), 
+        demAt:parseFloat(d['Demanda Atendida (m³/s)']||0).toFixed(3), 
+        rac:parseFloat(d['Racionamento (%)']||0).toFixed(1), 
+        modo:d['Modo Operação'] 
+      })
+    }))
+  } else {
+    // Modo Rede (Série/Paralelo): agrupa a falha para não duplicar visualmente
+    const n = resultados[0].dados.length
+    for (let t = 0; t < n; t++) {
+      const falhaSistemica = resultados.every(r => r.dados[t]?.['Falha'] === 'Sim')
+      if (falhaSistemica) {
+        const d = resultados[0].dados[t]
+        const demSolSist = resultados.reduce((sum, r) => sum + (parseFloat(r.dados[t]['Demanda Solicitada (m³/s)'])||0), 0)
+        const demAtSist = resultados.reduce((sum, r) => sum + (parseFloat(r.dados[t]['Demanda Atendida (m³/s)'])||0), 0)
+        
+        falhas.push({
+          reservatorio: 'FALHA SISTÊMICA (Rede)',
+          data: d.Data,
+          volIni: '—', 
+          demSol: demSolSist.toFixed(3),
+          demAt: demAtSist.toFixed(3),
+          rac: '—',
+          modo: 'FALHA GERAL'
+        })
+      }
+    }
+  }
+  
   return (
     <Card style={{ padding:'16px 20px', borderColor:falhas.length>0?'var(--red-pale)':'var(--teal-pale)' }}>
       <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:falhas.length?12:0 }}>
@@ -310,7 +362,7 @@ function FailureDetail({ resultados }) {
                 <span style={{ fontSize:11.5, fontWeight:700, color:'var(--red)' }}>{f.reservatorio}</span>
               </div>
               <div style={{ display:'flex', gap:10, fontSize:10.5, color:'var(--text-mid)', flexWrap:'wrap' }}>
-                <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hm³</strong></span>
+                {f.volIni !== '—' && <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hm³</strong></span>}
                 <span>Sol.: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.demSol}</strong></span>
                 <span>At.: <strong style={{ fontFamily:'JetBrains Mono', color:'var(--red)' }}>{f.demAt}</strong></span>
                 {parseFloat(f.rac)>0 && <span>Rac: <strong>{f.rac}%</strong></span>}
@@ -323,7 +375,6 @@ function FailureDetail({ resultados }) {
     </Card>
   )
 }
-
 function ChartCard({ title, subtitle, children }) {
   return (
     <Card className="sim-fade" style={{ padding:'16px 18px' }}>
@@ -1619,7 +1670,7 @@ export default function SimuladorHidrico({ apiUrl }) {
 
                   <MetricsRow resultados={resultados} modo={simMeta?.modo||'Individual'}/>
                   <MesesAbastecidos resultados={resultados} modo={simMeta?.modo||'Individual'} params={simMeta?.params}/>
-                  <FailureDetail resultados={resultados}/>
+                  <FailureDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>
 
                   {resultTab==='graficos'  && <Charts resultados={resultados} params={simMeta?.params} modo={simMeta?.modo||'Individual'}/>}
                   {resultTab==='vazoes'    && <VazoesDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>}
