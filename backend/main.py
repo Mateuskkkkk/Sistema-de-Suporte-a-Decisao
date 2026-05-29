@@ -76,12 +76,12 @@ class SimulacaoRequest(BaseModel):
 # função principal que roda a simulação mês a mês pra todos os reservatórios
 # recebe os dataframes com as vazões, os parâmetros de cada açude, o modo de operação
 # (Série, Paralelo ou Individual) e a vazão conjunta do sistema
+# função principal que roda a simulação mês a mês pra todos os reservatórios
 def simular_sistema_n(dfs, params, modo, vazao_conjunta):
     n_res    = len(dfs)
     n_meses  = len(dfs[0])
-    segundos_mes = 2.592e6  # quantos segundos tem num mês médio (30 dias)
+    segundos_mes = 2.592e6  
 
-    # inicializa todas as colunas de resultado com zero
     colunas_init = [
         'Armazenamento Inicial', 'Armazenamento Final',
         'Demanda Solicitada (m³/s)', 'Demanda Atendida (m³/s)',
@@ -95,24 +95,20 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         df['Falha']        = 'Não'
         df['Modo Operação'] = 'Normal'
 
-    # começa com o volume inicial de cada reservatório
     volumes_atueis = [p['vol_ini'] for p in params]
 
-    # loop mês a mês
     for t in range(n_meses):
         demandas_iniciais        = []
         racionamentos            = []
         nomes_faixas_atuais      = []
         prev_volumes_pos_natureza = []
 
-        # processa cada reservatório no mês atual
         for i in range(n_res):
             p       = params[i]
             vol_ini = volumes_atueis[i]
-            pct_vol = (vol_ini / p['capacidade']) * 100  # volume atual em % da capacidade
+            pct_vol = (vol_ini / p['capacidade']) * 100 
             mes_atual = dfs[i].loc[t, 'Mês']
 
-            # verifica se tem racionamento ativo baseado no plano de secas
             rac        = 0.0
             nome_faixa = "Normal"
             if p['regras_secas']:
@@ -129,140 +125,103 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
-            # 1. Converte afluência e evaporação para as unidades base (hm³ e m)
             afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
             evap_taxa_m   = float(dfs[i].loc[t, 'Evaporação (m)']) / 1000.0
 
-            # 2. Calcula a "Retirada" total (Demanda do açude + Vazão Conjunta, se aplicável)
             retirada_prevista_m3s = p['demanda_nominal']
             if i == 0 and modo in ["Paralelo", "Série"]:
                 retirada_prevista_m3s += vazao_conjunta
             
-            # Aplica o racionamento à retirada
             retirada_hm3 = retirada_prevista_m3s * (1 - rac / 100.0) * (segundos_mes / 1e6)
 
-            # 3. Aplica os passos exatos do modelo matemático:
             area_ini = float(p['func_area'](vol_ini))
-            
-            # Chute do volume final intermédio
             vol_est = vol_ini + afluencia_hm3 - retirada_hm3 - (evap_taxa_m * area_ini)
-            vol_est = max(0.0, vol_est) 
+            vol_est = max(0.0, vol_est)
             
             area_fin = float(p['func_area'](vol_est))
             area_med = (area_ini + area_fin) / 2.0
             evap_hm3 = evap_taxa_m * area_med
 
-            # Guarda os valores
             dfs[i].loc[t, 'Evaporação (hm³)']    = evap_hm3
             dfs[i].loc[t, 'Afluências (hm³/mês)'] = afluencia_hm3
 
-            # Volume parcial 
             vol_pos_natureza = max(0.0, vol_ini + afluencia_hm3 - evap_hm3)
             prev_volumes_pos_natureza.append(vol_pos_natureza)
-
-        total_vol_disponivel = sum(prev_volumes_pos_natureza)
-
-        rac_inicial_conjunta      = racionamentos[0] if racionamentos else 0.0
-        demanda_conjunta_estimada = vazao_conjunta * (1 - rac_inicial_conjunta / 100.0) * (segundos_mes / 1e6)
-
-        total_demanda_necessaria = demanda_conjunta_estimada
-        for i in range(n_res):
-            dem_esp_hm3 = params[i]['demanda_nominal'] * (1 - racionamentos[i] / 100.0) * (segundos_mes / 1e6)
-            total_demanda_necessaria += dem_esp_hm3
-
-        # verifica se o sistema entrou em falha 
-        sistema_em_falha = False
-        if modo == "Paralelo" and total_vol_disponivel < total_demanda_necessaria:
-            sistema_em_falha = True
-            for i in range(n_res):
-                dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
         demandas_finais            = [0.0] * n_res
         transferencias_registradas = [0.0] * n_res
         transferencias_enviadas    = [0.0] * n_res
+        demandas_solicitadas_paralelo = [0.0] * n_res
 
-        if not sistema_em_falha:
-            responsabilidade_especifica = [p['demanda_nominal'] for p in params]
+        responsabilidade_especifica = [p['demanda_nominal'] for p in params]
 
-            if modo == "Paralelo":
-                alocacao_conjunta_bruta = [0.0] * n_res
-                if n_res > 0:
-                    alocacao_conjunta_bruta[0] = vazao_conjunta
+        if modo == "Paralelo":
+            alocacao_conjunta_bruta = [0.0] * n_res
+            if n_res > 0:
+                alocacao_conjunta_bruta[0] = vazao_conjunta
 
-                for i in range(n_res - 1):
-                    p = params[i]
-                    vol_gatilho          = p['capacidade'] * (p['gatilho'] / 100)
-                    carga_para_mover_bruta = alocacao_conjunta_bruta[i]
+            for i in range(n_res - 1):
+                p = params[i]
+                vol_gatilho          = p['capacidade'] * (p['gatilho'] / 100)
+                carga_para_mover_bruta = alocacao_conjunta_bruta[i]
 
-                    if carga_para_mover_bruta > 0 and volumes_atueis[i] < vol_gatilho:
-                        dem_esp_prox_teorica   = responsabilidade_especifica[i+1] * (1 - racionamentos[i+1] / 100.0)
-                        carga_conj_prox_racionada = carga_para_mover_bruta * (1 - racionamentos[i+1] / 100.0)
-                        demanda_total_prox_hm3 = (dem_esp_prox_teorica + carga_conj_prox_racionada) * (segundos_mes / 1e6)
+                if carga_para_mover_bruta > 0 and volumes_atueis[i] < vol_gatilho:
+                    dem_esp_prox_teorica   = responsabilidade_especifica[i+1] * (1 - racionamentos[i+1] / 100.0)
+                    carga_conj_prox_racionada = carga_para_mover_bruta * (1 - racionamentos[i+1] / 100.0)
+                    demanda_total_prox_hm3 = (dem_esp_prox_teorica + carga_conj_prox_racionada) * (segundos_mes / 1e6)
 
-                        if prev_volumes_pos_natureza[i+1] >= demanda_total_prox_hm3:
-                            alocacao_conjunta_bruta[i]     = 0.0
-                            alocacao_conjunta_bruta[i+1]  += carga_para_mover_bruta
+                    if prev_volumes_pos_natureza[i+1] >= demanda_total_prox_hm3:
+                        alocacao_conjunta_bruta[i]     = 0.0
+                        alocacao_conjunta_bruta[i+1]  += carga_para_mover_bruta
 
-                for k in range(n_res):
-                    dem_esp  = responsabilidade_especifica[k] * (1 - racionamentos[k] / 100.0)
-                    dem_conj = alocacao_conjunta_bruta[k]     * (1 - racionamentos[k] / 100.0)
-                    demandas_finais[k] = dem_esp + dem_conj
+            for k in range(n_res):
+                dem_esp  = responsabilidade_especifica[k] * (1 - racionamentos[k] / 100.0)
+                dem_conj = alocacao_conjunta_bruta[k]     * (1 - racionamentos[k] / 100.0)
+                demandas_finais[k] = dem_esp + dem_conj
 
-                demandas_solicitadas_paralelo = [
-                    responsabilidade_especifica[k] + alocacao_conjunta_bruta[k]
-                    for k in range(n_res)
-                ]
+            demandas_solicitadas_paralelo = [
+                responsabilidade_especifica[k] + alocacao_conjunta_bruta[k]
+                for k in range(n_res)
+            ]
 
-                for k in range(1, n_res):
-                    if alocacao_conjunta_bruta[k] > 0:
-                        val = alocacao_conjunta_bruta[k] * (1 - racionamentos[k] / 100.0)
-                        transferencias_registradas[k]   = val
-                        transferencias_enviadas[k - 1]  = val
+            for k in range(1, n_res):
+                if alocacao_conjunta_bruta[k] > 0:
+                    val = alocacao_conjunta_bruta[k] * (1 - racionamentos[k] / 100.0)
+                    transferencias_registradas[k]   = val
+                    transferencias_enviadas[k - 1]  = val
 
-            elif modo == "Série":
-                for k in range(n_res):
-                    base_demand = demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0)
-                    demandas_finais[k] = base_demand * (1 - racionamentos[k] / 100.0)
+        elif modo == "Série":
+            for k in range(n_res):
+                base_demand = demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0)
+                demandas_finais[k] = base_demand * (1 - racionamentos[k] / 100.0)
 
-                for i in range(1, n_res):
-                    idx_sender   = i
-                    idx_receiver = i - 1
-                    vol_gatilho_A = params[idx_receiver]['capacidade'] * (params[idx_receiver]['gatilho'] / 100.0)
+            for i in range(1, n_res):
+                idx_sender   = i
+                idx_receiver = i - 1
+                vol_gatilho_A = params[idx_receiver]['capacidade'] * (params[idx_receiver]['gatilho'] / 100.0)
 
-                    if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho_A:
-                        vol_demanda_hm3    = demandas_finais[idx_receiver] * (segundos_mes / 1e6)
-                        disponivel_sender  = prev_volumes_pos_natureza[idx_sender]
-                        qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
+                if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho_A:
+                    vol_demanda_hm3    = demandas_finais[idx_receiver] * (segundos_mes / 1e6)
+                    disponivel_sender  = prev_volumes_pos_natureza[idx_sender]
+                    qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
 
-                        prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
-                        prev_volumes_pos_natureza[idx_sender]   -= qtd_transferir_hm3
+                    prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
+                    prev_volumes_pos_natureza[idx_sender]   -= qtd_transferir_hm3
 
-                        fluxo_transf = qtd_transferir_hm3 * (1e6 / segundos_mes)
-                        transferencias_registradas[idx_receiver] += fluxo_transf
-                        transferencias_enviadas[idx_sender]       += fluxo_transf
-            else:
-                for k in range(n_res):
-                    demandas_finais[k] = demandas_iniciais[k] * (1 - racionamentos[k] / 100.0)
+                    fluxo_transf = qtd_transferir_hm3 * (1e6 / segundos_mes)
+                    transferencias_registradas[idx_receiver] += fluxo_transf
+                    transferencias_enviadas[idx_sender]       += fluxo_transf
         else:
             for k in range(n_res):
-                base = demandas_iniciais[k] + (vazao_conjunta if modo == "Paralelo" and k == 0 else 0)
-                demandas_finais[k] = base * (1 - racionamentos[k] / 100.0)
-            if modo == "Paralelo":
-                demandas_solicitadas_paralelo = [
-                    demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0.0)
-                    for k in range(n_res)
-                ]
+                demandas_finais[k] = demandas_iniciais[k] * (1 - racionamentos[k] / 100.0)
 
-        # Lista de controle para segurar as falhas do mês antes de escrever no DataFrame
         falhas_do_mes = []
-        
-        # grava os resultados verificando individualmente se a água atendeu a demanda JÁ RACIONADA
+
         for i in range(n_res):
             p   = params[i]
             df  = dfs[i]
             vol_ini     = volumes_atueis[i]
             
-            # A demanda alvo já considera a redução percentual do nível meta atual
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
             if modo == "Paralelo":
@@ -281,8 +240,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             vol_disp = (prev_volumes_pos_natureza[i] if modo == "Série"
                         else vol_ini + dfs[i].loc[t, 'Afluências (hm³/mês)'] - dfs[i].loc[t, 'Evaporação (hm³)'])
 
-
-            # Se a água disponível for menor que a meta racionada 
+            # ATENÇÃO: Regra de Falha com proteção de arredondamento
             if round(vol_disp, 6) < round(demanda_hm3, 6):
                 demanda_atendida_real_hm3 = max(0, vol_disp)
                 df.loc[t, 'Falha'] = 'Sim'
@@ -305,14 +263,12 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             df.loc[t, 'Armazenamento Final'] = vol_final
             volumes_atueis[i]                = vol_final 
 
-        # Se for um sistema interligado e TODOS secarem, avisa na coluna "Modo Operação"
-        # Isso NÃO apaga as falhas individuais calculadas acima.
+        # Carimba visualmente a operação falha no sistema se todos caíram
         if modo in ["Paralelo", "Série"] and all(falhas_do_mes) and len(falhas_do_mes) > 0:
             for i in range(n_res):
                 dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
     return dfs
-
 # rota que retorna a lista de todos os reservatórios cadastrados no banco
 @app.get("/api/reservatorios")
 def listar_reservatorios():
