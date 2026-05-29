@@ -332,7 +332,7 @@ function FailureDetail({ resultados, modo }) {
         const demAtSist = resultados.reduce((sum, r) => sum + (parseFloat(r.dados[t]['Demanda Atendida (m³/s)'])||0), 0)
         
         falhas.push({
-          reservatorio: 'FALHA SISTÊMICA (Rede)',
+          reservatorio: 'FALHA SISTÊMICA',
           data: d.Data,
           volIni: '—', 
           demSol: demSolSist.toFixed(3),
