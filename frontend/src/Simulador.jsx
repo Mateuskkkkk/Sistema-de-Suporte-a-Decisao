@@ -706,19 +706,23 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   const vazoesSystem = new Array(totalMeses).fill(0)
   dfs.forEach(df => df.forEach((d,t) => { vazoesSystem[t] += parseFloat(d['Demanda Atendida (m³/s)'])||0 }))
 
-  const falhasConj = calcFalhasConjuntas(resultados, modo)
+  // CORREÇÃO: Para o cálculo de garantia, a falha acontece se QUALQUER
+  // reservatório não atingiu sua meta individual ou conjunta
+  const falhasGarantia = Array.from({length:totalMeses}, (_,t) =>
+    resultados.some(r=>r.dados[t]?.['Falha']==='Sim')
+  )
 
-  const numFalhas  = falhasConj.filter(Boolean).length
+  const numFalhas  = falhasGarantia.filter(Boolean).length
   const garantiaSistema = ((totalMeses - numFalhas) / totalMeses * 100)
 
-  const vazoesSemFalha  = vazoesSystem.filter((_,t) => !falhasConj[t])
+  const vazoesSemFalha  = vazoesSystem.filter((_,t) => !falhasGarantia[t])
   const vazaoMedia   = vazoesSemFalha.length ? vazoesSemFalha.reduce((a,b)=>a+b,0)/vazoesSemFalha.length : 0
   const vazaoMaxima  = vazoesSemFalha.length ? Math.max(...vazoesSemFalha) : 0
   const vazaoMinima  = vazoesSemFalha.length ? Math.min(...vazoesSemFalha) : 0
 
   const grouped = {}
   vazoesSystem.forEach((v,t) => {
-    if (!falhasConj[t]) {
+    if (!falhasGarantia[t]) {
       const k = parseFloat(v.toFixed(3))
       grouped[k] = (grouped[k]||0)+1
     }
