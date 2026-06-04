@@ -95,7 +95,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         df['Falha']        = 'Não'
         df['Modo Operação'] = 'Normal'
 
-    volumes_atueis = [p['vol_ini'] for p in params]
+    volumes_atuais = [p['vol_ini'] for p in params]
 
     for t in range(n_meses):
         demandas_iniciais        = []
@@ -105,7 +105,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
         for i in range(n_res):
             p       = params[i]
-            vol_ini = volumes_atueis[i]
+            vol_ini = volumes_atuais[i]
             pct_vol = (vol_ini / p['capacidade']) * 100 
             mes_atual = dfs[i].loc[t, 'Mês']
 
@@ -165,7 +165,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                 vol_gatilho          = p['capacidade'] * (p['gatilho'] / 100)
                 carga_para_mover_bruta = alocacao_conjunta_bruta[i]
 
-                if carga_para_mover_bruta > 0 and volumes_atueis[i] < vol_gatilho:
+                if carga_para_mover_bruta > 0 and volumes_atuais[i] < vol_gatilho:
                     dem_esp_prox_teorica   = responsabilidade_especifica[i+1] * (1 - racionamentos[i+1] / 100.0)
                     carga_conj_prox_racionada = carga_para_mover_bruta * (1 - racionamentos[i+1] / 100.0)
                     demanda_total_prox_hm3 = (dem_esp_prox_teorica + carga_conj_prox_racionada) * (segundos_mes / 1e6)
@@ -220,7 +220,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
         for i in range(n_res):
             p   = params[i]
             df  = dfs[i]
-            vol_ini     = volumes_atueis[i]
+            vol_ini     = volumes_atuais[i]
             
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
@@ -261,7 +261,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
             df.loc[t, 'Vertimento (hm³)']   = vertimento
             df.loc[t, 'Armazenamento Final'] = vol_final
-            volumes_atueis[i]                = vol_final 
+            volumes_atuais[i]                = vol_final 
 
         # Carimba visualmente a operação falha no sistema se todos caíram
         if modo in ["Paralelo", "Série"] and all(falhas_do_mes) and len(falhas_do_mes) > 0:
