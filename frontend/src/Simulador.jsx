@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -13,13 +13,19 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
-// nomes dos meses abreviados, usados em vários lugares do app
+// nomes dos meses abreviados, usados em vÃ¡rios lugares do app
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
 
-// lista de anos disponíveis pra seleção: de 1911 até 2020
+function getCapacidadeHm3(reservatorio) {
+  if (!reservatorio) return 0
+  const chaveCapacidade = Object.keys(reservatorio).find(k => k.startsWith('CAPAC'))
+  return parseFloat(reservatorio.capacidade_hm3 ?? reservatorio[chaveCapacidade] ?? 0) || 0
+}
+
+// lista de anos disponÃ­veis pra seleÃ§Ã£o: de 1911 atÃ© 2020
 const ANOS  = Array.from({ length: 110 }, (_, i) => 1911 + i)
 
-// paleta de cores usada nos gráficos quando tem mais de um reservatório
+// paleta de cores usada nos grÃ¡ficos quando tem mais de um reservatÃ³rio
 const COLORS = [
   { stroke: '#264fa3', fill: '#264fa3', fillOp: 0.15 },
   { stroke: '#e07b2a', fill: '#e07b2a', fillOp: 0.15 },
@@ -27,8 +33,8 @@ const COLORS = [
   { stroke: '#9b2dca', fill: '#9b2dca', fillOp: 0.15 },
 ]
 
-// CSS global injetado no componente — define as variáveis de cor, fontes,
-// animações e os estilos das classes reutilizáveis (.sim-tab, .sim-ghost, etc.)
+// CSS global injetado no componente â€” define as variÃ¡veis de cor, fontes,
+// animaÃ§Ãµes e os estilos das classes reutilizÃ¡veis (.sim-tab, .sim-ghost, etc.)
 const CSS = `
   .sim-root *, .sim-root *::before, .sim-root *::after { box-sizing: border-box; }
   .sim-root {
@@ -66,20 +72,20 @@ const CSS = `
   .sim-tr:hover td { background: var(--orange-pale) !important; }
 `
 
-// cria o objeto de API com os métodos de busca e simulação
-// usa a URL passada como prop ou a variável de ambiente VITE_API_URL
+// cria o objeto de API com os mÃ©todos de busca e simulaÃ§Ã£o
+// usa a URL passada como prop ou a variÃ¡vel de ambiente VITE_API_URL
 function makeApi(base) {
   const b = base || import.meta.env?.VITE_API_URL || 'http://localhost:8000'
 
-  // faz um GET simples e retorna o JSON; lança erro se der ruim
+  // faz um GET simples e retorna o JSON; lanÃ§a erro se der ruim
   const get  = async (p) => { const r = await fetch(`${b}${p}`); if (!r.ok) throw new Error(`Erro ${r.status}: ${p}`); return r.json() }
 
-  // faz um POST com body JSON; trata os erros de validação do backend
+  // faz um POST com body JSON; trata os erros de validaÃ§Ã£o do backend
   const post = async (p, body) => {
     const r = await fetch(`${b}${p}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     if (!r.ok) {
       const e = await r.json().catch(() => ({}))
-      if (Array.isArray(e.detail)) throw new Error(e.detail.map(x => (x.loc?x.loc.join('→')+': ':'')+x.msg).join(' | '))
+      if (Array.isArray(e.detail)) throw new Error(e.detail.map(x => (x.loc?x.loc.join('â†’')+': ':'')+x.msg).join(' | '))
       throw new Error(typeof e.detail==='string' ? e.detail : JSON.stringify(e.detail) || 'Erro')
     }
     return r.json()
@@ -93,31 +99,31 @@ function makeApi(base) {
   }
 }
 
-// exporta os resultados da simulação pra um arquivo Excel (.xlsx)
+// exporta os resultados da simulaÃ§Ã£o pra um arquivo Excel (.xlsx)
 function exportExcel(resultados, modo) {
   const wb = XLSX.utils.book_new()
   const segundos = 2.592e6
-  const isSerie = modo === 'Série'
+  const isSerie = modo === 'SÃ©rie'
 
   resultados.forEach(r => {
     const rows = r.dados.map(d => {
       const row = {
-        'Mês/Ano':                     d.Data,
-        'Armazenamento Inicial (hm³)': parseFloat(d['Armazenamento Inicial'] ?? 0),
-        'Armazenamento Final (hm³)':   parseFloat(d['Armazenamento Final'] ?? 0),
-        'Afluências (hm³/mês)':        parseFloat(d['Afluências (hm³/mês)'] ?? 0),
-        'Evaporação (hm³)':            parseFloat(d['Evaporação (hm³)'] ?? 0),
-        'Demanda Solicitada (m³/s)':   parseFloat(d['Demanda Solicitada (m³/s)'] ?? 0),
-        'Demanda Atendida (m³/s)':     parseFloat(d['Demanda Atendida (m³/s)'] ?? 0),
-        'Demanda Atendida (hm³)':      parseFloat(d['Demanda Atendida (m³/s)'] ?? 0) * (segundos / 1e6),
+        'MÃªs/Ano':                     d.Data,
+        'Armazenamento Inicial (hmÂ³)': parseFloat(d['Armazenamento Inicial'] ?? 0),
+        'Armazenamento Final (hmÂ³)':   parseFloat(d['Armazenamento Final'] ?? 0),
+        'AfluÃªncias (hmÂ³/mÃªs)':        parseFloat(d['AfluÃªncias (hmÂ³/mÃªs)'] ?? 0),
+        'EvaporaÃ§Ã£o (hmÂ³)':            parseFloat(d['EvaporaÃ§Ã£o (hmÂ³)'] ?? 0),
+        'Demanda Solicitada (mÂ³/s)':   parseFloat(d['Demanda Solicitada (mÂ³/s)'] ?? 0),
+        'Demanda Atendida (mÂ³/s)':     parseFloat(d['Demanda Atendida (mÂ³/s)'] ?? 0),
+        'Demanda Atendida (hmÂ³)':      parseFloat(d['Demanda Atendida (mÂ³/s)'] ?? 0) * (segundos / 1e6),
         'Racionamento (%)':            parseFloat(d['Racionamento (%)'] ?? 0),
-        'Vertimento (hm³)':            parseFloat(d['Vertimento (hm³)'] ?? 0),
-        'Falha':                       d['Falha'] ?? 'Não',
-        'Modo Operação':               d['Modo Operação'] ?? 'Normal',
+        'Vertimento (hmÂ³)':            parseFloat(d['Vertimento (hmÂ³)'] ?? 0),
+        'Falha':                       d['Falha'] ?? 'NÃ£o',
+        'Modo OperaÃ§Ã£o':               d['Modo OperaÃ§Ã£o'] ?? 'Normal',
       }
       if (isSerie) {
-        row['Transferência Recebida (m³/s)'] = parseFloat(d['Transferência Recebida (m³/s)'] ?? 0)
-        row['Transferência Enviada (m³/s)']  = parseFloat(d['Transferência Enviada (m³/s)'] ?? 0)
+        row['TransferÃªncia Recebida (mÂ³/s)'] = parseFloat(d['TransferÃªncia Recebida (mÂ³/s)'] ?? 0)
+        row['TransferÃªncia Enviada (mÂ³/s)']  = parseFloat(d['TransferÃªncia Enviada (mÂ³/s)'] ?? 0)
       }
       return row
     })
@@ -200,7 +206,7 @@ function MetricsRow({ resultados, modo }) {
   
   let rac=0, racM=0, atend=0, solic=0, vert=0, evap=0, transf=0
 
-  // Agrupa os dados por mês para não somar as métricas do sistema em dobro
+  // Agrupa os dados por mÃªs para nÃ£o somar as mÃ©tricas do sistema em dobro
   for (let t = 0; t < totalMeses; t++) {
     let teveRacNoMes = false
     let racMaxNoMes = 0
@@ -215,14 +221,14 @@ function MetricsRow({ resultados, modo }) {
         racMaxNoMes = Math.max(racMaxNoMes, rc) // Pega o racionamento mais severo do sistema
       }
       
-      atend += parseFloat(d['Demanda Atendida (m³/s)'])||0
-      solic += parseFloat(d['Demanda Solicitada (m³/s)'])||0
-      vert  += parseFloat(d['Vertimento (hm³)'])||0
-      evap  += parseFloat(d['Evaporação (hm³)'])||0
-      transf += parseFloat(d['Transferência Recebida (m³/s)'])||0
+      atend += parseFloat(d['Demanda Atendida (mÂ³/s)'])||0
+      solic += parseFloat(d['Demanda Solicitada (mÂ³/s)'])||0
+      vert  += parseFloat(d['Vertimento (hmÂ³)'])||0
+      evap  += parseFloat(d['EvaporaÃ§Ã£o (hmÂ³)'])||0
+      transf += parseFloat(d['TransferÃªncia Recebida (mÂ³/s)'])||0
     })
     
-    // Contabiliza o mês de racionamento apenas 1 vez para o sistema
+    // Contabiliza o mÃªs de racionamento apenas 1 vez para o sistema
     if (teveRacNoMes) {
       racM++
       rac += racMaxNoMes
@@ -245,14 +251,14 @@ function MetricsRow({ resultados, modo }) {
           </div>
         </div>
         <div style={{ fontSize:24, fontWeight:800, color:ok?'var(--teal)':'var(--red)', fontFamily:'JetBrains Mono', lineHeight:1, marginBottom:4 }}>{freq}%</div>
-        <div style={{ fontSize:10.5, color:'var(--text-light)' }}>{ok?'✓ Sistema 100% abastecido':`${falhasSist} mês(es) em ${totalMeses}`}</div>
+        <div style={{ fontSize:10.5, color:'var(--text-light)' }}>{ok?'âœ“ Sistema 100% abastecido':`${falhasSist} mÃªs(es) em ${totalMeses}`}</div>
       </div>
-      <MCard label="Atendimento Médio" value={`${at}%`} sub="Demanda atendida vs solicitada" variant={parseFloat(at)>=95?'success':parseFloat(at)>=80?'yellow':'danger'} icon={BarChart3}/>
-      <MCard label="Meses Simulados" value={totalMeses} sub={`${resultados.length} reservatório(s)`} variant="info" icon={TrendingDown}/>
-      <MCard label="Rac. Médio" value={`${rm}%`} sub={`em ${racM} mês(es) c/ restrição`} variant={parseFloat(rm)>20?'danger':parseFloat(rm)>0?'yellow':'success'} icon={AlertCircle}/>
-      <MCard label="Evaporação Total" value={evap.toFixed(1)} sub="hm³ no período" variant="default" icon={Droplets}/>
-      <MCard label="Vertimento Total" value={vert.toFixed(1)} sub="hm³ excedente" variant={vert>0?'info':'success'} icon={Droplets}/>
-      {transf>0 && <MCard label="Transferências" value={transf.toFixed(1)} sub="m³/s acumulados" variant="yellow" icon={ArrowLeftRight}/>}
+      <MCard label="Atendimento MÃ©dio" value={`${at}%`} sub="Demanda atendida vs solicitada" variant={parseFloat(at)>=95?'success':parseFloat(at)>=80?'yellow':'danger'} icon={BarChart3}/>
+      <MCard label="Meses Simulados" value={totalMeses} sub={`${resultados.length} reservatÃ³rio(s)`} variant="info" icon={TrendingDown}/>
+      <MCard label="Rac. MÃ©dio" value={`${rm}%`} sub={`em ${racM} mÃªs(es) c/ restriÃ§Ã£o`} variant={parseFloat(rm)>20?'danger':parseFloat(rm)>0?'yellow':'success'} icon={AlertCircle}/>
+      <MCard label="EvaporaÃ§Ã£o Total" value={evap.toFixed(1)} sub="hmÂ³ no perÃ­odo" variant="default" icon={Droplets}/>
+      <MCard label="Vertimento Total" value={vert.toFixed(1)} sub="hmÂ³ excedente" variant={vert>0?'info':'success'} icon={Droplets}/>
+      {transf>0 && <MCard label="TransferÃªncias" value={transf.toFixed(1)} sub="mÂ³/s acumulados" variant="yellow" icon={ArrowLeftRight}/>}
     </div>
   )
 }
@@ -263,15 +269,15 @@ function MesesAbastecidos({ resultados, modo, params }) {
     <Card className="sim-fade" style={{ padding:'16px 20px' }}>
       <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
         <Activity size={15} color="var(--orange)"/>
-        Meses Abastecidos por Reservatório
+        Meses Abastecidos por ReservatÃ³rio
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:10 }}>
         {resultados.map((r,i) => {
           const isParalelo = modo === 'Paralelo'
           const mesesComResp = isParalelo
-            ? r.dados.filter(d => (parseFloat(d['Demanda Solicitada (m³/s)'])||0) > 0)
+            ? r.dados.filter(d => (parseFloat(d['Demanda Solicitada (mÂ³/s)'])||0) > 0)
             : r.dados
-          const atend = mesesComResp.filter(d => d['Falha']==='Não').length
+          const atend = mesesComResp.filter(d => d['Falha']==='NÃ£o').length
           const base  = mesesComResp.length
           const pct   = base > 0 ? ((atend / base) * 100) : 0
           const cor     = pct>=95?'var(--teal)':pct>=80?'var(--yellow)':'var(--red)'
@@ -294,7 +300,7 @@ function MesesAbastecidos({ resultados, modo, params }) {
               </div>
               {isParalelo && base < totalSist && (
                 <div style={{ marginTop:4, fontSize:10, color:'var(--text-light)' }}>
-                  {totalSist-base} mês(es) sob responsabilidade do outro reservatório
+                  {totalSist-base} mÃªs(es) sob responsabilidade do outro reservatÃ³rio
                 </div>
               )}
             </div>
@@ -315,10 +321,10 @@ function FailureDetail({ resultados }) {
         reservatorio:r.reservatorio, 
         data:d.Data, 
         volIni:parseFloat(d['Armazenamento Inicial']||0).toFixed(2), 
-        demSol:parseFloat(d['Demanda Solicitada (m³/s)']||0).toFixed(3), 
-        demAt:parseFloat(d['Demanda Atendida (m³/s)']||0).toFixed(3), 
+        demSol:parseFloat(d['Demanda Solicitada (mÂ³/s)']||0).toFixed(3), 
+        demAt:parseFloat(d['Demanda Atendida (mÂ³/s)']||0).toFixed(3), 
         rac:parseFloat(d['Racionamento (%)']||0).toFixed(1), 
-        modo:d['Modo Operação'] 
+        modo:d['Modo OperaÃ§Ã£o'] 
       })
     }
   }))
@@ -332,7 +338,7 @@ function FailureDetail({ resultados }) {
         {falhas.length>0?<AlertCircle size={16} color="var(--red)"/>:<CheckCircle2 size={16} color="var(--teal)"/>}
         <div>
           <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Detalhamento das Falhas</div>
-          {!falhas.length && <div style={{ fontSize:11.5, color:'var(--teal)', marginTop:2, fontWeight:600 }}>✓ Nenhuma falha no período.</div>}
+          {!falhas.length && <div style={{ fontSize:11.5, color:'var(--teal)', marginTop:2, fontWeight:600 }}>âœ“ Nenhuma falha no perÃ­odo.</div>}
         </div>
       </div>
       {falhas.length>0 && (
@@ -344,7 +350,7 @@ function FailureDetail({ resultados }) {
                 <span style={{ fontSize:11.5, fontWeight:700, color:'var(--red)' }}>{f.reservatorio}</span>
               </div>
               <div style={{ display:'flex', gap:10, fontSize:10.5, color:'var(--text-mid)', flexWrap:'wrap' }}>
-                <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hm³</strong></span>
+                <span>Vol: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.volIni} hmÂ³</strong></span>
                 <span>Sol.: <strong style={{ fontFamily:'JetBrains Mono' }}>{f.demSol}</strong></span>
                 <span>At.: <strong style={{ fontFamily:'JetBrains Mono', color:'var(--red)' }}>{f.demAt}</strong></span>
                 {parseFloat(f.rac)>0 && <span>Rac: <strong>{f.rac}%</strong></span>}
@@ -407,7 +413,7 @@ function Charts({ resultados, params, modo }) {
         if(d){
           const vf = parseFloat(d['Armazenamento Final'])||0
           p[`Vol.% (${r.reservatorio})`] = cap>0 ? parseFloat(((vf/cap)*100).toFixed(1)) : 0
-          p[`Afluência (${r.reservatorio})`] = parseFloat(d['Afluências (hm³/mês)'])||0
+          p[`AfluÃªncia (${r.reservatorio})`] = parseFloat(d['AfluÃªncias (hmÂ³/mÃªs)'])||0
         }
       })
       return p
@@ -416,7 +422,7 @@ function Charts({ resultados, params, modo }) {
 
   const mkDemData = (sel) => {
     const res = resSel(sel)
-    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Sol.(${r.reservatorio})`]=parseFloat(d['Demanda Solicitada (m³/s)'])||0; p[`At.(${r.reservatorio})`]=parseFloat(d['Demanda Atendida (m³/s)'])||0} }); return p })
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Sol.(${r.reservatorio})`]=parseFloat(d['Demanda Solicitada (mÂ³/s)'])||0; p[`At.(${r.reservatorio})`]=parseFloat(d['Demanda Atendida (mÂ³/s)'])||0} }); return p })
   }
 
   const mkRacData = (sel) => {
@@ -426,12 +432,12 @@ function Charts({ resultados, params, modo }) {
 
   const mkBalData = (sel) => {
     const res = resSel(sel)
-    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Afluência(${r.reservatorio})`]=parseFloat(d['Afluências (hm³/mês)'])||0; p[`Evap.(${r.reservatorio})`]=parseFloat(d['Evaporação (hm³)'])||0; p[`Vertimento(${r.reservatorio})`]=parseFloat(d['Vertimento (hm³)'])||0} }); return p })
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`AfluÃªncia(${r.reservatorio})`]=parseFloat(d['AfluÃªncias (hmÂ³/mÃªs)'])||0; p[`Evap.(${r.reservatorio})`]=parseFloat(d['EvaporaÃ§Ã£o (hmÂ³)'])||0; p[`Vertimento(${r.reservatorio})`]=parseFloat(d['Vertimento (hmÂ³)'])||0} }); return p })
   }
 
   const mkTrData = (sel) => {
     const res = resSel(sel)
-    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){const rc=parseFloat(d['Transferência Recebida (m³/s)'])||0; const ev=parseFloat(d['Transferência Enviada (m³/s)'])||0; if(rc>0||ev>0){p[`Rec.(${r.reservatorio})`]=rc; p[`Env.(${r.reservatorio})`]=ev}} }); return p })
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){const rc=parseFloat(d['TransferÃªncia Recebida (mÂ³/s)'])||0; const ev=parseFloat(d['TransferÃªncia Enviada (mÂ³/s)'])||0; if(rc>0||ev>0){p[`Rec.(${r.reservatorio})`]=rc; p[`Env.(${r.reservatorio})`]=ev}} }); return p })
   }
 
   const volData = mkVolData(selVol)
@@ -440,10 +446,10 @@ function Charts({ resultados, params, modo }) {
   const balData = mkBalData(selBal)
   const trData  = mkTrData(selTr)
 
-  const hasTransf = modo==='Série' && allD.some(data=>{ const p=mkTrData('todos').find(x=>x.data===data); return p&&Object.keys(p).length>1 })
+  const hasTransf = modo==='SÃ©rie' && allD.some(data=>{ const p=mkTrData('todos').find(x=>x.data===data); return p&&Object.keys(p).length>1 })
 
   const volKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Vol.')) : []
-  const aflKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Afluência')) : []
+  const aflKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('AfluÃªncia')) : []
   const racKeys = racData[0] ? Object.keys(racData[0]).filter(k=>k!=='data') : []
   const activeRes = (sel) => sel==='todos'?resultados:[resultados[sel]]
 
@@ -457,7 +463,7 @@ function Charts({ resultados, params, modo }) {
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
-              <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'Afluência(hm³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
+              <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'AfluÃªncia(hmÂ³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
               {aflKeys.map((k,i)=><Line key={k} yAxisId="afl" type="monotone" dataKey={k} stroke={COLORS[(i+2)%4].stroke} strokeWidth={1.5} dot={false} strokeDasharray={"4 2"}/>)}
@@ -466,14 +472,14 @@ function Charts({ resultados, params, modo }) {
         </div>
       </ChartCard>
 
-      <ChartCard title="Demanda: Solicitada vs Atendida" subtitle="m³/s mensal">
+      <ChartCard title="Demanda: Solicitada vs Atendida" subtitle="mÂ³/s mensal">
         <ResSel resultados={resultados} sel={selDem} onChange={setSelDem}/>
         <div style={{ height:200 }}>
           <ResponsiveContainer>
             <LineChart data={demData} margin={{top:4,right:20,left:0,bottom:0}}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'mÂ³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {activeRes(selDem).map((r,i)=>{const gi=resultados.indexOf(r);return[
                 <Line key={`s${gi}`} type="monotone" dataKey={`Sol.(${r.reservatorio})`} stroke={COLORS[gi%4].stroke} strokeWidth={2} strokeDasharray={"5 3"} dot={false}/>,
@@ -485,7 +491,7 @@ function Charts({ resultados, params, modo }) {
       </ChartCard>
 
       {racKeys.length>0 && (
-        <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — Racionamento aplicado (%)">
+        <ChartCard title="Racionamento Mensal" subtitle="NÃ­veis Meta â€” Racionamento aplicado (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
@@ -501,17 +507,17 @@ function Charts({ resultados, params, modo }) {
         </ChartCard>
       )}
 
-      <ChartCard title="Balanço Hídrico" subtitle="Afluência, Evaporação e Vertimento (hm³/mês)">
+      <ChartCard title="BalanÃ§o HÃ­drico" subtitle="AfluÃªncia, EvaporaÃ§Ã£o e Vertimento (hmÂ³/mÃªs)">
         <ResSel resultados={resultados} sel={selBal} onChange={setSelBal}/>
         <div style={{ height:185 }}>
           <ResponsiveContainer>
             <BarChart data={balData} margin={{top:4,right:20,left:0,bottom:0}}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hm³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hmÂ³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {activeRes(selBal).map((r,i)=>{const gi=resultados.indexOf(r);return[
-                <Bar key={`af${gi}`} dataKey={`Afluência(${r.reservatorio})`} fill="#2a9d8f" fillOpacity={0.65} radius={[3,3,0,0]}/>,
+                <Bar key={`af${gi}`} dataKey={`AfluÃªncia(${r.reservatorio})`} fill="#2a9d8f" fillOpacity={0.65} radius={[3,3,0,0]}/>,
                 <Bar key={`ev${gi}`} dataKey={`Evap.(${r.reservatorio})`}     fill="#e07b2a" fillOpacity={0.65} radius={[3,3,0,0]}/>,
                 <Bar key={`vt${gi}`} dataKey={`Vertimento(${r.reservatorio})`} fill="#264fa3" fillOpacity={0.65} radius={[3,3,0,0]}/>,
               ]})}
@@ -521,14 +527,14 @@ function Charts({ resultados, params, modo }) {
       </ChartCard>
 
       {hasTransf && (
-        <ChartCard title="Transferências entre Reservatórios" subtitle="m³/s mensal">
+        <ChartCard title="TransferÃªncias entre ReservatÃ³rios" subtitle="mÂ³/s mensal">
           <ResSel resultados={resultados} sel={selTr} onChange={setSelTr}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
               <BarChart data={trData} margin={{top:4,right:20,left:0,bottom:0}}>
                 <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-                <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+                <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'mÂ³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
                 {Object.keys(trData[0]||{}).filter(k=>k!=='data').map((k,i)=><Bar key={k} dataKey={k} fill={k.startsWith('Rec')?'#2a9d8f':'#9b2dca'} fillOpacity={0.7} radius={[3,3,0,0]}/>)}
               </BarChart>
@@ -556,7 +562,7 @@ function VazoesDetail({ resultados, modo }) {
     const p = { data }
     resultados.forEach(res => {
       const d = res.dados.find(x => x.Data === data)
-      if (d) p[res.reservatorio] = parseFloat(d['Vazão (m³/s)'] ?? d['Afluências (hm³/mês)']) || 0
+      if (d) p[res.reservatorio] = parseFloat(d['VazÃ£o (mÂ³/s)'] ?? d['AfluÃªncias (hmÂ³/mÃªs)']) || 0
     })
     return p
   })
@@ -565,27 +571,27 @@ function VazoesDetail({ resultados, modo }) {
   const pagDados = dados.slice(page * PAGE, (page+1)*PAGE)
 
   const VCOLS_ALL = [
-    { key:'Data',                           label:'Mês/Ano',     mono:true  },
-    { key:'Vazão (m³/s)',                   label:'Vazão (m³/s)',mono:true  },
-    { key:'Afluências (hm³/mês)',           label:'Afluência (hm³)',mono:true},
-    { key:'Evaporação (hm³)',               label:'Evap. (hm³)', mono:true  },
+    { key:'Data',                           label:'MÃªs/Ano',     mono:true  },
+    { key:'VazÃ£o (mÂ³/s)',                   label:'VazÃ£o (mÂ³/s)',mono:true  },
+    { key:'AfluÃªncias (hmÂ³/mÃªs)',           label:'AfluÃªncia (hmÂ³)',mono:true},
+    { key:'EvaporaÃ§Ã£o (hmÂ³)',               label:'Evap. (hmÂ³)', mono:true  },
     { key:'Armazenamento Inicial',          label:'Vol. Ini.',   mono:true  },
     { key:'Armazenamento Final',            label:'Vol. Fin.',   mono:true  },
-    { key:'Demanda Solicitada (m³/s)',      label:'Dem. Sol.',   mono:true  },
-    { key:'Demanda Atendida (m³/s)',        label:'Dem. At.',    mono:true  },
-    { key:'Transferência Recebida (m³/s)',  label:'Tr. Rec.',    mono:true  },
-    { key:'Transferência Enviada (m³/s)',   label:'Tr. Env.',    mono:true  },
+    { key:'Demanda Solicitada (mÂ³/s)',      label:'Dem. Sol.',   mono:true  },
+    { key:'Demanda Atendida (mÂ³/s)',        label:'Dem. At.',    mono:true  },
+    { key:'TransferÃªncia Recebida (mÂ³/s)',  label:'Tr. Rec.',    mono:true  },
+    { key:'TransferÃªncia Enviada (mÂ³/s)',   label:'Tr. Env.',    mono:true  },
     { key:'Racionamento (%)',               label:'Rac.(%)',     mono:true  },
-    { key:'Vertimento (hm³)',               label:'Vertimento',  mono:true  },
+    { key:'Vertimento (hmÂ³)',               label:'Vertimento',  mono:true  },
     { key:'Falha',                          label:'Falha',       align:'center'},
-    { key:'Modo Operação',                  label:'Modo',        align:'center'},
+    { key:'Modo OperaÃ§Ã£o',                  label:'Modo',        align:'center'},
   ]
 
-  const VCOLS = modo==='Série' ? VCOLS_ALL : VCOLS_ALL.filter(c=>!c.key.startsWith('Transferência'))
+  const VCOLS = modo==='SÃ©rie' ? VCOLS_ALL : VCOLS_ALL.filter(c=>!c.key.startsWith('TransferÃªncia'))
 
   function fv(val,key){
-    if(val===null||val===undefined||val==='') return '—'
-    if(key==='Falha'||key==='Modo Operação'||key==='Data') return val
+    if(val===null||val===undefined||val==='') return 'â€”'
+    if(key==='Falha'||key==='Modo OperaÃ§Ã£o'||key==='Data') return val
     const n=parseFloat(val); return isNaN(n)?val:n.toFixed(3)
   }
 
@@ -602,13 +608,13 @@ function VazoesDetail({ resultados, modo }) {
         </div>
       )}
 
-      <ChartCard title="Série de Vazões Afluentes" subtitle="Vazão mensal afluente a cada reservatório (m³/s)">
+      <ChartCard title="SÃ©rie de VazÃµes Afluentes" subtitle="VazÃ£o mensal afluente a cada reservatÃ³rio (mÂ³/s)">
         <div style={{ height:220 }}>
           <ResponsiveContainer>
             <LineChart data={serieData} margin={{top:4,right:20,left:0,bottom:0}}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'mÂ³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {resultados.map((res,i)=>(
                 <Line key={i} type="monotone" dataKey={res.reservatorio} stroke={COLORS[i%4].stroke} strokeWidth={1.5} dot={false}/>
@@ -648,12 +654,12 @@ function VazoesDetail({ resultados, modo }) {
                       if(c.key==='Falha'){col=val==='Sim'?'var(--red)':'var(--teal)';fw=700}
                       if(c.key==='Racionamento (%)'&&hasRac){col='var(--yellow)';fw=600}
                       if(c.key==='Data'){col='var(--text)';fw=600}
-                      if(c.key==='Vazão (m³/s)'){col='var(--blue-light)';fw=600}
+                      if(c.key==='VazÃ£o (mÂ³/s)'){col='var(--blue-light)';fw=600}
                       return (
                         <td key={c.key} style={{ padding:'6px 10px', textAlign:c.align||'right', borderBottom:'1px solid var(--border-light)', fontFamily:c.mono?'JetBrains Mono':'Sora', color:col, fontWeight:fw, whiteSpace:'nowrap' }}>
                           {c.key==='Falha'
-                            ? <span style={{ display:'inline-flex', padding:'1px 6px', borderRadius:20, background:val==='Sim'?'var(--red-pale)':'var(--teal-pale)', fontSize:10 }}>{val==='Sim'?'✗ Sim':'✓ Não'}</span>
-                            : c.key==='Modo Operação'
+                            ? <span style={{ display:'inline-flex', padding:'1px 6px', borderRadius:20, background:val==='Sim'?'var(--red-pale)':'var(--teal-pale)', fontSize:10 }}>{val==='Sim'?'âœ— Sim':'âœ“ NÃ£o'}</span>
+                            : c.key==='Modo OperaÃ§Ã£o'
                               ? <span style={{ display:'inline-flex', padding:'1px 6px', borderRadius:20, background:val==='Normal'?'var(--blue-pale)':val?.includes('FALHA')?'var(--red-pale)':'var(--yellow-pale)', color:val==='Normal'?'var(--blue)':val?.includes('FALHA')?'var(--red)':'var(--yellow)', fontSize:10, fontWeight:600 }}>{val}</span>
                               : val}
                         </td>
@@ -667,10 +673,10 @@ function VazoesDetail({ resultados, modo }) {
         </div>
         {totalPg>1 && (
           <div style={{ padding:'9px 16px', borderTop:'1.5px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:10.5, color:'var(--text-light)' }}>Pág. {page+1}/{totalPg} · {dados.length} registros</span>
+            <span style={{ fontSize:10.5, color:'var(--text-light)' }}>PÃ¡g. {page+1}/{totalPg} Â· {dados.length} registros</span>
             <div style={{ display:'flex', gap:5 }}>
               <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={page===0} className="sim-ghost" style={{ opacity:page===0?0.4:1 }}><ChevronLeft size={10}/> Ant.</button>
-              <button onClick={()=>setPage(p=>Math.min(totalPg-1,p+1))} disabled={page>=totalPg-1} className="sim-ghost" style={{ opacity:page>=totalPg-1?0.4:1 }}>Próx. <ChevronRight size={10}/></button>
+              <button onClick={()=>setPage(p=>Math.min(totalPg-1,p+1))} disabled={page>=totalPg-1} className="sim-ghost" style={{ opacity:page>=totalPg-1?0.4:1 }}>PrÃ³x. <ChevronRight size={10}/></button>
             </div>
           </div>
         )}
@@ -686,10 +692,10 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   const dfs = resultados.map(r => r.dados)
 
   const vazoesSystem = new Array(totalMeses).fill(0)
-  dfs.forEach(df => df.forEach((d,t) => { vazoesSystem[t] += parseFloat(d['Demanda Atendida (m³/s)'])||0 }))
+  dfs.forEach(df => df.forEach((d,t) => { vazoesSystem[t] += parseFloat(d['Demanda Atendida (mÂ³/s)'])||0 }))
 
-  // CORREÇÃO: Para o cálculo de garantia, a falha acontece se QUALQUER
-  // reservatório não atingiu sua meta individual ou conjunta
+  // CORREÃ‡ÃƒO: Para o cÃ¡lculo de garantia, a falha acontece se QUALQUER
+  // reservatÃ³rio nÃ£o atingiu sua meta individual ou conjunta
   const falhasGarantia = Array.from({length:totalMeses}, (_,t) =>
     resultados.some(r=>r.dados[t]?.['Falha']==='Sim')
   )
@@ -733,34 +739,34 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10 }}>
         <MCard label="Garantia Sistema"  value={`${garantiaSistema.toFixed(2)}%`} sub="Meses sem falha / total" variant={garantiaSistema>=95?'success':garantiaSistema>=80?'yellow':'danger'} icon={Shield}/>
         <MCard label="Meses Simulados"   value={totalMeses}  sub={`${numFalhas} com falha`}     variant="info"    icon={TrendingDown}/>
-        <MCard label="Dem. Nominal Total" value={`${demNominal.toFixed(3)}`} sub="m³/s"        variant="default" icon={BarChart3}/>
-        <MCard label="Vazão Média"        value={vazaoMedia.toFixed(3)}  sub="m³/s" variant="default" icon={Waves}/>
-        <MCard label="Vazão Máxima"       value={vazaoMaxima.toFixed(3)} sub="m³/s" variant="success" icon={Waves}/>
-        <MCard label="Vazão Mínima"       value={vazaoMinima.toFixed(3)} sub="m³/s" variant={vazaoMinima>0?'info':'danger'} icon={Waves}/>
+        <MCard label="Dem. Nominal Total" value={`${demNominal.toFixed(3)}`} sub="mÂ³/s"        variant="default" icon={BarChart3}/>
+        <MCard label="VazÃ£o MÃ©dia"        value={vazaoMedia.toFixed(3)}  sub="mÂ³/s" variant="default" icon={Waves}/>
+        <MCard label="VazÃ£o MÃ¡xima"       value={vazaoMaxima.toFixed(3)} sub="mÂ³/s" variant="success" icon={Waves}/>
+        <MCard label="VazÃ£o MÃ­nima"       value={vazaoMinima.toFixed(3)} sub="mÂ³/s" variant={vazaoMinima>0?'info':'danger'} icon={Waves}/>
       </div>
 
       {curvData.length>1 && (
-        <ChartCard title="Curva de Permanência e Garantia" subtitle="Garantia acumulada (%) × Vazão total do sistema (m³/s)">
+        <ChartCard title="Curva de PermanÃªncia e Garantia" subtitle="Garantia acumulada (%) Ã— VazÃ£o total do sistema (mÂ³/s)">
           <div style={{ height:230 }}>
             <ResponsiveContainer>
               <AreaChart data={curvData} margin={{top:4,right:20,left:0,bottom:0}}>
                 <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="garantia" type="number" domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'Garantia Acumulada (%)',position:'insideBottom',offset:-2,fill:'var(--text-light)',fontSize:10}}/>
-                <YAxis tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'Vazão (m³/s)',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
+                <YAxis tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'VazÃ£o (mÂ³/s)',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/>
-                <Area type="monotone" dataKey="vazao" name="Vazão (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.15} strokeWidth={2} dot={false}/>
+                <Area type="monotone" dataKey="vazao" name="VazÃ£o (mÂ³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.15} strokeWidth={2} dot={false}/>
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
       )}
 
-      <ChartCard title="Análise de Vazões Totais do Sistema" subtitle="Permanência, frequência e garantia acumulada">
+      <ChartCard title="AnÃ¡lise de VazÃµes Totais do Sistema" subtitle="PermanÃªncia, frequÃªncia e garantia acumulada">
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
             <thead>
               <tr style={{ background:'var(--bg)' }}>
-                {['Vazão Total Sistema (m³/s)','Permanência (meses)','Frequência (%)','Garantia Acumulada (%)'].map(h=>(
+                {['VazÃ£o Total Sistema (mÂ³/s)','PermanÃªncia (meses)','FrequÃªncia (%)','Garantia Acumulada (%)'].map(h=>(
                   <th key={h} style={{ padding:'7px 12px', textAlign:'right', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--text-light)', borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -768,10 +774,10 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
             <tbody>
               {resumo.map((row,i)=>(
                 <tr key={i} className="sim-tr" style={{ background:row.vazao==='FALHA'?'var(--red-pale)':i%2===0?'transparent':'rgba(236,220,200,0.15)' }}>
-                  <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', fontWeight:row.vazao==='FALHA'?700:400, color:row.vazao==='FALHA'?'var(--red)':'var(--text)' }}>{row.vazao==='FALHA'?'⚠️ FALHA':parseFloat(row.vazao).toFixed(3)}</td>
+                  <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', fontWeight:row.vazao==='FALHA'?700:400, color:row.vazao==='FALHA'?'var(--red)':'var(--text)' }}>{row.vazao==='FALHA'?'âš ï¸ FALHA':parseFloat(row.vazao).toFixed(3)}</td>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.perm}</td>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.freq}%</td>
-                  <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.garantia==='-'?'var(--text-light)':'var(--blue)', fontWeight:row.garantia==='-'?400:600 }}>{row.garantia === '-' ? '—' : `${row.garantia}%`}</td>
+                  <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.garantia==='-'?'var(--text-light)':'var(--blue)', fontWeight:row.garantia==='-'?400:600 }}>{row.garantia === '-' ? 'â€”' : `${row.garantia}%`}</td>
                 </tr>
               ))}
             </tbody>
@@ -781,7 +787,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
 
       <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginTop:4, display:'flex', alignItems:'center', gap:8 }}>
         <Database size={14} color="var(--orange)"/>
-        Detalhamento por Reservatório
+        Detalhamento por ReservatÃ³rio
       </div>
 
       {resultados.map((r, idx) => {
@@ -796,7 +802,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         df.forEach(d => {
           if (d['Falha'] === 'Sim') return
           const rac      = parseFloat(d['Racionamento (%)']) || 0
-          const nome     = d['Modo Operação'] || 'Normal'
+          const nome     = d['Modo OperaÃ§Ã£o'] || 'Normal'
           const chave    = `${nome}__${rac}`
           if (!gruposVistos.has(chave)) {
             gruposVistos.add(chave)
@@ -811,9 +817,9 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
 
         grupos.forEach(({ nome, rac, chave }) => {
           const filtro = df.filter(d =>
-            d['Falha'] === 'Não' &&
+            d['Falha'] === 'NÃ£o' &&
             (parseFloat(d['Racionamento (%)']) || 0) === rac &&
-            (d['Modo Operação'] || 'Normal') === nome
+            (d['Modo OperaÃ§Ã£o'] || 'Normal') === nome
           )
           if (!filtro.length) return
           const vazAlvo = demTot * (1 - rac / 100)
@@ -823,18 +829,18 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         })
 
         const cntFalha = df.filter(d=>d['Falha']==='Sim').length
-        if (cntFalha>0) tabelaRes.push({ faixa:'⚠️ FALHA', rac:'FALHA', vazAlvo:'0.000', count:cntFalha, freq:(cntFalha/totalMeses*100).toFixed(2), garantia:'-' })
+        if (cntFalha>0) tabelaRes.push({ faixa:'âš ï¸ FALHA', rac:'FALHA', vazAlvo:'0.000', count:cntFalha, freq:(cntFalha/totalMeses*100).toFixed(2), garantia:'-' })
 
         return (
           <Card key={idx} style={{ overflow:'hidden' }}>
             <div style={{ padding:'11px 16px', background:'var(--bg)', borderBottom:'1.5px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
               <div>
-                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>🌊 {r.reservatorio}</span>
-                <span style={{ fontSize:11, color:'var(--text-light)', marginLeft:10 }}>Demanda Total: <strong style={{ fontFamily:'JetBrains Mono' }}>{demTot.toFixed(3)} m³/s</strong></span>
+                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>ðŸŒŠ {r.reservatorio}</span>
+                <span style={{ fontSize:11, color:'var(--text-light)', marginLeft:10 }}>Demanda Total: <strong style={{ fontFamily:'JetBrains Mono' }}>{demTot.toFixed(3)} mÂ³/s</strong></span>
               </div>
               {demConj>0 && (
                 <span style={{ fontSize:10.5, background:'var(--blue-pale)', color:'var(--blue)', borderRadius:6, padding:'2px 9px', fontWeight:600 }}>
-                  {demNom.toFixed(3)} (espec.) + {demConj.toFixed(3)} (conjunta) = {demTot.toFixed(3)} m³/s
+                  {demNom.toFixed(3)} (espec.) + {demConj.toFixed(3)} (conjunta) = {demTot.toFixed(3)} mÂ³/s
                 </span>
               )}
             </div>
@@ -842,7 +848,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
                 <thead>
                   <tr style={{ background:'var(--bg)' }}>
-                    {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Meses Responsável','Frequência (%)','Garantia (%)'].map(h=>(
+                    {['NÃ­vel Meta','Racionamento (%)','VazÃ£o Total (mÂ³/s)','Meses ResponsÃ¡vel','FrequÃªncia (%)','Garantia (%)'].map(h=>(
                       <th key={h} style={{ padding:'7px 12px', textAlign:'right', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--text-light)', borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap' }}>
                         {h}
                       </th>
@@ -853,11 +859,11 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
                   {tabelaRes.map((row,i)=>(
                     <tr key={i} className="sim-tr" style={{ background:row.faixa.includes('FALHA')?'var(--red-pale)':i%2===0?'transparent':'rgba(236,220,200,0.15)' }}>
                       <td style={{ padding:'6px 12px', textAlign:'left', borderBottom:'1px solid var(--border-light)', fontWeight:600, color:row.faixa.includes('FALHA')?'var(--red)':'var(--text-mid)' }}>{row.faixa}</td>
-                      <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.rac==='FALHA'?'var(--red)':parseFloat(row.rac)>0?'var(--yellow)':'var(--teal)' }}>{row.rac==='FALHA'?'—':`${row.rac}%`}</td>
+                      <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.rac==='FALHA'?'var(--red)':parseFloat(row.rac)>0?'var(--yellow)':'var(--teal)' }}>{row.rac==='FALHA'?'â€”':`${row.rac}%`}</td>
                       <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.vazAlvo}</td>
                       <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', fontWeight:600 }}>{row.count}</td>
                       <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.freq}%</td>
-                      <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.garantia==='-'?'var(--text-light)':'var(--blue)', fontWeight:row.garantia==='-'?400:700 }}>{row.garantia==='-'?'—':`${row.garantia}%`}</td>
+                      <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.garantia==='-'?'var(--text-light)':'var(--blue)', fontWeight:row.garantia==='-'?400:700 }}>{row.garantia==='-'?'â€”':`${row.garantia}%`}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -871,17 +877,17 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
 }
 
 const RCOLS_BASE = [
-  {key:'Data',label:'Data',align:'left'},{key:'Armazenamento Inicial',label:'Vol. Ini (hm³)',mono:true},{key:'Afluências (hm³/mês)',label:'Afluência (hm³)',mono:true},{key:'Evaporação (hm³)',label:'Evap. (hm³)',mono:true},{key:'Demanda Solicitada (m³/s)',label:'Dem. Sol.',mono:true},{key:'Demanda Atendida (m³/s)',label:'Dem. At.',mono:true},{key:'Transferência Recebida (m³/s)',label:'Tr. Rec.',mono:true},{key:'Transferência Enviada (m³/s)',label:'Tr. Env.',mono:true},{key:'Racionamento (%)',label:'Rac.(%)',mono:true},{key:'Vertimento (hm³)',label:'Vertimento',mono:true},{key:'Armazenamento Final',label:'Vol. Fin.',mono:true},{key:'Falha',label:'Falha',align:'center'},{key:'Modo Operação',label:'Modo',align:'center'},
+  {key:'Data',label:'Data',align:'left'},{key:'Armazenamento Inicial',label:'Vol. Ini (hmÂ³)',mono:true},{key:'AfluÃªncias (hmÂ³/mÃªs)',label:'AfluÃªncia (hmÂ³)',mono:true},{key:'EvaporaÃ§Ã£o (hmÂ³)',label:'Evap. (hmÂ³)',mono:true},{key:'Demanda Solicitada (mÂ³/s)',label:'Dem. Sol.',mono:true},{key:'Demanda Atendida (mÂ³/s)',label:'Dem. At.',mono:true},{key:'TransferÃªncia Recebida (mÂ³/s)',label:'Tr. Rec.',mono:true},{key:'TransferÃªncia Enviada (mÂ³/s)',label:'Tr. Env.',mono:true},{key:'Racionamento (%)',label:'Rac.(%)',mono:true},{key:'Vertimento (hmÂ³)',label:'Vertimento',mono:true},{key:'Armazenamento Final',label:'Vol. Fin.',mono:true},{key:'Falha',label:'Falha',align:'center'},{key:'Modo OperaÃ§Ã£o',label:'Modo',align:'center'},
 ]
 
 function getRCols(modo) {
-  if (modo === 'Série') return RCOLS_BASE
-  return RCOLS_BASE.filter(c => !c.key.startsWith('Transferência'))
+  if (modo === 'SÃ©rie') return RCOLS_BASE
+  return RCOLS_BASE.filter(c => !c.key.startsWith('TransferÃªncia'))
 }
 
 const PG=15
 
-function fmtR(v,k){if(v===null||v===undefined||v==='')return'—';if(k==='Falha'||k==='Modo Operação'||k==='Data')return v;const n=parseFloat(v);return isNaN(n)?v:n.toFixed(2)}
+function fmtR(v,k){if(v===null||v===undefined||v==='')return'â€”';if(k==='Falha'||k==='Modo OperaÃ§Ã£o'||k==='Data')return v;const n=parseFloat(v);return isNaN(n)?v:n.toFixed(2)}
 
 function ResultsTable({ resultados, modo }) {
   const [sel,setSel]=useState(0)
@@ -924,8 +930,8 @@ function ResultsTable({ resultados, modo }) {
                       if(c.key==='Data'){col='var(--text)';fw=600}
                       return(
                         <td key={c.key} style={{padding:'6px 10px',textAlign:c.align||'right',borderBottom:'1px solid var(--border-light)',fontFamily:c.mono?'JetBrains Mono':'Sora',color:col,fontWeight:fw,whiteSpace:'nowrap'}}>
-                          {c.key==='Falha'?<span style={{display:'inline-flex',padding:'1px 6px',borderRadius:20,background:v==='Sim'?'var(--red-pale)':'var(--teal-pale)',fontSize:10}}>{v==='Sim'?'✗ Sim':'✓ Não'}</span>
-                          :c.key==='Modo Operação'?<span style={{display:'inline-flex',padding:'1px 6px',borderRadius:20,background:v==='Normal'?'var(--blue-pale)':v?.includes('FALHA')?'var(--red-pale)':'var(--yellow-pale)',color:v==='Normal'?'var(--blue)':v?.includes('FALHA')?'var(--red)':'var(--yellow)',fontSize:10,fontWeight:600}}>{v}</span>
+                          {c.key==='Falha'?<span style={{display:'inline-flex',padding:'1px 6px',borderRadius:20,background:v==='Sim'?'var(--red-pale)':'var(--teal-pale)',fontSize:10}}>{v==='Sim'?'âœ— Sim':'âœ“ NÃ£o'}</span>
+                          :c.key==='Modo OperaÃ§Ã£o'?<span style={{display:'inline-flex',padding:'1px 6px',borderRadius:20,background:v==='Normal'?'var(--blue-pale)':v?.includes('FALHA')?'var(--red-pale)':'var(--yellow-pale)',color:v==='Normal'?'var(--blue)':v?.includes('FALHA')?'var(--red)':'var(--yellow)',fontSize:10,fontWeight:600}}>{v}</span>
                           :v}
                         </td>
                       )
@@ -938,10 +944,10 @@ function ResultsTable({ resultados, modo }) {
         </div>
         {totalPg>1&&(
           <div style={{padding:'9px 16px',borderTop:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <span style={{fontSize:10.5,color:'var(--text-light)'}}>Pág. {pg+1}/{totalPg}</span>
+            <span style={{fontSize:10.5,color:'var(--text-light)'}}>PÃ¡g. {pg+1}/{totalPg}</span>
             <div style={{display:'flex',gap:5}}>
               <button onClick={()=>setPg(p=>Math.max(0,p-1))} disabled={pg===0} className="sim-ghost" style={{opacity:pg===0?0.4:1}}><ChevronLeft size={10}/> Ant.</button>
-              <button onClick={()=>setPg(p=>Math.min(totalPg-1,p+1))} disabled={pg>=totalPg-1} className="sim-ghost" style={{opacity:pg>=totalPg-1?0.4:1}}>Próx. <ChevronRight size={10}/></button>
+              <button onClick={()=>setPg(p=>Math.min(totalPg-1,p+1))} disabled={pg>=totalPg-1} className="sim-ghost" style={{opacity:pg>=totalPg-1?0.4:1}}>PrÃ³x. <ChevronRight size={10}/></button>
             </div>
           </div>
         )}
@@ -953,15 +959,15 @@ function ResultsTable({ resultados, modo }) {
 const FAIXAS_COR = {
   'Acima do Teto':{bg:'var(--teal-pale)',t:'var(--teal)'},
   'Normal':{bg:'var(--blue-pale)',t:'var(--blue)'},
-  'Atenção':{bg:'var(--yellow-pale)',t:'var(--yellow)'},
+  'AtenÃ§Ã£o':{bg:'var(--yellow-pale)',t:'var(--yellow)'},
   'Alerta':{bg:'var(--orange-pale)',t:'var(--orange-deep)'},
-  'Emergência':{bg:'var(--red-pale)',t:'var(--red)'},
+  'EmergÃªncia':{bg:'var(--red-pale)',t:'var(--red)'},
 }
 
 // =============================================================================
-// CORRIGIDO: PlanoSecasPanel agora recebe onFaixasChange e chama ao salvar sessão
+// CORRIGIDO: PlanoSecasPanel agora recebe onFaixasChange e chama ao salvar sessÃ£o
 // =============================================================================
-function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
+function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao }) {
   const [faixas,setFaixas]=useState(null)
   const [faixasOriginal,setFaixasOriginal]=useState(null)
   const [loading,setLoading]=useState(false)
@@ -988,35 +994,37 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
     setLoading(true); setMsg(null)
     api.fetchPlanoSecas(reservatorio.cod)
       .then(d=>{
-        setFaixas(JSON.parse(JSON.stringify(d)))
+        const faixasAtivas = faixasSessao?.[reservatorio.cod] || faixasSessao?.[reservatorio.nome]
+        setFaixas(JSON.parse(JSON.stringify(faixasAtivas || d)))
         setFaixasOriginal(JSON.parse(JSON.stringify(d)))
+        if (faixasAtivas) setMsg({type:'session',text:'Curvas otimizadas carregadas na sessão para este reservatório.'})
       })
       .catch(()=>{ setFaixas([]); setFaixasOriginal([]) })
       .finally(()=>setLoading(false))
-  },[reservatorio?.cod])
+  },[reservatorio?.cod, reservatorio?.nome, faixasSessao])
 
   const set=(idx,f,v)=>setFaixas(p=>p.map((x,i)=>i===idx?{...x,[f]:v}:x))
-  const add=()=>setFaixas(p=>[...(p||[]),{Faixa:'Novo Nível',Racionamento:0,...Object.fromEntries(MESES.map(m=>[m,100]))}])
+  const add=()=>setFaixas(p=>[...(p||[]),{Faixa:'Novo NÃ­vel',Racionamento:0,...Object.fromEntries(MESES.map(m=>[m,100]))}])
   const del=(idx)=>setFaixas(p=>p.filter((_,i)=>i!==idx))
 
   const revert=()=>{
     if(!faixasOriginal) return
     setFaixas(JSON.parse(JSON.stringify(faixasOriginal)))
-    // ao reverter, notifica o pai para remover as faixas customizadas desse reservatório
+    // ao reverter, notifica o pai para remover as faixas customizadas desse reservatÃ³rio
     onFaixasChange && onFaixasChange(reservatorio.cod, null)
     setMsg({type:'info',text:'Revertido para o estado salvo na base de dados.'})
   }
 
   // CORRIGIDO: saveSession agora propaga as faixas editadas para o componente pai
   const saveSession=()=>{
-    // converte os valores de string para número antes de mandar pro pai
+    // converte os valores de string para nÃºmero antes de mandar pro pai
     const faixasNormalizadas = (faixas || []).map(f => ({
       ...f,
       Racionamento: parseFloat(f.Racionamento) || 0,
       ...Object.fromEntries(MESES.map(m => [m, parseFloat(f[m]) || 0]))
     }))
     onFaixasChange && onFaixasChange(reservatorio.cod, faixasNormalizadas)
-    setMsg({type:'session',text:'Aplicado na sessão. As alterações serão usadas na próxima simulação.'})
+    setMsg({type:'session',text:'Aplicado na sessÃ£o. As alteraÃ§Ãµes serÃ£o usadas na prÃ³xima simulaÃ§Ã£o.'})
   }
 
   const hasChanges = faixasOriginal !== null && JSON.stringify(faixas) !== JSON.stringify(faixasOriginal)
@@ -1025,7 +1033,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
   if(!reservatorios?.length || !reservatorio?.cod) return (
     <Card style={{padding:'32px 24px',textAlign:'center'}}>
       <Shield size={28} color="var(--text-light)" style={{marginBottom:10,opacity:0.35}}/>
-      <div style={{fontSize:12.5,color:'var(--text-light)'}}>Selecione um reservatório na aba <strong>Configuração</strong>.</div>
+      <div style={{fontSize:12.5,color:'var(--text-light)'}}>Selecione um reservatÃ³rio na aba <strong>ConfiguraÃ§Ã£o</strong>.</div>
     </Card>
   )
 
@@ -1034,7 +1042,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
       <Card style={{padding:'14px 18px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
           <div>
-            <div style={{fontSize:13.5,fontWeight:800,color:'var(--text)',display:'flex',alignItems:'center',gap:8}}><Shield size={15} color="var(--orange)"/>Níveis Meta</div>
+            <div style={{fontSize:13.5,fontWeight:800,color:'var(--text)',display:'flex',alignItems:'center',gap:8}}><Shield size={15} color="var(--orange)"/>NÃ­veis Meta</div>
             {reservatorios?.length>1&&(
               <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:6}}>
                 {reservatorios.map((r,i)=>(
@@ -1046,14 +1054,14 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
               </div>
             )}
             <div style={{fontSize:11,color:'var(--text-light)',marginTop:4}}>
-              <strong>{reservatorio.nome}</strong> · Cod: <span style={{fontFamily:'JetBrains Mono'}}>{reservatorio.cod}</span>
+              <strong>{reservatorio.nome}</strong> Â· Cod: <span style={{fontFamily:'JetBrains Mono'}}>{reservatorio.cod}</span>
             </div>
           </div>
 
           <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
             {isSessionOnly && (
               <span style={{fontSize:10,background:'var(--yellow-pale)',color:'var(--yellow)',borderRadius:20,padding:'2px 8px',fontWeight:700,border:'1px solid var(--yellow)'}}>
-                ● Não salvo na base
+                â— NÃ£o salvo na base
               </span>
             )}
             <button className="sim-ghost" onClick={add}><Plus size={11}/> Faixa</button>
@@ -1066,7 +1074,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
             {hasChanges && (
               <button className="sim-ghost" onClick={saveSession}
                 style={{borderColor:'var(--teal)',color:'var(--teal)'}}>
-                <Save size={11}/> Aplicar na Sessão
+                <Save size={11}/> Aplicar na SessÃ£o
               </button>
             )}
           </div>
@@ -1075,16 +1083,16 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
 
       <div style={{display:'flex',gap:8,padding:'9px 13px',background:'var(--blue-pale)',borderRadius:'var(--radius-sm)',alignItems:'flex-start'}}>
         <Info size={13} color="var(--blue)" style={{flexShrink:0,marginTop:1}}/>
-        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que ativa o nível nesse mês. <strong>Racionamento</strong> = (%) de redução na demanda. Clique em <strong>Aplicar na Sessão</strong> para usar nas simulações. Para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
+        <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JANâ€¦DEZ</strong> sÃ£o o limite mÃ¡ximo de volume (% da capacidade) que ativa o nÃ­vel nesse mÃªs. <strong>Racionamento</strong> = (%) de reduÃ§Ã£o na demanda. Clique em <strong>Aplicar na SessÃ£o</strong> para usar nas simulaÃ§Ãµes. Para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
       </div>
 
-      {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregando…</div></Card>
+      {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregandoâ€¦</div></Card>
       :faixas&&faixas.length>0?(
         <Card style={{overflow:'hidden'}}>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
               <thead><tr style={{background:'var(--bg)'}}>
-                <th style={{padding:'7px 10px',textAlign:'left',fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)',borderBottom:'1.5px solid var(--border)',whiteSpace:'nowrap'}}>Nível</th>
+                <th style={{padding:'7px 10px',textAlign:'left',fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)',borderBottom:'1.5px solid var(--border)',whiteSpace:'nowrap'}}>NÃ­vel</th>
                 <th style={{padding:'7px 8px',textAlign:'center',fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)',borderBottom:'1.5px solid var(--border)',whiteSpace:'nowrap'}}>Rac.(%)</th>
                 {MESES.map(m=><th key={m} style={{padding:'7px 5px',textAlign:'center',fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)',borderBottom:'1.5px solid var(--border)',whiteSpace:'nowrap'}}>{m}</th>)}
                 <th style={{padding:'7px 8px',borderBottom:'1.5px solid var(--border)'}}/>
@@ -1123,7 +1131,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange }) {
         background:msg.type==='success'?'var(--teal-pale)':msg.type==='info'?'var(--blue-pale)':msg.type==='session'?'var(--yellow-pale)':'var(--red-pale)',
         color:msg.type==='success'?'var(--teal)':msg.type==='info'?'var(--blue)':msg.type==='session'?'var(--yellow)':'var(--red)',
         fontSize:11.5,fontWeight:600,lineHeight:1.5}}>
-        {msg.type==='success'?'✓':msg.type==='session'?'⚡':msg.type==='info'?'ℹ':'✗'} {msg.text}
+        {msg.type==='success'?'âœ“':msg.type==='session'?'âš¡':msg.type==='info'?'â„¹':'âœ—'} {msg.text}
       </div>}
 
       {faixas && faixas.length > 0 && <NiveisMeta faixas={faixas}/>}
@@ -1187,7 +1195,7 @@ function NiveisMeta({ faixas }) {
           <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
             <div style={{ width:7, height:7, borderRadius:'50%', background:cores[i] }}/>
             <span style={{ color:'var(--text-mid)' }}>{f.Faixa}:</span>
-            <span style={{ fontWeight:600, fontFamily:'JetBrains Mono', color:'var(--text)' }}>≤ {parseFloat(f[label])||0}%</span>
+            <span style={{ fontWeight:600, fontFamily:'JetBrains Mono', color:'var(--text)' }}>â‰¤ {parseFloat(f[label])||0}%</span>
           </div>
         ))}
       </div>
@@ -1197,9 +1205,9 @@ function NiveisMeta({ faixas }) {
   return (
     <Card className="sim-fade" style={{ padding:'16px 18px' }}>
       <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Ativação por Mês</div>
+        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de AtivaÃ§Ã£o por MÃªs</div>
         <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
-          Bandas de volume: verde = zona segura · vermelho = nível crítico activo
+          Bandas de volume: verde = zona segura Â· vermelho = nÃ­vel crÃ­tico activo
         </div>
       </div>
       <div style={{ height:260 }}>
@@ -1235,13 +1243,13 @@ function NiveisMeta({ faixas }) {
           return (
             <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:`${cor}22`, color:cor, border:`1.5px solid ${cor}66` }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
-              {f.Faixa}{rac > 0 ? ` — ${rac}% de Racionamento` : ' — Sem Racionamento'}
+              {f.Faixa}{rac > 0 ? ` â€” ${rac}% de Racionamento` : ' â€” Sem Racionamento'}
             </span>
           )
         })}
         <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:'#e8e0d422', color:'var(--text-light)', border:'1.5px solid #e8e0d466' }}>
           <span style={{ width:8, height:8, borderRadius:'50%', background:'#c8b8a0', display:'inline-block', flexShrink:0 }}/>
-          Sem restrição
+          Sem restriÃ§Ã£o
         </span>
       </div>
     </Card>
@@ -1277,7 +1285,7 @@ function ResSearch({ resList, value, onChange }) {
         value={query}
         onChange={e=>{ setQuery(e.target.value); setOpen(true); if(!e.target.value) onChange('') }}
         onFocus={()=>setOpen(true)}
-        placeholder="Digite para buscar…"
+        placeholder="Digite para buscarâ€¦"
         style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',background:'#fff',color:'var(--text)',fontSize:12.5,outline:'none',transition:'border-color 0.15s'}}
         onMouseEnter={e=>e.target.style.borderColor='var(--orange)'}
         onMouseLeave={e=>{ if(document.activeElement!==e.target) e.target.style.borderColor='var(--border)' }}
@@ -1310,7 +1318,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',cursor:'pointer',borderBottom:open?'1.5px solid var(--border-light)':'none'}} onClick={()=>setOpen(!open)}>
         <div style={{display:'flex',alignItems:'center',gap:7}}>
           <div style={{width:19,height:19,borderRadius:'50%',background:'var(--orange-pale)',border:'1.5px solid var(--orange-light)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,color:'var(--orange-deep)',flexShrink:0}}>{index+1}</div>
-          <span style={{fontSize:12,fontWeight:700,color:'var(--orange-deep)'}}>{res.nome||`Reservatório ${index+1}`}</span>
+          <span style={{fontSize:12,fontWeight:700,color:'var(--orange-deep)'}}>{res.nome||`ReservatÃ³rio ${index+1}`}</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:4}}>
           {index>0&&<button onClick={e=>{e.stopPropagation();onRemove(index)}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-light)',padding:3,borderRadius:4}} onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><Trash2 size={11}/></button>}
@@ -1320,21 +1328,21 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
       {open&&(
         <div style={{padding:'10px 10px 12px'}}>
           <div style={{marginBottom:8}}>
-            <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Reservatório</div>
+            <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>ReservatÃ³rio</div>
             <ResSearch resList={resList} value={res.nome} onChange={val=>{
               const s=resList.find(r=>r.CORPO===val)
-              onChange(index,{nome:val,cod:s?.COD||'',capacidade:s?parseFloat(s['CAPAC (m³)']):0,est_evap:s?.['Est. Evap.']||'',volPct:50,vol_inicial:s?parseFloat(s['CAPAC (m³)'])*0.5:0})
+              onChange(index,{nome:val,cod:s?.COD||'',capacidade:getCapacidadeHm3(s),est_evap:s?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(s)*0.5})
             }}/>
-            {res.capacidade>0&&<div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>Cap: {res.capacidade.toFixed(2)} hm³ · COD: {res.cod}</div>}
+            {res.capacidade>0&&<div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>Cap: {res.capacidade.toFixed(2)} hmÂ³ Â· COD: {res.cod}</div>}
           </div>
           <div style={{display:'grid',gridTemplateColumns:showGatilho?'1fr 1fr':'1fr 1fr',gap:6}}>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Vol. Inicial (%)</div>
               <FC type="number" min="0" max="100" step="1" value={res.volPct??50} onChange={e=>{const p=parseFloat(e.target.value)||0;onChange(index,{volPct:p,vol_inicial:(res.capacidade*p)/100})}}/>
-              {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
+              {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hmÂ³</div>}
             </div>
             <div>
-              <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (m³/s)</div>
+              <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (mÂ³/s)</div>
               <FC type="number" min="0" step="0.1" value={res.demanda} onChange={e=>onChange(index,{demanda:parseFloat(e.target.value)||0})}/>
             </div>
             {showGatilho && index===0 &&(
@@ -1345,7 +1353,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
             )}
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Est. Evap.</div>
-              <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'JetBrains Mono'}}>{res.est_evap||'—'}</div>
+              <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'JetBrains Mono'}}>{res.est_evap||'â€”'}</div>
             </div>
           </div>
         </div>
@@ -1371,7 +1379,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:f?parseFloat(f['CAPAC (m³)']):0,est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:f?parseFloat(f['CAPAC (m³)'])*0.5:0,demanda:0,gatilho:10}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:getCapacidadeHm3(f),est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(f)*0.5,demanda:0,gatilho:10}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
@@ -1398,24 +1406,24 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
   return (
     <Card style={{padding:'18px 14px',position:'sticky',top:16}}>
-      <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:2}}>Configuração</div>
-      <div style={{fontSize:11,color:'var(--text-light)',marginBottom:14}}>Cenário: <strong style={{color:'var(--orange-deep)'}}>{items[0]?.nome||'Nenhum selecionado'}</strong></div>
+      <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:2}}>ConfiguraÃ§Ã£o</div>
+      <div style={{fontSize:11,color:'var(--text-light)',marginBottom:14}}>CenÃ¡rio: <strong style={{color:'var(--orange-deep)'}}>{items[0]?.nome||'Nenhum selecionado'}</strong></div>
 
       {presets.length>0&&(
         <>
           <Label icon={Zap}>Hidrossistema</Label>
           <div style={{display:'flex',gap:5}}>
             <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
-              <option value="">Configuração manual…</option>
+              <option value="">ConfiguraÃ§Ã£o manualâ€¦</option>
               {presets.map(p=><option key={p.nome} value={p.nome}>{p.nome}</option>)}
             </FC>
             {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
           </div>
-          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operação: <strong>{modo}</strong></div>}
+          {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operaÃ§Ã£o: <strong>{modo}</strong></div>}
         </>
       )}
 
-      <Label icon={Database}>Reservatórios</Label>
+      <Label icon={Database}>ReservatÃ³rios</Label>
       {items.map((res,i)=>(
         <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
       ))}
@@ -1424,12 +1432,12 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-light)';e.currentTarget.style.background='none'}}>
-        <Plus size={10} style={{marginRight:4}}/> Adicionar Reservatório
+        <Plus size={10} style={{marginRight:4}}/> Adicionar ReservatÃ³rio
       </button>
 
-      <Label icon={Settings2}>Modo de Operação</Label>
+      <Label icon={Settings2}>Modo de OperaÃ§Ã£o</Label>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5,marginBottom:4}}>
-        {['Individual','Série','Paralelo'].map(m=>(
+        {['Individual','SÃ©rie','Paralelo'].map(m=>(
           <button key={m} onClick={()=>!modoLocked&&setModo(m)}
             style={{padding:'7px 4px',border:`1.5px solid ${modo===m?'var(--orange)':'var(--border)'}`,borderRadius:'var(--radius-xs)',background:modo===m?'var(--orange-pale)':'none',color:modo===m?'var(--orange-deep)':'var(--text-light)',fontSize:11,fontWeight:700,cursor:modoLocked?'not-allowed':'pointer',transition:'all 0.15s',opacity:modoLocked&&modo!==m?0.4:1}}>
             {m}
@@ -1439,15 +1447,15 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {modo!=='Individual'&&(
         <div style={{marginTop:9}}>
-          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Vazão Conjunta (m³/s)</div>
+          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>VazÃ£o Conjunta (mÂ³/s)</div>
           <FC type="number" min="0" step="0.1" value={vazaoConj} onChange={e=>setVazaoConj(e.target.value)}/>
         </div>
       )}
 
-      <Label icon={Calendar}>Período</Label>
+      <Label icon={Calendar}>PerÃ­odo</Label>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
         <div>
-          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Início</div>
+          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>InÃ­cio</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
             <FC as="select" value={mesIni} onChange={e=>setMesIni(e.target.value)} style={{fontSize:11}}>{MESES.map(m=><option key={m}>{m}</option>)}</FC>
             <FC type="number" value={anoIni} onChange={e=>setAnoIni(e.target.value)} min="1900" max="2100" style={{fontSize:11}} placeholder="Ano"/>
@@ -1466,7 +1474,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         style={{width:'100%',marginTop:16,padding:12,background:loading||!items[0].nome?'var(--border)':'linear-gradient(135deg,var(--orange),var(--orange-deep))',border:'none',borderRadius:'var(--radius-sm)',color:loading||!items[0].nome?'var(--text-light)':'#fff',fontSize:13,fontWeight:800,cursor:loading||!items[0].nome?'not-allowed':'pointer',boxShadow:loading?'none':'0 4px 18px var(--orange-glow)',transition:'all 0.2s',letterSpacing:'0.02em'}}
         onMouseEnter={e=>{if(!loading)e.currentTarget.style.transform='translateY(-1px)'}}
         onMouseLeave={e=>e.currentTarget.style.transform='none'}>
-        {loading?'⏳ Simulando…':'▶ Gerar Simulação'}
+        {loading?'â³ Simulandoâ€¦':'â–¶ Gerar SimulaÃ§Ã£o'}
       </button>
     </Card>
   )
@@ -1483,7 +1491,7 @@ function X({ size=14 }) {
 // =============================================================================
 // CORRIGIDO: componente raiz agora gerencia planoSecasSession e injeta no payload
 // =============================================================================
-export default function SimuladorHidrico({ apiUrl }) {
+export default function SimuladorHidrico({ apiUrl, curvasOtimizadas }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [resList,setResList]=useState([])
   const [presets,setPresets]=useState([])
@@ -1496,10 +1504,19 @@ export default function SimuladorHidrico({ apiUrl }) {
   const [resultTab,setResultTab]=useState('graficos')
   const [activeRes,setActiveRes]=useState([])
 
-  // NOVO: armazena as faixas customizadas por código de reservatório
+  // NOVO: armazena as faixas customizadas por cÃ³digo de reservatÃ³rio
   // estrutura: { [cod]: FaixaCustom[] | null }
-  // null = usar o banco; array = usar as faixas editadas na sessão
+  // null = usar o banco; array = usar as faixas editadas na sessÃ£o
   const [planoSecasSession, setPlanoSecasSession] = useState({})
+
+  useEffect(() => {
+    if (!curvasOtimizadas?.reservatorio || !curvasOtimizadas?.faixas?.length) return
+    setPlanoSecasSession(prev => ({
+      ...prev,
+      [curvasOtimizadas.reservatorio]: curvasOtimizadas.faixas,
+    }))
+    setActiveTab('secas')
+  }, [curvasOtimizadas?.id])
 
   useEffect(()=>{
     Promise.all([api.fetchReservatorios(),api.fetchPresets()])
@@ -1513,12 +1530,12 @@ export default function SimuladorHidrico({ apiUrl }) {
     setError(null)
     setActiveTab('sim')
     setResultTab('graficos')
-    // NOVO: limpa as faixas de sessão ao resetar o cenário
+    // NOVO: limpa as faixas de sessÃ£o ao resetar o cenÃ¡rio
     setPlanoSecasSession({})
   }
 
-  // NOVO: recebe a notificação do PlanoSecasPanel quando o usuário clica "Aplicar na Sessão"
-  // faixas === null significa que foi revertido → volta a usar o banco
+  // NOVO: recebe a notificaÃ§Ã£o do PlanoSecasPanel quando o usuÃ¡rio clica "Aplicar na SessÃ£o"
+  // faixas === null significa que foi revertido â†’ volta a usar o banco
   const handleFaixasChange = (cod, faixas) => {
     setPlanoSecasSession(prev => ({ ...prev, [cod]: faixas }))
   }
@@ -1526,12 +1543,12 @@ export default function SimuladorHidrico({ apiUrl }) {
   const handleSimulate=async(payload)=>{
     setLoading(true);setError(null)
     try{
-      // CORRIGIDO: injeta plano_secas_custom em cada reservatório que tiver faixas na sessão
+      // CORRIGIDO: injeta plano_secas_custom em cada reservatÃ³rio que tiver faixas na sessÃ£o
       const payloadComPlano = {
         ...payload,
         reservatorios: payload.reservatorios.map(r => ({
           ...r,
-          plano_secas_custom: planoSecasSession[r.cod] || null,
+          plano_secas_custom: planoSecasSession[r.cod] || planoSecasSession[r.nome] || null,
         }))
       }
 
@@ -1549,18 +1566,19 @@ export default function SimuladorHidrico({ apiUrl }) {
   }
 
   const MAIN_TABS=[
-    {id:'sim',    label:'▶ Simulação'},
-    {id:'secas',  label:'🛡 Níveis Meta'},
+    {id:'sim',    label:'â–¶ SimulaÃ§Ã£o'},
+    {id:'secas',  label:'ðŸ›¡ NÃ­veis Meta'},
   ]
   const RES_TABS=[
-    {id:'graficos',  label:'📈 Gráficos'},
-    {id:'vazoes',    label:'💧 Vazões'},
-    {id:'garantia',  label:'📊 Garantia'},
-    {id:'tabela',    label:'📋 Dados'},
+    {id:'graficos',  label:'ðŸ“ˆ GrÃ¡ficos'},
+    {id:'vazoes',    label:'ðŸ’§ VazÃµes'},
+    {id:'garantia',  label:'ðŸ“Š Garantia'},
+    {id:'tabela',    label:'ðŸ“‹ Dados'},
   ]
 
-  // indica visualmente se há faixas customizadas ativas na sessão
+  // indica visualmente se hÃ¡ faixas customizadas ativas na sessÃ£o
   const temPlanoCustom = Object.values(planoSecasSession).some(v => v !== null && v !== undefined)
+  const temCurvaOtimizada = Boolean(curvasOtimizadas?.reservatorio)
 
   return (
     <div className="sim-root" style={{minHeight:600,paddingBottom:48}}>
@@ -1570,16 +1588,21 @@ export default function SimuladorHidrico({ apiUrl }) {
         <div>
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3}}>
             <Waves size={21} color="var(--orange)" strokeWidth={2}/>
-            <h2 style={{fontSize:19,fontWeight:800,color:'var(--text)',letterSpacing:'-0.01em',margin:0}}>Simulador de Balanço Hídrico</h2>
+            <h2 style={{fontSize:19,fontWeight:800,color:'var(--text)',letterSpacing:'-0.01em',margin:0}}>Simulador de BalanÃ§o HÃ­drico</h2>
           </div>
           <p style={{fontSize:11.5,color:'var(--text-light)',margin:0}}>
             {resultados?.[0]?.reservatorio
-              ? <>Cenário: <strong style={{color:'var(--orange-deep)'}}>{resultados[0].reservatorio}</strong> · Série histórica processada.</>
-              : 'Configure os reservatórios e clique em Gerar Simulação.'}
-            {/* NOVO: badge indicando que há níveis meta customizados ativos */}
+              ? <>CenÃ¡rio: <strong style={{color:'var(--orange-deep)'}}>{resultados[0].reservatorio}</strong> Â· SÃ©rie histÃ³rica processada.</>
+              : 'Configure os reservatÃ³rios e clique em Gerar SimulaÃ§Ã£o.'}
+            {/* NOVO: badge indicando que hÃ¡ nÃ­veis meta customizados ativos */}
             {temPlanoCustom && (
               <span style={{marginLeft:8,fontSize:10,background:'var(--yellow-pale)',color:'var(--yellow)',borderRadius:20,padding:'1px 8px',fontWeight:700,border:'1px solid var(--yellow)'}}>
-                ⚡ Níveis meta customizados ativos
+                âš¡ NÃ­veis meta customizados ativos
+              </span>
+            )}
+            {temCurvaOtimizada && (
+              <span style={{marginLeft:8,fontSize:10,background:'var(--teal-pale)',color:'var(--teal)',borderRadius:20,padding:'1px 8px',fontWeight:700,border:'1px solid var(--teal)'}}>
+                Curvas otimizadas: {curvasOtimizadas.reservatorio}
               </span>
             )}
           </p>
@@ -1605,7 +1628,7 @@ export default function SimuladorHidrico({ apiUrl }) {
         <div style={{margin:'12px 26px 0',padding:'10px 14px',background:'#fffbea',border:'1.5px solid #f5c842',borderRadius:'var(--radius-sm)',display:'flex',gap:9,alignItems:'flex-start'}}>
           <AlertTriangle size={13} color="#b48a0c" style={{marginTop:1}}/>
           <div style={{fontSize:11,color:'#7a5c00',lineHeight:1.6}}>
-            <strong>API não encontrada.</strong> Configure <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>VITE_API_URL</code> ou passe a prop <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>apiUrl</code>.<br/>
+            <strong>API nÃ£o encontrada.</strong> Configure <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>VITE_API_URL</code> ou passe a prop <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>apiUrl</code>.<br/>
             <span style={{fontSize:10,opacity:0.75}}>{apiError}</span>
           </div>
         </div>
@@ -1623,15 +1646,15 @@ export default function SimuladorHidrico({ apiUrl }) {
                 <div style={{background:'var(--red-pale)',border:'1.5px solid var(--red)',borderRadius:'var(--radius-sm)',padding:'10px 14px',display:'flex',alignItems:'center',gap:9}}>
                   <AlertTriangle size={13} color="var(--red)"/>
                   <span style={{flex:1,fontSize:11.5,color:'var(--red)',fontWeight:500}}>{error}</span>
-                  <button onClick={()=>setError(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1}}>×</button>
+                  <button onClick={()=>setError(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1}}>Ã—</button>
                 </div>
               )}
 
               {loading&&(
                 <Card style={{padding:'46px 20px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
                   <RefreshCw size={32} color="var(--orange)" className="sim-spin"/>
-                  <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>Simulando…</div>
-                  <div style={{fontSize:11,color:'var(--text-light)'}}>Processando série histórica e calculando balanço hídrico.</div>
+                  <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>Simulandoâ€¦</div>
+                  <div style={{fontSize:11,color:'var(--text-light)'}}>Processando sÃ©rie histÃ³rica e calculando balanÃ§o hÃ­drico.</div>
                 </Card>
               )}
 
@@ -1642,7 +1665,7 @@ export default function SimuladorHidrico({ apiUrl }) {
                   </div>
                   <div style={{textAlign:'center'}}>
                     <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:5}}>Pronto para simular</div>
-                    <div style={{fontSize:11.5,color:'var(--text-light)',maxWidth:310}}>Configure os reservatórios, período e demandas no painel e clique em <strong>Gerar Simulação</strong>.</div>
+                    <div style={{fontSize:11.5,color:'var(--text-light)',maxWidth:310}}>Configure os reservatÃ³rios, perÃ­odo e demandas no painel e clique em <strong>Gerar SimulaÃ§Ã£o</strong>.</div>
                   </div>
                 </Card>
               )}
@@ -1673,6 +1696,7 @@ export default function SimuladorHidrico({ apiUrl }) {
               api={api}
               reservatorios={activeRes}
               onFaixasChange={handleFaixasChange}
+              faixasSessao={planoSecasSession}
             />
           )}
         </div>

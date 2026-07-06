@@ -1,81 +1,46 @@
+# Sistema de Suporte à Decisão
 
-# 🌊 Simulador de Balanço Hídrico - SSD
+Aplicacao unificada para simulacao historica de reservatorios e otimizacao de niveis meta.
 
-Este é um **Sistema de Suporte à Decisão (SSD)** desenvolvido para a simulação e análise do balanço hídrico de reservatórios. O sistema permite modelar operações em níveis individuais ou integrados (Série e Paralelo), sendo uma ferramenta essencial para o planejamento de recursos hídricos.
+## Estrutura
 
----
+- `backend/`: API FastAPI unica.
+- `backend/main.py`: rotas do simulador e integracao do motor historico.
+- `backend/optimizer_engine.py`: rotas e motor PSO do otimizador.
+- `frontend/`: interface React com abas para Simulador e Otimizador.
 
-## 🚀 Como Executar o Projeto Localmemnte
+## Como Rodar
 
-O projeto é dividido em duas partes: **Backend** (API em Python) e **Frontend** (Interface em React).
+### Backend
 
-### 📋 Pré-requisitos
+```bash
+cd backend
+..\.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-Antes de começar, você precisará ter instalado:
-* [Python 3.9+](https://www.python.org/)
-* [Node.js 18+](https://nodejs.org/)
+Se ainda nao existir `.venv`:
 
----
+```bash
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r backend\requirements.txt
+```
 
-## ⚙️ Configuração do Back-end (API)
+### Frontend
 
-1. **Acesse a pasta do servidor:**
-   ```bash
-   cd backend
+```bash
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 5173
+```
 
-2. **Instale as dependências necessárias:**
-   ```bash
-   pip install fastapi uvicorn pandas numpy scipy pydantic
-   ```
+Acesse `http://127.0.0.1:5173/`.
 
-3. **Banco de Dados:**
-   Certifique-se de que o arquivo `banco_site.db` está localizado na raiz da pasta `backend`. Sem ele, a API não conseguirá consultar os dados dos açudes.
+## Fluxo Integrado
 
-4. **Inicie o servidor:**
-   ```bash
-   uvicorn main:app --reload
-   ```
-   *A API estará rodando em: `http://localhost:8000`*
+1. Abra a aba `Otimizador`.
+2. Calcule as curvas guia por PSO.
+3. Clique em `Aplicar no Simulador`.
+4. O app volta para o `Simulador` e carrega as curvas na aba `Niveis Meta`.
+5. Rode a simulacao; as curvas otimizadas entram como `plano_secas_custom`.
 
----
-
-## 💻 Configuração do Front-end (Interface)
-
-1. **Acesse a pasta do cliente:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Instale as dependências do Node:**
-   ```bash
-   npm install
-   ```
-
-3. **Variáveis de Ambiente:**
-   * Localize o arquivo `.env.example` na raiz do frontend.
-   * Crie uma cópia dele e renomeie para `.env`.
-   * Verifique se o conteúdo aponta para a sua API local:
-     ```env
-     VITE_API_URL=http://localhost:8000
-     ```
-
-4. **Inicie a aplicação:**
-   ```bash
-   npm run dev
-   ```
-   *Abra o navegador no endereço indicado (geralmente `http://localhost:5173`)*
-
----
-
-## 📊 Funcionalidades Principais
-
-* **Modos de Operação:** Suporte para simulação Individual, em Série (transferência física) e Paralelo (vazão conjunta).
-* **Níveis Meta:** Definição personalizada de faixas de volume (Normal, Alerta, Seca, etc.) e regras de racionamento.
-* **Análise de Garantia:** Geração automática de Curvas de Permanência e estatísticas de atendimento de demanda.
-* **Balanço Detalhado:** Cálculos mensais de evaporação (baseados em curvas cota-área-volume), afluência e vertimento.
-* **Exportação de Dados:** Gere relatórios completos em formato **Excel (.xlsx)** ou **JSON**.
-
----
-
-
-Desenvolvido por: Mateus
+O simulador tambem usa o mesmo passo mensal de dinamica de volume do otimizador, garantindo consistencia entre a simulacao historica e as curvas otimizadas.

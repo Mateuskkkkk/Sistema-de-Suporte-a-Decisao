@@ -5,3 +5,5 @@ numpy
 scipy
 openpyxl
 deap
+pyswarms
+numba
