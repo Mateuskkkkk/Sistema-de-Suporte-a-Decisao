@@ -12,7 +12,7 @@ const NIVEL_LABELS = ['Normal', 'Alerta', 'Seca', 'Seca Severa']
 const CURVE_COLORS = ['#2a9d8f', '#d4a017', '#e07b2a', '#d94040']
 
 function makeApi(base) {
-  const b = base || import.meta.env?.VITE_API_URL || 'http://localhost:8000'
+  const b = base || import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
   return {
     reservatorios: async () => {
       const r = await fetch(`${b}/api/otimizador/reservatorios`)

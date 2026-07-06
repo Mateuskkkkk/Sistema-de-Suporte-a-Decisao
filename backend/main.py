@@ -1,4 +1,4 @@
-﻿# importaÃ§Ãµes necessÃ¡rias pra API funcionar
+# importações necessárias pra API funcionar
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,8 +10,8 @@ from scipy import interpolate
 from typing import List, Dict, Optional
 from optimizer_engine import router as otimizador_router, dinamica_mensal_fast
 
-# cria a aplicaÃ§Ã£o FastAPI
-app = FastAPI(title="API do Simulador HidrolÃ³gico", version="1.0")
+# cria a aplicação FastAPI
+app = FastAPI(title="API do Simulador Hidrológico", version="1.0")
 
 # libera acesso de qualquer origem (CORS aberto)
 app.add_middleware(
@@ -32,18 +32,44 @@ def normalizar_colunas_db(df: pd.DataFrame) -> pd.DataFrame:
     renomear = {}
     for col in df.columns:
         if col.startswith("CAPAC"):
-            renomear[col] = "CAPAC (mÂ³)"
+            renomear[col] = "CAPAC (m³)"
         elif col.startswith("VOLUME"):
-            renomear[col] = "VOLUME (mÂ³)"
+            renomear[col] = "VOLUME (m³)"
         elif col.startswith("AREA"):
-            renomear[col] = "AREA (kmÂ²)"
+            renomear[col] = "AREA (km²)"
         elif col.startswith("Vaz"):
-            renomear[col] = "VazÃ£o (mÂ³/s)"
-        elif col in ("MÃªs", "Mês", "M�s"):
-            renomear[col] = "MÃªs"
+            renomear[col] = "Vazão (m³/s)"
+        elif col.startswith("M"):
+            renomear[col] = "Mês"
+        elif col.startswith("opera"):
+            renomear[col] = "operacao"
     return df.rename(columns=renomear)
 
-# dicionÃ¡rio pra converter nome do mÃªs em nÃºmero (JAN=1, FEV=2, ...)
+
+def corrigir_texto_db(valor):
+    if not isinstance(valor, str):
+        return valor
+    if not any(marca in valor for marca in ("Ã", "Â", "â")):
+        return valor
+    try:
+        return valor.encode("latin1").decode("utf-8")
+    except UnicodeError:
+        return valor
+
+
+def texto_para_legado(valor: str) -> str:
+    try:
+        return valor.encode("utf-8").decode("latin1")
+    except UnicodeError:
+        return valor
+
+
+def normalizar_textos_db(df: pd.DataFrame) -> pd.DataFrame:
+    for coluna in df.select_dtypes(include=["object"]).columns:
+        df[coluna] = df[coluna].map(corrigir_texto_db)
+    return df
+
+# dicionário pra converter nome do mês em número (JAN=1, FEV=2, ...)
 ordem_meses = {
     'JAN': 1, 'FEV': 2, 'MAR': 3, 'ABR': 4, 'MAI': 5, 'JUN': 6,
     'JUL': 7, 'AGO': 8, 'SET': 9, 'OUT': 10, 'NOV': 11, 'DEZ': 12
@@ -51,7 +77,7 @@ ordem_meses = {
 
 
 
-# recebe os limites mensais (% do volume) e o racionamento de cada nÃ­vel meta
+# recebe os limites mensais (% do volume) e o racionamento de cada nível meta
 class FaixaCustom(BaseModel):
     Faixa: str
     Racionamento: float
@@ -69,7 +95,7 @@ class FaixaCustom(BaseModel):
     DEZ: float = 100
 
 
-# modelo de dados de um reservatÃ³rio individual
+# modelo de dados de um reservatório individual
 class Reservatorio(BaseModel):
     nome: str
     cod: str
@@ -78,10 +104,10 @@ class Reservatorio(BaseModel):
     vol_inicial: float
     demanda: float
     gatilho: float
-    plano_secas_custom: Optional[List[FaixaCustom]] = None  # faixas editadas na sessÃ£o do frontend
+    plano_secas_custom: Optional[List[FaixaCustom]] = None  # faixas editadas na sessão do frontend
 
 
-# modelo de dados que o front manda pra iniciar uma simulaÃ§Ã£o
+# modelo de dados que o front manda pra iniciar uma simulação
 class SimulacaoRequest(BaseModel):
     reservatorios: List[Reservatorio]
     modo: str
@@ -92,10 +118,10 @@ class SimulacaoRequest(BaseModel):
     ano_final: int
 
 
-# funÃ§Ã£o principal que roda a simulaÃ§Ã£o mÃªs a mÃªs pra todos os reservatÃ³rios
-# recebe os dataframes com as vazÃµes, os parÃ¢metros de cada aÃ§ude, o modo de operaÃ§Ã£o
-# (SÃ©rie, Paralelo ou Individual) e a vazÃ£o conjunta do sistema
-# funÃ§Ã£o principal que roda a simulaÃ§Ã£o mÃªs a mÃªs pra todos os reservatÃ³rios
+# função principal que roda a simulação mês a mês pra todos os reservatórios
+# recebe os dataframes com as vazões, os parâmetros de cada açude, o modo de operação
+# (Série, Paralelo ou Individual) e a vazão conjunta do sistema
+# função principal que roda a simulação mês a mês pra todos os reservatórios
 def simular_sistema_n(dfs, params, modo, vazao_conjunta):
     n_res    = len(dfs)
     n_meses  = len(dfs[0])
@@ -103,16 +129,16 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
 
     colunas_init = [
         'Armazenamento Inicial', 'Armazenamento Final',
-        'Demanda Solicitada (mÂ³/s)', 'Demanda Atendida (mÂ³/s)',
-        'Racionamento (%)', 'TransferÃªncia Recebida (mÂ³/s)',
-        'TransferÃªncia Enviada (mÂ³/s)', 'EvaporaÃ§Ã£o (hmÂ³)',
-        'Vertimento (hmÂ³)', 'Falha', 'Modo OperaÃ§Ã£o'
+        'Demanda Solicitada (m³/s)', 'Demanda Atendida (m³/s)',
+        'Racionamento (%)', 'Transferência Recebida (m³/s)',
+        'Transferência Enviada (m³/s)', 'Evaporação (hm³)',
+        'Vertimento (hm³)', 'Falha', 'Modo Operação'
     ]
     for df in dfs:
         for col in colunas_init:
             df[col] = 0.0
-        df['Falha']        = 'NÃ£o'
-        df['Modo OperaÃ§Ã£o'] = 'Normal'
+        df['Falha']        = 'Não'
+        df['Modo Operação'] = 'Normal'
 
     volumes_atuais = [p['vol_ini'] for p in params]
 
@@ -126,7 +152,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             p       = params[i]
             vol_ini = volumes_atuais[i]
             pct_vol = (vol_ini / p['capacidade']) * 100 
-            mes_atual = dfs[i].loc[t, 'MÃªs']
+            mes_atual = dfs[i].loc[t, 'Mês']
 
             rac        = 0.0
             nome_faixa = "Normal"
@@ -144,8 +170,8 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
-            afluencia_hm3 = dfs[i].loc[t, 'VazÃ£o (mÂ³/s)'] * (segundos_mes / 1e6)
-            evap_taxa_m   = float(dfs[i].loc[t, 'EvaporaÃ§Ã£o (m)']) / 1000.0
+            afluencia_hm3 = dfs[i].loc[t, 'Vazão (m³/s)'] * (segundos_mes / 1e6)
+            evap_taxa_m   = float(dfs[i].loc[t, 'Evaporação (m)']) / 1000.0
 
             vol_pos_natureza, _, _, evap_hm3 = dinamica_mensal_fast(
                 float(vol_ini),
@@ -158,8 +184,8 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                 p['cav_area'],
             )
 
-            dfs[i].loc[t, 'EvaporaÃ§Ã£o (hmÂ³)']    = evap_hm3
-            dfs[i].loc[t, 'AfluÃªncias (hmÂ³/mÃªs)'] = afluencia_hm3
+            dfs[i].loc[t, 'Evaporação (hm³)']    = evap_hm3
+            dfs[i].loc[t, 'Afluências (hm³/mês)'] = afluencia_hm3
 
             prev_volumes_pos_natureza.append(vol_pos_natureza)
 
@@ -205,7 +231,7 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                     transferencias_registradas[k]   = val
                     transferencias_enviadas[k - 1]  = val
 
-        elif modo == "SÃ©rie":
+        elif modo == "Série":
             for k in range(n_res):
                 base_demand = demandas_iniciais[k] + (vazao_conjunta if k == 0 else 0)
                 demandas_finais[k] = base_demand * (1 - racionamentos[k] / 100.0)
@@ -240,28 +266,28 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
             demanda_hm3 = demandas_finais[i] * (segundos_mes / 1e6)
 
             if modo == "Paralelo":
-                df.loc[t, 'Demanda Solicitada (mÂ³/s)']     = demandas_solicitadas_paralelo[i]
-                df.loc[t, 'TransferÃªncia Recebida (mÂ³/s)'] = 0.0
-                df.loc[t, 'TransferÃªncia Enviada (mÂ³/s)']  = 0.0
+                df.loc[t, 'Demanda Solicitada (m³/s)']     = demandas_solicitadas_paralelo[i]
+                df.loc[t, 'Transferência Recebida (m³/s)'] = 0.0
+                df.loc[t, 'Transferência Enviada (m³/s)']  = 0.0
             else:
-                df.loc[t, 'Demanda Solicitada (mÂ³/s)']     = demandas_iniciais[i] + (vazao_conjunta if i == 0 else 0.0)
-                df.loc[t, 'TransferÃªncia Recebida (mÂ³/s)'] = transferencias_registradas[i]
-                df.loc[t, 'TransferÃªncia Enviada (mÂ³/s)']  = transferencias_enviadas[i]
+                df.loc[t, 'Demanda Solicitada (m³/s)']     = demandas_iniciais[i] + (vazao_conjunta if i == 0 else 0.0)
+                df.loc[t, 'Transferência Recebida (m³/s)'] = transferencias_registradas[i]
+                df.loc[t, 'Transferência Enviada (m³/s)']  = transferencias_enviadas[i]
 
             df.loc[t, 'Armazenamento Inicial'] = vol_ini
             df.loc[t, 'Racionamento (%)']      = racionamentos[i]
-            df.loc[t, 'Modo OperaÃ§Ã£o']         = nomes_faixas_atuais[i]
+            df.loc[t, 'Modo Operação']         = nomes_faixas_atuais[i]
 
             delta_transferencia_hm3 = 0.0
-            if modo == "SÃ©rie":
+            if modo == "Série":
                 delta_transferencia_hm3 = (
                     transferencias_registradas[i] - transferencias_enviadas[i]
                 ) * (segundos_mes / 1e6)
 
-            evap_taxa_m = float(df.loc[t, 'EvaporaÃ§Ã£o (m)']) / 1000.0
+            evap_taxa_m = float(df.loc[t, 'Evaporação (m)']) / 1000.0
             vol_final, demanda_atendida_real_hm3, vertimento, evap_hm3 = dinamica_mensal_fast(
                 float(vol_ini),
-                float(df.loc[t, 'AfluÃªncias (hmÂ³/mÃªs)'] + delta_transferencia_hm3),
+                float(df.loc[t, 'Afluências (hm³/mês)'] + delta_transferencia_hm3),
                 float(evap_taxa_m),
                 float(demanda_hm3),
                 0.0,
@@ -274,50 +300,53 @@ def simular_sistema_n(dfs, params, modo, vazao_conjunta):
                 df.loc[t, 'Falha'] = 'Sim'
                 falhas_do_mes.append(True)
             else:
-                df.loc[t, 'Falha'] = 'NÃ£o'
+                df.loc[t, 'Falha'] = 'Não'
                 falhas_do_mes.append(False)
 
-            df.loc[t, 'Demanda Atendida (mÂ³/s)'] = demanda_atendida_real_hm3 * (1e6 / segundos_mes)
+            df.loc[t, 'Demanda Atendida (m³/s)'] = demanda_atendida_real_hm3 * (1e6 / segundos_mes)
 
-            df.loc[t, 'EvaporaÃ§Ã£o (hmÂ³)']   = evap_hm3
-            df.loc[t, 'Vertimento (hmÂ³)']   = vertimento
+            df.loc[t, 'Evaporação (hm³)']   = evap_hm3
+            df.loc[t, 'Vertimento (hm³)']   = vertimento
             df.loc[t, 'Armazenamento Final'] = vol_final
             volumes_atuais[i]                = vol_final 
 
-        # Carimba visualmente a operaÃ§Ã£o falha no sistema se todos caÃ­ram
-        if modo in ["Paralelo", "SÃ©rie"] and all(falhas_do_mes) and len(falhas_do_mes) > 0:
+        # Carimba visualmente a operação falha no sistema se todos caíram
+        if modo in ["Paralelo", "Série"] and all(falhas_do_mes) and len(falhas_do_mes) > 0:
             for i in range(n_res):
-                dfs[i].loc[t, 'Modo OperaÃ§Ã£o'] = 'FALHA SISTÃŠMICA'
+                dfs[i].loc[t, 'Modo Operação'] = 'FALHA SISTÊMICA'
 
     return dfs
-# rota que retorna a lista de todos os reservatÃ³rios cadastrados no banco
+# rota que retorna a lista de todos os reservatórios cadastrados no banco
 @app.get("/api/reservatorios")
 def listar_reservatorios():
     if not os.path.exists(DB_PATH):
-        raise HTTPException(status_code=500, detail="Base de dados nÃ£o encontrada.")
+        raise HTTPException(status_code=500, detail="Base de dados não encontrada.")
     conexao = sqlite3.connect(DB_PATH)
     df = normalizar_colunas_db(pd.read_sql_query(
         "SELECT * FROM acudes", conexao))
     conexao.close()
-    df = df[["CORPO", "COD", "CAPAC (mÂ³)", "Est. Evap."]]
-    # converte capacidade de mÂ³ pra hmÂ³
-    df['CAPAC (mÂ³)'] = df['CAPAC (mÂ³)'] / 1e6
-    df['capacidade_hm3'] = df['CAPAC (mÂ³)']
+    df = df[["CORPO", "COD", "CAPAC (m³)", "Est. Evap."]]
+    # converte capacidade de m³ pra hm³
+    df['CAPAC (m³)'] = df['CAPAC (m³)'] / 1e6
+    df['capacidade_hm3'] = df['CAPAC (m³)']
+    df = normalizar_textos_db(df)
     df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
 
 
-# rota que retorna os hidrossistemas prÃ©-configurados (presets de simulaÃ§Ã£o)
+# rota que retorna os hidrossistemas pré-configurados (presets de simulação)
 @app.get("/api/presets")
 def listar_presets():
     conexao = sqlite3.connect(DB_PATH)
     try:
-        df_hidro = pd.read_sql_query("SELECT * FROM hidrossistemas", conexao)
+        df_hidro = normalizar_textos_db(
+            normalizar_colunas_db(pd.read_sql_query("SELECT * FROM hidrossistemas", conexao))
+        )
         presets  = []
         for nome_sis, group in df_hidro.groupby('hidrossistema'):
-            # detecta o modo de operaÃ§Ã£o pelo texto salvo no banco
-            modo = group['operaÃ§Ã£o'].iloc[0]
-            modo_operacao = ("SÃ©rie"    if 'ser'   in str(modo).lower() else
+            # detecta o modo de operação pelo texto salvo no banco
+            modo = group['operacao'].iloc[0]
+            modo_operacao = ("Série"    if 'ser'   in str(modo).lower() else
                              "Paralelo" if 'paral' in str(modo).lower() else
                              "Individual")
             presets.append({
@@ -330,58 +359,59 @@ def listar_presets():
         conexao.close()
 
 
-# rota principal que executa a simulaÃ§Ã£o e devolve os resultados mÃªs a mÃªs
+# rota principal que executa a simulação e devolve os resultados mês a mês
 @app.post("/api/simular")
 def processar_simulacao_api(req: SimulacaoRequest):
     conexao          = sqlite3.connect(DB_PATH)
     lista_dfs_input  = []
     lista_params     = []
 
-    # carrega tabelas auxiliares uma vez sÃ³
+    # carrega tabelas auxiliares uma vez só
     df_evap  = pd.read_sql_query("SELECT * FROM evaporacao", conexao)
     df_cav   = normalizar_colunas_db(pd.read_sql_query("SELECT * FROM cav", conexao))
     df_plano = pd.read_sql_query("SELECT * FROM plano_secas", conexao)
 
     for res in req.reservatorios:
-        # busca as vazÃµes histÃ³ricas do reservatÃ³rio
+        # busca as vazões históricas do reservatório
+        nomes_busca = [res.nome, texto_para_legado(res.nome)]
         df_vazoes = normalizar_colunas_db(pd.read_sql_query(
-            "SELECT * FROM vazoes WHERE nome_reservatorio = ?",
-            conexao, params=(res.nome,)))
+            "SELECT * FROM vazoes WHERE nome_reservatorio IN (?, ?)",
+            conexao, params=tuple(nomes_busca)))
 
         if df_vazoes.empty:
             conexao.close()
             raise HTTPException(status_code=404,
-                                detail=f"VazÃµes nÃ£o encontradas para {res.nome}")
+                                detail=f"Vazões não encontradas para {res.nome}")
 
-        # monta coluna de data pra filtrar pelo perÃ­odo solicitado
-        df_vazoes['Ordem_MÃªs'] = df_vazoes['MÃªs'].map(ordem_meses)
+        # monta coluna de data pra filtrar pelo período solicitado
+        df_vazoes['Ordem_Mês'] = df_vazoes['Mês'].map(ordem_meses)
         df_vazoes['Data'] = pd.to_datetime(
             df_vazoes['Ano'].astype(str) + '-' +
-            df_vazoes['Ordem_MÃªs'].astype(str) + '-01')
+            df_vazoes['Ordem_Mês'].astype(str) + '-01')
 
         mi, mf = ordem_meses[req.mes_inicial], ordem_meses[req.mes_final]
         d_ini  = pd.to_datetime(f"{req.ano_inicial}-{mi}-01")
         d_fim  = pd.to_datetime(f"{req.ano_final}-{mf}-01") + pd.offsets.MonthEnd(0)
 
-        # filtra sÃ³ o perÃ­odo pedido e ordena por data
+        # filtra só o período pedido e ordena por data
         df_long = (df_vazoes[(df_vazoes['Data'] >= d_ini) & (df_vazoes['Data'] <= d_fim)]
                    .sort_values('Data').reset_index(drop=True))
 
-        # adiciona a evaporaÃ§Ã£o mensal correspondente a cada linha
+        # adiciona a evaporação mensal correspondente a cada linha
         evap_row = df_evap[df_evap["COD"] == str(res.est_evap).replace('.0', '')]
-        df_long["EvaporaÃ§Ã£o (m)"] = (
-            df_long["MÃªs"].map(evap_row.iloc[0][list(ordem_meses.keys())])
+        df_long["Evaporação (m)"] = (
+            df_long["Mês"].map(evap_row.iloc[0][list(ordem_meses.keys())])
             if not evap_row.empty else 0.0)
 
-        # monta funÃ§Ã£o de interpolaÃ§Ã£o volume â†’ Ã¡rea usando a curva cota-Ã¡rea-volume (CAV)
+        # monta função de interpolação volume → área usando a curva cota-área-volume (CAV)
         cav_res = df_cav[df_cav["COD"] == str(res.cod)]
         if len(cav_res) < 2:
             x_vol = np.array([0.0, max(float(res.capacidade), 0.01)])
             y_area = np.array([0.0, 0.0])
-            func_interp = lambda v: 0.0  # sem dados suficientes, retorna Ã¡rea zero
+            func_interp = lambda v: 0.0  # sem dados suficientes, retorna área zero
         else:
-            x_vol  = (cav_res["VOLUME (mÂ³)"].astype(float).values / 1e6).astype(np.float64)
-            y_area = cav_res["AREA (kmÂ²)"].astype(float).values.astype(np.float64)
+            x_vol  = (cav_res["VOLUME (m³)"].astype(float).values / 1e6).astype(np.float64)
+            y_area = cav_res["AREA (km²)"].astype(float).values.astype(np.float64)
             
             func_interp = interpolate.interp1d(
                 x_vol, 
@@ -391,12 +421,12 @@ def processar_simulacao_api(req: SimulacaoRequest):
                 fill_value=(float(y_area[0]), float(y_area[-1]))
             )
                 
-        # Prioridade: faixas customizadas enviadas pelo frontend (editadas na sessÃ£o)
+        # Prioridade: faixas customizadas enviadas pelo frontend (editadas na sessão)
         # Fallback: dados do banco de dados
         regras_mes = {}
 
         if res.plano_secas_custom:
-            # usa as faixas que o usuÃ¡rio editou na sessÃ£o do frontend
+            # usa as faixas que o usuário editou na sessão do frontend
             for m in ordem_meses.keys():
                 regras = [
                     (getattr(f, m), f.Racionamento, f.Faixa)
@@ -428,7 +458,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
 
     conexao.close()
 
-    # roda a simulaÃ§Ã£o com todos os reservatÃ³rios
+    # roda a simulação com todos os reservatórios
     dfs_resultados = simular_sistema_n(lista_dfs_input, lista_params,
                                        req.modo, req.vazao_conjunta)
 
@@ -445,7 +475,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
     return {"status": "sucesso", "resultados": resultados_json}
 
 
-# rota que retorna o plano de secas (faixas de racionamento) de um aÃ§ude especÃ­fico
+# rota que retorna o plano de secas (faixas de racionamento) de um açude específico
 @app.get("/api/plano-secas/{cod_acude}")
 def obter_plano_secas(cod_acude: str):
     try:

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import sqlite3
 import numpy as np
@@ -37,7 +37,7 @@ def get_db_path():
     # Na web, o banco de dados geralmente fica na mesma pasta do main.py
     if os.path.exists('banco_site.db'):
         return 'banco_site.db'
-    raise Exception("Arquivo banco_site.db nÃ£o foi encontrado na raiz do projeto.")
+    raise Exception("Arquivo banco_site.db não foi encontrado na raiz do projeto.")
 
 
 def normalizar_colunas_db(df: pd.DataFrame) -> pd.DataFrame:
@@ -51,9 +51,33 @@ def normalizar_colunas_db(df: pd.DataFrame) -> pd.DataFrame:
             renomear[col] = "AREA (km²)"
         elif col.startswith("Vaz"):
             renomear[col] = "Vazão (m³/s)"
-        elif col in ("MÃªs", "Mês", "M�s"):
+        elif col.startswith("M"):
             renomear[col] = "Mês"
     return df.rename(columns=renomear)
+
+
+def corrigir_texto_db(valor):
+    if not isinstance(valor, str):
+        return valor
+    if not any(marca in valor for marca in ("Ã", "Â", "â")):
+        return valor
+    try:
+        return valor.encode("latin1").decode("utf-8")
+    except UnicodeError:
+        return valor
+
+
+def texto_para_legado(valor: str) -> str:
+    try:
+        return valor.encode("utf-8").decode("latin1")
+    except UnicodeError:
+        return valor
+
+
+def normalizar_textos_db(df: pd.DataFrame) -> pd.DataFrame:
+    for coluna in df.select_dtypes(include=["object"]).columns:
+        df[coluna] = df[coluna].map(corrigir_texto_db)
+    return df
 
 @router.get("/reservatorios")
 def listar_reservatorios():
@@ -64,10 +88,10 @@ def listar_reservatorios():
         cursor.execute('SELECT DISTINCT CORPO FROM acudes WHERE CORPO IS NOT NULL ORDER BY CORPO')
         rows = cursor.fetchall()
         conn.close()
-        lista_acudes = [str(r[0]).strip() for r in rows if str(r[0]).strip()]
+        lista_acudes = [corrigir_texto_db(str(r[0]).strip()) for r in rows if str(r[0]).strip()]
         return {"status": "reservatorios", "lista": lista_acudes}
     except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro ao listar aÃ§udes: {str(e)}"}
+        return {"status": "erro", "mensagem": f"Erro ao listar açudes: {str(e)}"}
 
 @router.post("/limites")
 def buscar_limites_bd(payload: LimitesPayload):
@@ -77,9 +101,9 @@ def buscar_limites_bd(payload: LimitesPayload):
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         df = normalizar_colunas_db(pd.read_sql_query(
-            'SELECT * FROM vazoes WHERE nome_reservatorio LIKE ?',
+            'SELECT * FROM vazoes WHERE nome_reservatorio LIKE ? OR nome_reservatorio LIKE ?',
             conn,
-            params=(f"%{reservatorio}%",)
+            params=(f"%{reservatorio}%", f"%{texto_para_legado(reservatorio)}%")
         ))
         conn.close()
 
@@ -99,9 +123,9 @@ def carregar_dados_fisicos(reservatorio, mes_ini, ano_ini, mes_fim, ano_fim):
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     df_acudes = normalizar_colunas_db(pd.read_sql_query(
-        'SELECT * FROM acudes WHERE CORPO = ? OR CORPO LIKE ? LIMIT 1',
+        'SELECT * FROM acudes WHERE CORPO = ? OR CORPO LIKE ? OR CORPO = ? OR CORPO LIKE ? LIMIT 1',
         conn,
-        params=(reservatorio, f"%{reservatorio}%")
+        params=(reservatorio, f"%{reservatorio}%", texto_para_legado(reservatorio), f"%{texto_para_legado(reservatorio)}%")
     ))
     if df_acudes.empty:
         conn.close()
@@ -132,9 +156,9 @@ def carregar_dados_fisicos(reservatorio, mes_ini, ano_ini, mes_fim, ano_fim):
     evap_mensal = np.array([float(x) if x else 0.0 for x in evap_row]) if evap_row else np.ones(12) * 150.0 
         
     df_vazoes = normalizar_colunas_db(pd.read_sql_query(
-        'SELECT * FROM vazoes WHERE nome_reservatorio LIKE ?',
+        'SELECT * FROM vazoes WHERE nome_reservatorio LIKE ? OR nome_reservatorio LIKE ?',
         conn,
-        params=(f"%{reservatorio}%",)
+        params=(f"%{reservatorio}%", f"%{texto_para_legado(reservatorio)}%")
     ))
     conn.close()
 
@@ -368,5 +392,5 @@ def simular_generator(payload: SimularPayload):
 
 @router.post("/simular")
 def simular_endpoint(payload: SimularPayload):
-    # StreamingResponse mantÃ©m a ligaÃ§Ã£o aberta enquanto o PSO calcula
+    # StreamingResponse mantém a ligação aberta enquanto o PSO calcula
     return StreamingResponse(simular_generator(payload), media_type="text/event-stream")
