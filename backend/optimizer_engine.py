@@ -151,9 +151,16 @@ def carregar_dados_fisicos(reservatorio, mes_ini, ano_ini, mes_fim, ano_fim):
     cav_area = df_cav['AREA (km²)'].astype(float).values
     
     est_evap_str = str(int(float(est_evap))) if est_evap else ""
-    cursor.execute('SELECT JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, "SET", OUT, NOV, DEZ FROM evaporacao WHERE COD = ? OR COD = ? LIMIT 1', (est_evap_str, str(est_evap)))
-    evap_row = cursor.fetchone()
-    evap_mensal = np.array([float(x) if x else 0.0 for x in evap_row]) if evap_row else np.ones(12) * 150.0 
+    df_evap = pd.read_sql_query(
+        'SELECT JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, "SET", OUT, NOV, DEZ '
+        'FROM evaporacao WHERE COD = ? OR COD = ? LIMIT 1',
+        conn,
+        params=(est_evap_str, str(est_evap)),
+    )
+    if df_evap.empty:
+        evap_mensal = np.ones(12) * 150.0
+    else:
+        evap_mensal = df_evap.iloc[0].fillna(0).astype(float).values
         
     df_vazoes = normalizar_colunas_db(pd.read_sql_query(
         'SELECT * FROM vazoes WHERE nome_reservatorio LIKE ? OR nome_reservatorio LIKE ?',
