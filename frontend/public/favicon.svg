@@ -1,0 +1,30 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="14" fill="#FFF7ED"/>
+  <defs>
+    <path id="drop" d="M32 16.8C32 16.8 22.8 28.7 22.8 37.1C22.8 43.5 26.8 48 32 48C37.2 48 41.2 43.5 41.2 37.1C41.2 28.7 32 16.8 32 16.8Z"/>
+    <clipPath id="drop-clip">
+      <use href="#drop"/>
+    </clipPath>
+  </defs>
+  <g fill="#F97316">
+    <circle cx="32" cy="32" r="23.5"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(30 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(60 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(90 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(120 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(150 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(180 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(210 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(240 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(270 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(300 32 32)"/>
+    <path d="M28 2.5H36L38.2 13.2H25.8L28 2.5Z" transform="rotate(330 32 32)"/>
+  </g>
+  <circle cx="32" cy="32" r="16.5" fill="#FFF7ED"/>
+  <use href="#drop" fill="#2A9D8F"/>
+  <g clip-path="url(#drop-clip)">
+    <path d="M25.4 37.4C27.8 36 30.1 36 32.5 37.4C34.9 38.8 37.1 38.8 39.1 37.4" stroke="#FFF7ED" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M26.8 42.8C28.8 41.7 30.6 41.7 32.6 42.8C34.6 43.9 36.4 43.9 38 42.8" stroke="#FFF7ED" stroke-width="3.2" stroke-linecap="round"/>
+  </g>
+</svg>
