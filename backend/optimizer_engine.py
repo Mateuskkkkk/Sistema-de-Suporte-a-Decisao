@@ -31,6 +31,7 @@ class SimularPayload(BaseModel):
     frac_durb: List[float]
     frac_dsup: List[float]
     garantia_req: List[float]
+    seed: int = 42
 
 
 def get_db_path():
@@ -355,6 +356,7 @@ def simular_generator(payload: SimularPayload):
 
         n_vars = len(payload.frac_durb) - 1 
         bounds = (np.ones(n_vars), np.ones(n_vars) * 9.0)
+        np.random.seed(payload.seed)
         optimizer = ps.single.GlobalBestPSO(n_particles=200, dimensions=n_vars, options={'c1': 0.5, 'c2': 0.3, 'w': 0.9}, bounds=bounds)
 
         kwargs = dict(aflu_hm3=aflu_hm3, evap_serie_m=evap_serie_m, dem_total_hm3=dem_total_hm3, ret_vec_hm3=ret_vec_hm3, cap_hm3=cap_hm3, cav_vol=cav_vol, cav_area=cav_area, garantia_req=payload.garantia_req, aflu_prob=aflu_prob, evap_ano=evap_ano, ninicio=payload.ninicio, mes_inicio=payload.mes_inicio)

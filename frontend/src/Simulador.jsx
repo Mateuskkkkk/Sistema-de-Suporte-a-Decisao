@@ -1167,24 +1167,47 @@ function NiveisMeta({ faixas }) {
     return mb - ma
   })
 
-  const cores = faixasOrdenadas.map((_, i) => nivelColor(i, n))
-  const faixasAsc = [...faixasOrdenadas].reverse()
+  const cores = faixasOrdenadas.map((f, i) => {
+    const nome = String(f.Faixa || '').toLowerCase()
+    if (nome.includes('alerta') || nome.includes('atenção') || nome.includes('atencao')) return '#d4a017'
+    if (nome.includes('severa') || nome.includes('emergência') || nome.includes('emergencia') || nome.includes('crítico') || nome.includes('critico')) return '#d94040'
+    if (nome.includes('seca')) return '#e07b2a'
+    return nivelColor(i, n)
+  })
+  const corBandasMeta = {
+    normal: '#2a9d8f',
+    alerta: '#d4a017',
+    seca: '#e07b2a',
+    severa: '#d94040',
+  }
+
+  const findFaixa = (patterns, fallbackIndex) => {
+    const found = faixasOrdenadas.find(f => {
+      const nome = String(f.Faixa || '').toLowerCase()
+      return patterns.some(p => nome.includes(p))
+    })
+    return found || faixasOrdenadas[fallbackIndex] || faixasOrdenadas[0]
+  }
+
+  const faixaAlerta = findFaixa(['alerta', 'atenção', 'atencao'], 0)
+  const faixaSeca = findFaixa(['seca'], 1)
+  const faixaSevera = findFaixa(['severa', 'emergência', 'emergencia', 'crítico', 'critico'], 2)
 
   const data = MESES.map(mes => {
-    const limites = faixasAsc.map(f => parseFloat(f[mes])||0)
-    const ponto = { mes }
-    ponto[`_banda_0`] = limites[0]
-    for (let i = 1; i < faixasAsc.length; i++) {
-      ponto[`_banda_${i}`] = Math.max(0, limites[i] - limites[i-1])
+    const alerta = parseFloat(faixaAlerta?.[mes]) || 0
+    const seca = parseFloat(faixaSeca?.[mes]) || 0
+    const severa = parseFloat(faixaSevera?.[mes]) || 0
+    return {
+      mes,
+      severa,
+      seca: Math.max(0, seca - severa),
+      alerta: Math.max(0, alerta - seca),
+      normal: Math.max(0, 100 - alerta),
+      limiteAlerta: alerta,
+      limiteSeca: seca,
+      limiteSevera: severa,
     }
-    ponto[`_banda_${faixasAsc.length}`] = Math.max(0, 100 - limites[faixasAsc.length-1])
-    return ponto
   })
-
-  const coresBandas = [
-    ...faixasAsc.map((_, i) => nivelColor(n-1-i, n)),
-    '#e8e0d4',
-  ]
 
   const Tip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -1218,21 +1241,10 @@ function NiveisMeta({ faixas }) {
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
               label={{value:'% Cap.',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
             <Tooltip content={<Tip/>}/>
-            {coresBandas.map((cor, i) => (
-              <Area
-                key={i}
-                type="linear"
-                dataKey={`_banda_${i}`}
-                stackId="s"
-                stroke={i === coresBandas.length-1 ? 'none' : cor}
-                strokeWidth={i === coresBandas.length-1 ? 0 : 2}
-                fill={cor}
-                fillOpacity={i === coresBandas.length-1 ? 0.12 : 0.55}
-                dot={false}
-                activeDot={false}
-                legendType="none"
-              />
-            ))}
+            <Area type="linear" dataKey="severa" stackId="meta" name="Seca Severa" stroke={corBandasMeta.severa} fill={corBandasMeta.severa} fillOpacity={0.55} dot={false} activeDot={false}/>
+            <Area type="linear" dataKey="seca" stackId="meta" name="Seca" stroke={corBandasMeta.seca} fill={corBandasMeta.seca} fillOpacity={0.5} dot={false} activeDot={false}/>
+            <Area type="linear" dataKey="alerta" stackId="meta" name="Alerta" stroke={corBandasMeta.alerta} fill={corBandasMeta.alerta} fillOpacity={0.48} dot={false} activeDot={false}/>
+            <Area type="linear" dataKey="normal" stackId="meta" name="Normal" stroke={corBandasMeta.normal} fill={corBandasMeta.normal} fillOpacity={0.45} dot={false} activeDot={false}/>
           </AreaChart>
         </ResponsiveContainer>
       </div>

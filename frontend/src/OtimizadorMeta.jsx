@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
 } from 'recharts'
 import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send, SlidersHorizontal,
@@ -10,6 +10,12 @@ const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'O
 const MESES_NOMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const NIVEL_LABELS = ['Normal', 'Alerta', 'Seca', 'Seca Severa']
 const CURVE_COLORS = ['#2a9d8f', '#d4a017', '#e07b2a', '#d94040']
+const BAND_COLORS = {
+  normal: '#2a9d8f',
+  alerta: '#d4a017',
+  seca: '#e07b2a',
+  severa: '#d94040',
+}
 
 function makeApi(base) {
   const b = base || import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
@@ -83,6 +89,84 @@ function curvasParaFaixas(result, scenario) {
   })
 }
 
+function buildBandChartData(matrizCurvas) {
+  if (!matrizCurvas?.length) return []
+  return MESES.map((mes, i) => {
+    const alerta = Number((Number(matrizCurvas[0]?.[i] || 0) * 100).toFixed(2))
+    const seca = Number((Number(matrizCurvas[1]?.[i] || 0) * 100).toFixed(2))
+    const severa = Number((Number(matrizCurvas[2]?.[i] || 0) * 100).toFixed(2))
+    return {
+      mes,
+      severa,
+      seca: Math.max(0, seca - severa),
+      alerta: Math.max(0, alerta - seca),
+      normal: Math.max(0, 100 - alerta),
+      limiteAlerta: alerta,
+      limiteSeca: seca,
+      limiteSevera: severa,
+    }
+  })
+}
+
+function buildHistoricalVolumeData(result, mesIni, anoIni) {
+  if (!result?.volumes_historicos?.length) return []
+  const simMesIni = result.mes_inicio ?? mesIni
+  const simAnoIni = result.ano_inicio ?? anoIni
+  const cap = result.capacidade_hm3 || 1
+
+  const data = result.volumes_historicos.map((vol, index) => {
+    const mesDoAno = (simMesIni - 1 + index) % 12
+    const anoAtual = simAnoIni + Math.floor((simMesIni - 1 + index) / 12)
+    const volPerc = (Number(vol || 0) / cap) * 100
+    const n0 = result.matriz_curvas?.[0]?.[mesDoAno] ? result.matriz_curvas[0][mesDoAno] * 100 : 0
+    const n1 = result.matriz_curvas?.[1]?.[mesDoAno] ? result.matriz_curvas[1][mesDoAno] * 100 : 0
+    const n2 = result.matriz_curvas?.[2]?.[mesDoAno] ? result.matriz_curvas[2][mesDoAno] * 100 : 0
+    let estado = 0
+    if (volPerc < n2) estado = 3
+    else if (volPerc < n1) estado = 2
+    else if (volPerc < n0) estado = 1
+
+    return {
+      data: `${MESES[mesDoAno]}/${anoAtual}`,
+      origVol: Number(volPerc.toFixed(2)),
+      origEstado: estado,
+      vol_0: null,
+      vol_1: null,
+      vol_2: null,
+      vol_3: null,
+    }
+  })
+
+  for (let i = 0; i < data.length; i += 1) {
+    const curr = data[i]
+    curr[`vol_${curr.origEstado}`] = curr.origVol
+    if (i > 0) {
+      const prev = data[i - 1]
+      if (prev.origEstado !== curr.origEstado) curr[`vol_${prev.origEstado}`] = curr.origVol
+    }
+  }
+
+  return data
+}
+
+function HistoricalVolumeTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const point = payload.find(p => p?.payload?.origVol !== undefined)?.payload
+  if (!point) return null
+  const color = CURVE_COLORS[point.origEstado] || CURVE_COLORS[0]
+  return (
+    <div style={{ background: '#fff', border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 12px', boxShadow: 'var(--shadow)', fontSize: 11 }}>
+      <div style={{ fontWeight: 900, marginBottom: 7, color: 'var(--text)' }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: color }} />
+        <span style={{ color: 'var(--text-mid)' }}>Volume:</span>
+        <strong style={{ color: 'var(--text)' }}>{point.origVol.toFixed(2)}%</strong>
+      </div>
+      <div style={{ color, fontWeight: 900, textTransform: 'uppercase', fontSize: 9.5 }}>{NIVEL_LABELS[point.origEstado]}</div>
+    </div>
+  )
+}
+
 export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [lista, setLista] = useState([])
@@ -106,6 +190,9 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState(null)
   const [msg, setMsg] = useState(null)
+  const [refAreaLeft, setRefAreaLeft] = useState(null)
+  const [refAreaRight, setRefAreaRight] = useState(null)
+  const [zoomDomain, setZoomDomain] = useState(null)
 
   useEffect(() => {
     api.reservatorios()
@@ -149,6 +236,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
     setProgress(0)
     setResult(null)
     setMsg(null)
+    setZoomDomain(null)
 
     const payload = {
       cenario_id: Date.now().toString(),
@@ -165,6 +253,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
       frac_durb: scenario.fracDurb,
       frac_dsup: scenario.fracDsup,
       garantia_req: scenario.garantiaReq,
+      seed: 42,
     }
 
     try {
@@ -212,15 +301,32 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
     setMsg({ type: 'success', text: 'Curvas enviadas para o simulador. Abra o Simulador e selecione o mesmo reservatório.' })
   }
 
-  const chartData = result?.matriz_curvas ? MESES.map((mes, i) => {
-    const row = { mes, max: 100 }
-    result.matriz_curvas.forEach((curve, idx) => { row[`nivel_${idx}`] = Number((curve[i] * 100).toFixed(2)) })
-    return row
-  }) : []
+  const chartData = buildBandChartData(result?.matriz_curvas)
+  const chartDataVolume = buildHistoricalVolumeData(result, mesIni, anoIni)
+  const activeDataVolume = zoomDomain ? chartDataVolume.slice(zoomDomain.start, zoomDomain.end + 1) : chartDataVolume
+
+  const handleVolumeZoom = () => {
+    if (!refAreaLeft || !refAreaRight || refAreaLeft === refAreaRight) {
+      setRefAreaLeft(null)
+      setRefAreaRight(null)
+      return
+    }
+    let start = chartDataVolume.findIndex(d => d.data === refAreaLeft)
+    let end = chartDataVolume.findIndex(d => d.data === refAreaRight)
+    if (start < 0 || end < 0) {
+      setRefAreaLeft(null)
+      setRefAreaRight(null)
+      return
+    }
+    if (start > end) [start, end] = [end, start]
+    setZoomDomain({ start, end })
+    setRefAreaLeft(null)
+    setRefAreaRight(null)
+  }
 
   return (
     <div className="sim-root" style={{ minHeight: 600, padding: '18px 26px 48px' }}>
-      <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}`}</style>
+      <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -243,8 +349,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
-        <Card style={{ padding: 16, position: 'sticky', top: 16 }}>
+      <div className="opt-layout">
+        <aside className="opt-side">
           <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}><SlidersHorizontal size={15} color="var(--orange)" />Parâmetros</div>
           <div style={{ display: 'grid', gap: 10 }}>
             <Field label="Reservatório">
@@ -276,7 +382,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
               <Field label="Ano fim"><Input type="number" min={anoIni} max={bounds.anoMax} value={anoFim} onChange={e => setAnoFim(Number(e.target.value))} /></Field>
             </div>
 
-            <div style={{ borderTop: '1.5px solid var(--border-light)', paddingTop: 10 }}>
+            <div className="opt-section">
               <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 7 }}>Estados operacionais</div>
               {NIVEL_LABELS.map((label, i) => (
                 <div key={label} style={{ display: 'grid', gridTemplateColumns: '74px 1fr 1fr 1fr', gap: 5, alignItems: 'center', marginBottom: 5 }}>
@@ -299,7 +405,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
               {loading ? `Otimizando ${progress}%` : 'Otimizar Curvas'}
             </button>
           </div>
-        </Card>
+        </aside>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {!result && !loading && (
@@ -334,14 +440,50 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
                       <YAxis domain={[0, 100]} tick={{ fill: '#9a7055', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
                       <Tooltip formatter={v => `${Number(v).toFixed(2)}%`} />
                       <Legend />
-                      <Area isAnimationActive={false} type="monotone" name="Normal" dataKey="max" stroke="none" fill={CURVE_COLORS[0]} fillOpacity={0.2} />
-                      <Area isAnimationActive={false} type="monotone" name="Alerta" dataKey="nivel_0" stroke={CURVE_COLORS[1]} fill={CURVE_COLORS[1]} fillOpacity={0.18} />
-                      <Area isAnimationActive={false} type="monotone" name="Seca" dataKey="nivel_1" stroke={CURVE_COLORS[2]} fill={CURVE_COLORS[2]} fillOpacity={0.18} />
-                      <Area isAnimationActive={false} type="monotone" name="Seca Severa" dataKey="nivel_2" stroke={CURVE_COLORS[3]} fill={CURVE_COLORS[3]} fillOpacity={0.18} />
+                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Seca Severa" dataKey="severa" stroke={BAND_COLORS.severa} fill={BAND_COLORS.severa} fillOpacity={0.55} />
+                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Seca" dataKey="seca" stroke={BAND_COLORS.seca} fill={BAND_COLORS.seca} fillOpacity={0.5} />
+                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Alerta" dataKey="alerta" stroke={BAND_COLORS.alerta} fill={BAND_COLORS.alerta} fillOpacity={0.48} />
+                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Normal" dataKey="normal" stroke={BAND_COLORS.normal} fill={BAND_COLORS.normal} fillOpacity={0.45} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
+
+              {chartDataVolume.length > 0 && (
+                <Card style={{ padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 900 }}>
+                      <Activity size={16} color="var(--orange)" /> Simulacao Historica de Volumes (%)
+                    </div>
+                    {zoomDomain && (
+                      <button className="opt-btn opt-ghost" onClick={() => setZoomDomain(null)} style={{ padding: '6px 10px', fontSize: 10 }}>
+                        Resetar Zoom
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ height: 300, userSelect: 'none' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={activeDataVolume}
+                        margin={{ top: 10, right: 12, bottom: 0, left: -18 }}
+                        onMouseDown={e => e && setRefAreaLeft(e.activeLabel ? String(e.activeLabel) : null)}
+                        onMouseMove={e => e && refAreaLeft && setRefAreaRight(e.activeLabel ? String(e.activeLabel) : null)}
+                        onMouseUp={handleVolumeZoom}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ecdcc8" />
+                        <XAxis dataKey="data" tick={{ fill: '#9a7055', fontSize: 10 }} tickLine={false} minTickGap={36} />
+                        <YAxis domain={[0, 100]} tick={{ fill: '#9a7055', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
+                        <Tooltip content={<HistoricalVolumeTooltip />} />
+                        {refAreaLeft && refAreaRight && <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />}
+                        <Area isAnimationActive={false} type="linear" dataKey="vol_0" stroke={CURVE_COLORS[0]} strokeWidth={2.5} fill={CURVE_COLORS[0]} fillOpacity={0.30} connectNulls={false} />
+                        <Area isAnimationActive={false} type="linear" dataKey="vol_1" stroke={CURVE_COLORS[1]} strokeWidth={2.5} fill={CURVE_COLORS[1]} fillOpacity={0.34} connectNulls={false} />
+                        <Area isAnimationActive={false} type="linear" dataKey="vol_2" stroke={CURVE_COLORS[2]} strokeWidth={2.5} fill={CURVE_COLORS[2]} fillOpacity={0.36} connectNulls={false} />
+                        <Area isAnimationActive={false} type="linear" dataKey="vol_3" stroke={CURVE_COLORS[3]} strokeWidth={2.5} fill={CURVE_COLORS[3]} fillOpacity={0.38} connectNulls={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              )}
 
               <Card style={{ overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
