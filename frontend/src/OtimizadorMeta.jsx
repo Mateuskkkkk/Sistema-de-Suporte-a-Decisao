@@ -17,6 +17,10 @@ const BAND_COLORS = {
   severa: '#d94040',
 }
 
+function pct(v) {
+  return `${(Number(v || 0) * 100).toFixed(1)}%`
+}
+
 function makeApi(base) {
   const b = base || import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
   return {
@@ -253,7 +257,6 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
       frac_durb: scenario.fracDurb,
       frac_dsup: scenario.fracDsup,
       garantia_req: scenario.garantiaReq,
-      seed: 42,
     }
 
     try {
@@ -327,6 +330,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   return (
     <div className="sim-root" style={{ minHeight: 600, padding: '18px 26px 48px' }}>
       <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
+      <style>{`.opt-layout{grid-template-columns:340px minmax(0,1fr);gap:0}.opt-side{position:sticky;top:12px;background:#fff;border:1px solid #cbd5e1;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:0;overflow:hidden;font-family:'JetBrains Mono','Consolas',monospace}.opt-side-top{padding:16px;border-bottom:1px solid #cbd5e1;display:flex;flex-direction:column;gap:14px;background:#fff}.opt-side-body{padding:16px;display:flex;flex-direction:column;gap:22px;background:#fff}.opt-label{display:block;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin-bottom:5px}.opt-label.center{text-align:center}.opt-control-row{display:flex;align-items:center;gap:12px}.opt-control-row input[type=range]{flex:1;accent-color:#0ea5e9}.opt-mini{width:64px;text-align:center}.opt-select-wide{width:80%;margin:0 auto;display:block}.opt-period-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}.opt-period-name{width:42px;font-size:9px;text-transform:uppercase;color:#64748b}.opt-period-fields{display:flex;gap:4px}.opt-month{width:86px}.opt-year{width:86px;text-align:center}.opt-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid #cbd5e1;background:#f1f5f9}.opt-tab{border:0;border-right:1px solid #cbd5e1;background:#fff;color:#0284c7;font:700 12px 'JetBrains Mono','Consolas',monospace;padding:10px 16px}.opt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}.opt-matrix-title{text-align:center;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin:0 0 8px}.opt-matrix-labels,.opt-matrix{display:grid;grid-template-columns:repeat(4,1fr)}.opt-matrix-labels span{font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt-matrix{border:1px solid #cbd5e1;border-radius:4px;overflow:hidden}.opt-matrix input{border:0;border-right:1px solid #cbd5e1;background:#f1f5f9;text-align:center;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 4px;min-width:0}.opt-matrix input:last-child{border-right:0}.opt-run{width:100%;padding:12px;border-radius:6px;background:#0284c7;color:#fff;font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;letter-spacing:.08em}.opt-side select,.opt-side input[type=number]{border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;border-radius:4px;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 8px}.opt-perm-table{width:100%;border-collapse:collapse;font:12px 'JetBrains Mono','Consolas',monospace;text-align:center}.opt-perm-table th{color:#64748b;font-size:11px;font-weight:800;padding:8px 6px}.opt-perm-table td{border-top:1px solid #e2e8f0;padding:8px 6px;color:#334155}.opt-perm-table td:first-child{text-align:left;font-weight:800}.opt-section-title{font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px}@media(max-width:920px){.opt-layout{grid-template-columns:1fr;gap:16px}.opt-side{position:relative;top:0;border-radius:var(--radius)}}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -351,58 +355,103 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
 
       <div className="opt-layout">
         <aside className="opt-side">
-          <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}><SlidersHorizontal size={15} color="var(--orange)" />Parâmetros</div>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <Field label="Reservatório">
-              <Select value={reservatorio} onChange={e => setReservatorio(e.target.value)}>
+          <div className="opt-side-top">
+            <div>
+              <label className="opt-label center">Reservatorio</label>
+              <select className="opt-select-wide" value={reservatorio} onChange={e => setReservatorio(e.target.value)}>
                 {lista.map(r => <option key={r} value={r}>{r}</option>)}
-              </Select>
-            </Field>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Field label="Demanda 1 (m³/s)"><Input type="number" step="0.01" value={scenario.durb} onChange={e => setScenario(p => ({ ...p, durb: Number(e.target.value) }))} /></Field>
-              <Field label="Demanda 2 (m³/s)"><Input type="number" step="0.01" value={scenario.dsupl} onChange={e => setScenario(p => ({ ...p, dsupl: Number(e.target.value) }))} /></Field>
+              </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Field label="Probabilidade"><Input type="number" min="0" max="1" step="0.01" value={prob} onChange={e => setProb(Number(e.target.value))} /></Field>
-              <Field label="Iterações PSO"><Input type="number" min="10" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} /></Field>
-            </div>
-
-            <Field label="Início do ano hidrológico">
-              <Select value={ninicio} onChange={e => setNinicio(Number(e.target.value))}>
-                {MESES_NOMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-              </Select>
-            </Field>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Field label="Mês início"><Select value={mesIni} onChange={e => setMesIni(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</Select></Field>
-              <Field label="Ano início"><Input type="number" min={bounds.anoMin} max={anoFim} value={anoIni} onChange={e => setAnoIni(Number(e.target.value))} /></Field>
-              <Field label="Mês fim"><Select value={mesFim} onChange={e => setMesFim(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</Select></Field>
-              <Field label="Ano fim"><Input type="number" min={anoIni} max={bounds.anoMax} value={anoFim} onChange={e => setAnoFim(Number(e.target.value))} /></Field>
-            </div>
-
-            <div className="opt-section">
-              <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 7 }}>Estados operacionais</div>
-              {NIVEL_LABELS.map((label, i) => (
-                <div key={label} style={{ display: 'grid', gridTemplateColumns: '74px 1fr 1fr 1fr', gap: 5, alignItems: 'center', marginBottom: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: CURVE_COLORS[i] }}>{label}</span>
-                  <Input type="number" step="1" min="0" max="100" value={Number((scenario.fracDurb[i] * 100).toFixed(1))} onChange={e => setArray('fracDurb', i, Number(e.target.value) / 100)} />
-                  <Input type="number" step="1" min="0" max="100" value={Number((scenario.fracDsup[i] * 100).toFixed(1))} onChange={e => setArray('fracDsup', i, Number(e.target.value) / 100)} />
-                  <Input type="number" step="1" min="0" max="100" value={Number((scenario.garantiaReq[i] * 100).toFixed(1))} onChange={e => setArray('garantiaReq', i, Number(e.target.value) / 100)} />
-                </div>
-              ))}
-              <div style={{ display: 'grid', gridTemplateColumns: '74px 1fr 1fr 1fr', gap: 5, fontSize: 9.5, color: 'var(--text-light)', fontWeight: 800 }}>
-                <span />
-                <span>Dem. 1 %</span>
-                <span>Dem. 2 %</span>
-                <span>Garantia %</span>
+            <div>
+              <label className="opt-label">Prob. Afluencia</label>
+              <div className="opt-control-row">
+                <input type="range" min="0.05" max="0.95" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
+                <input className="opt-mini" type="number" min="0" max="1" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
               </div>
             </div>
 
-            <button className="opt-btn opt-primary" onClick={handleRun} disabled={loading || !reservatorio} style={{ marginTop: 6, opacity: loading ? 0.7 : 1 }}>
+            <div>
+              <label className="opt-label">Iteracoes PSO</label>
+              <div className="opt-control-row">
+                <input type="range" min="10" max="500" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
+                <input className="opt-mini" type="number" min="10" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="opt-label">Periodo de Simulacao</label>
+              <div className="opt-period-row">
+                <span className="opt-period-name">Inicio</span>
+                <div className="opt-period-fields">
+                  <select className="opt-month" value={mesIni} onChange={e => setMesIni(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+                  <input className="opt-year" type="number" min={bounds.anoMin} max={anoFim} value={anoIni} onChange={e => setAnoIni(Number(e.target.value))} />
+                </div>
+              </div>
+              <div className="opt-period-row">
+                <span className="opt-period-name">Fim</span>
+                <div className="opt-period-fields">
+                  <select className="opt-month" value={mesFim} onChange={e => setMesFim(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+                  <input className="opt-year" type="number" min={anoIni} max={bounds.anoMax} value={anoFim} onChange={e => setAnoFim(Number(e.target.value))} />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="opt-label center">Mes Inicio Ano Hidrologico</label>
+              <select className="opt-month" value={ninicio} onChange={e => setNinicio(Number(e.target.value))}>
+                {MESES_NOMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="opt-tabbar">
+            <button className="opt-tab" type="button">Cenario 1</button>
+          </div>
+
+          <div className="opt-side-body">
+            <div className="opt-grid2">
+              <label>
+                <span className="opt-label center">Demanda 1 (m3/s)</span>
+                <input type="number" step="0.01" value={scenario.durb} onChange={e => setScenario(p => ({ ...p, durb: Number(e.target.value) }))} style={{ width: '100%', textAlign: 'center' }} />
+              </label>
+              <label>
+                <span className="opt-label center">Demanda 2 (m3/s)</span>
+                <input type="number" step="0.01" value={scenario.dsupl} onChange={e => setScenario(p => ({ ...p, dsupl: Number(e.target.value) }))} style={{ width: '100%', textAlign: 'center' }} />
+              </label>
+            </div>
+
+            <div>
+              <p className="opt-matrix-title">Permanencia Requeridas (%)</p>
+              <div className="opt-matrix-labels">{NIVEL_LABELS.map((label, i) => <span key={label} style={{ color: CURVE_COLORS[i] }}>{label}</span>)}</div>
+              <div className="opt-matrix">
+                {scenario.garantiaReq.map((v, i) => (
+                  <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('garantiaReq', i, Number(e.target.value) / 100)} />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="opt-matrix-title">Atendimento da Demanda 1</p>
+              <div className="opt-matrix">
+                {scenario.fracDurb.map((v, i) => (
+                  <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('fracDurb', i, Number(e.target.value) / 100)} />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="opt-matrix-title">Atendimento da Demanda 2 (%)</p>
+              <div className="opt-matrix">
+                {scenario.fracDsup.map((v, i) => (
+                  <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('fracDsup', i, Number(e.target.value) / 100)} />
+                ))}
+              </div>
+            </div>
+
+            <button className="opt-btn opt-run" onClick={handleRun} disabled={loading || !reservatorio} style={{ opacity: loading ? 0.7 : 1 }}>
               {loading ? <RefreshCw size={14} className="opt-spin" /> : <Play size={14} />}
-              {loading ? `Otimizando ${progress}%` : 'Otimizar Curvas'}
+              {loading ? `Otimizando ${progress}%` : 'Simular Cenario'}
             </button>
           </div>
         </aside>
@@ -449,6 +498,40 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
                 </div>
               </Card>
 
+              <Card style={{ padding: 16 }}>
+                <div className="opt-section-title">Desempenho e Vazoes</div>
+                <table className="opt-perm-table">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Nivel Operacional</th>
+                      <th>Vazao Total (L/s)</th>
+                      <th>Permanencia Exigida</th>
+                      <th>Permanencia Obtida</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {NIVEL_LABELS.map((label, i) => {
+                      const vazaoTotal = (Number(scenario.durb || 0) * Number(scenario.fracDurb[i] || 0))
+                        + (Number(scenario.dsupl || 0) * Number(scenario.fracDsup[i] || 0))
+                      const exigida = Number(scenario.garantiaReq[i] || 0)
+                      const obtida = Number(result.garantias_obtidas?.[i] || 0)
+                      const ok = obtida >= exigida - 0.01
+                      return (
+                        <tr key={label}>
+                          <td style={{ color: CURVE_COLORS[i], display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: CURVE_COLORS[i], display: 'inline-block' }} />
+                            {label}
+                          </td>
+                          <td>{(vazaoTotal * 1000).toFixed(1)}</td>
+                          <td>{pct(exigida)}</td>
+                          <td style={{ color: ok ? '#10b981' : '#ef4444', fontWeight: 900 }}>{pct(obtida)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+
               {chartDataVolume.length > 0 && (
                 <Card style={{ padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
@@ -485,12 +568,12 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
                 </Card>
               )}
 
-              <Card style={{ overflow: 'hidden' }}>
+              <Card style={{ padding: 16, overflow: 'hidden' }}>
+                <div className="opt-section-title">Valores das Curvas (% Volume)</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)' }}>
                       <th style={{ textAlign: 'left', padding: 9, color: 'var(--text-light)' }}>Nível</th>
-                      <th style={{ padding: 9, color: 'var(--text-light)' }}>Rac. aplicado</th>
                       {MESES.map(m => <th key={m} style={{ padding: 9, color: 'var(--text-light)' }}>{m}</th>)}
                     </tr>
                   </thead>
@@ -498,7 +581,6 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
                     {curvasParaFaixas(result, scenario).map((f, i) => (
                       <tr key={f.Faixa}>
                         <td style={{ padding: 9, borderTop: '1px solid var(--border-light)', fontWeight: 900, color: CURVE_COLORS[i + 1] }}>{f.Faixa}</td>
-                        <td style={{ padding: 9, borderTop: '1px solid var(--border-light)', textAlign: 'center' }}>{f.Racionamento}%</td>
                         {MESES.map(m => <td key={m} style={{ padding: 9, borderTop: '1px solid var(--border-light)', textAlign: 'center' }}>{f[m]}</td>)}
                       </tr>
                     ))}
