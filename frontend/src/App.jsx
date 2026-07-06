@@ -27,7 +27,7 @@ export default function App() {
         <div>
           <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--text)' }}>Sistema de Suporte à Decisão</div>
           <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
-            Simulação histórica e otimização de níveis meta no mesmo fluxo.
+            Simulação de Série Histórica e Otimização de Níveis Meta.
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
