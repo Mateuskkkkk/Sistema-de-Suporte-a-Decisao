@@ -1503,7 +1503,7 @@ function X({ size=14 }) {
 // =============================================================================
 // CORRIGIDO: componente raiz agora gerencia planoSecasSession e injeta no payload
 // =============================================================================
-export default function SimuladorHidrico({ apiUrl, curvasOtimizadas }) {
+export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = false }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [resList,setResList]=useState([])
   const [presets,setPresets]=useState([])
@@ -1593,8 +1593,9 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas }) {
   const temCurvaOtimizada = Boolean(curvasOtimizadas?.reservatorio)
 
   return (
-    <div className="sim-root" style={{minHeight:600,paddingBottom:48}}>
+    <div className={`sim-root ${darkMode ? 'app-dark' : ''}`} style={{minHeight:600,paddingBottom:48}}>
       <style>{CSS}</style>
+      <style>{`.sim-root.app-dark{--bg:#160f0a;--card:#211711;--text:#fff5ec;--text-mid:#e5c7ae;--text-light:#b68b6f;--border:#4a3325;--border-light:#332219;--orange-pale:#4a2a14;--orange-deep:#f5a654;--teal-pale:#153a34;--red-pale:#4a1d1d;--yellow-pale:#4a3a14;--blue-pale:#17274a;--shadow-sm:0 1px 6px rgba(0,0,0,.25);--shadow:0 2px 18px rgba(0,0,0,.28)}.sim-root.app-dark input,.sim-root.app-dark select,.sim-root.app-dark textarea{background:var(--bg)!important;color:var(--text)!important;border-color:var(--border)!important}.sim-root.app-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
 
       <div style={{padding:'18px 26px 0',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
         <div>

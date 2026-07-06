@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send,
-  Download, FileSpreadsheet, Moon, Sun,
+  Download, FileSpreadsheet,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -189,7 +189,7 @@ function HistoricalVolumeTooltip({ active, payload, label }) {
   )
 }
 
-export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
+export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [lista, setLista] = useState([])
   const [reservatorio, setReservatorio] = useState('')
@@ -215,7 +215,6 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   const [refAreaLeft, setRefAreaLeft] = useState(null)
   const [refAreaRight, setRefAreaRight] = useState(null)
   const [zoomDomain, setZoomDomain] = useState(null)
-  const [darkMode, setDarkMode] = useState(false)
 
   useEffect(() => {
     api.reservatorios()
@@ -443,10 +442,6 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
               </button>
             </>
           )}
-          <button className="opt-btn opt-ghost" onClick={() => setDarkMode(v => !v)} title="Alternar modo escuro">
-            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            {darkMode ? 'Modo Claro' : 'Modo Escuro'}
-          </button>
         </div>
       </div>
 
