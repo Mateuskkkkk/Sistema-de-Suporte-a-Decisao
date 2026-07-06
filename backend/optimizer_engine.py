@@ -304,6 +304,42 @@ def simular_serie_historica_fast(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, ca
         historico_vol[i] = vol
     return historico_vol
 
+
+@njit
+def simular_serie_historica_detalhada_fast(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, mes_inicio):
+    num_meses = len(aflu_hm3)
+    num_estados = len(ret_vec_hm3)
+    vol = cap_hm3 * 0.5
+    dados = np.zeros((num_meses, 8))
+
+    for i in range(num_meses):
+        idx_mes = (mes_inicio - 1 + i) % 12
+        vol_ini = vol
+        vol_perc = vol / cap_hm3
+        coluna_meta = np.empty(nmetas.shape[0])
+        for k in range(nmetas.shape[0]):
+            coluna_meta[k] = nmetas[k, idx_mes]
+
+        est_hidr = np.searchsorted(coluna_meta, vol_perc)
+        idx_alvo = (num_estados - 1) - est_hidr
+        if idx_alvo < 0:
+            idx_alvo = 0
+        if idx_alvo >= num_estados:
+            idx_alvo = num_estados - 1
+
+        ret_solicitada = ret_vec_hm3[idx_alvo]
+        vol, ret_efetiva, vertimento, evap_hm3 = dinamica_mensal_fast(vol, aflu_hm3[i], evap_serie_m[i], ret_solicitada, 0.0, cap_hm3, cav_vol, cav_area)
+        dados[i, 0] = vol_ini
+        dados[i, 1] = aflu_hm3[i]
+        dados[i, 2] = evap_hm3
+        dados[i, 3] = ret_solicitada
+        dados[i, 4] = ret_efetiva
+        dados[i, 5] = vertimento
+        dados[i, 6] = vol
+        dados[i, 7] = idx_alvo
+
+    return dados
+
 def gerar_resultado_final(niveis_metas, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec_hm3, cap_hm3, cav_vol, cav_area, aflu_prob, evap_ano, ninicio, mes_inicio):
     nmetas = calculo_volume_meta_fast(niveis_metas, aflu_prob, evap_ano, dem_total_hm3, cap_hm3, cav_vol, cav_area, ninicio)
     garantias = engine_simulacao_temporal(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, mes_inicio)
@@ -387,11 +423,38 @@ def simular_generator(payload: SimularPayload):
         garantias_finais, curvas_finais = gerar_resultado_final(melhores_metas, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec_hm3, cap_hm3, cav_vol, cav_area, aflu_prob, evap_ano, payload.ninicio, payload.mes_inicio)
         volumes_hist = simular_serie_historica_fast(curvas_finais, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, payload.mes_inicio)
         volumes_hist = np.where(np.isfinite(volumes_hist), volumes_hist, 0.0)
+        sim_detalhada = simular_serie_historica_detalhada_fast(curvas_finais, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, payload.mes_inicio)
+        sim_detalhada = np.where(np.isfinite(sim_detalhada), sim_detalhada, 0.0)
+        meses_rotulo = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"]
+        segundos_mes = 2.592
+        simulacao_historica = []
+        for i in range(len(sim_detalhada)):
+            mes_idx = (payload.mes_inicio - 1 + i) % 12
+            ano_atual = payload.ano_inicio + ((payload.mes_inicio - 1 + i) // 12)
+            ret_sol_m3s = float(sim_detalhada[i, 3] / segundos_mes)
+            ret_ef_m3s = float(sim_detalhada[i, 4] / segundos_mes)
+            rac = 0.0 if ret_sol_m3s <= 0 else max(0.0, (1.0 - (ret_ef_m3s / ret_sol_m3s)) * 100.0)
+            estado_idx = int(sim_detalhada[i, 7])
+            modo_operacao = "Normal" if estado_idx == 0 else ("Alerta" if estado_idx == 1 else ("Seca" if estado_idx == 2 else "Seca Severa"))
+            simulacao_historica.append({
+                "Data": f"{meses_rotulo[mes_idx]}/{ano_atual}",
+                "Armazenamento Inicial": float(sim_detalhada[i, 0]),
+                "Afluências (hm³/mês)": float(aflu_hm3[i]),
+                "Evaporação (hm³)": float(sim_detalhada[i, 2]),
+                "Demanda Solicitada (m³/s)": ret_sol_m3s,
+                "Demanda Atendida (m³/s)": ret_ef_m3s,
+                "Racionamento (%)": float(rac),
+                "Vertimento (hm³)": float(sim_detalhada[i, 5]),
+                "Armazenamento Final": float(sim_detalhada[i, 6]),
+                "Falha": "Sim" if ret_ef_m3s + 1e-9 < ret_sol_m3s else "Não",
+                "Modo Operação": modo_operacao,
+            })
         
         resultado_final = {
             "status": "sucesso", "cenario_id": payload.cenario_id, "custo_final": float(best_cost),
             "niveis_meta": melhores_metas[::-1].tolist(), "garantias_obtidas": garantias_finais.tolist(),
             "matriz_curvas": curvas_finais[::-1].tolist(), "volumes_historicos": volumes_hist.tolist(),
+            "simulacao_historica": simulacao_historica,
             "mes_inicio": payload.mes_inicio, "ano_inicio": payload.ano_inicio, "capacidade_hm3": cap_hm3
         }
         yield f"data: {json.dumps(resultado_final)}\n\n"

@@ -3,8 +3,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
 } from 'recharts'
 import {
-  Activity, CheckCircle2, Database, Play, RefreshCw, Send, SlidersHorizontal,
+  Activity, CheckCircle2, Database, Play, RefreshCw, Send,
+  Download, FileSpreadsheet, Moon, Sun,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const MESES_NOMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -19,6 +21,22 @@ const BAND_COLORS = {
 
 function pct(v) {
   return `${(Number(v || 0) * 100).toFixed(1)}%`
+}
+
+function downloadText(filename, content, type = 'text/csv;charset=utf-8;') {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function safeName(value) {
+  return String(value || 'otimizacao').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_')
 }
 
 function makeApi(base) {
@@ -197,6 +215,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   const [refAreaLeft, setRefAreaLeft] = useState(null)
   const [refAreaRight, setRefAreaRight] = useState(null)
   const [zoomDomain, setZoomDomain] = useState(null)
+  const [darkMode, setDarkMode] = useState(false)
 
   useEffect(() => {
     api.reservatorios()
@@ -304,6 +323,77 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
     setMsg({ type: 'success', text: 'Curvas enviadas para o simulador. Abra o Simulador e selecione o mesmo reservatório.' })
   }
 
+  const performanceRows = () => NIVEL_LABELS.map((label, i) => {
+    const vazaoTotal = (Number(scenario.durb || 0) * Number(scenario.fracDurb[i] || 0))
+      + (Number(scenario.dsupl || 0) * Number(scenario.fracDsup[i] || 0))
+    return {
+      'Nivel Operacional': label,
+      'Vazao Total (L/s)': Number((vazaoTotal * 1000).toFixed(3)),
+      'Permanencia Exigida': Number(((Number(scenario.garantiaReq[i] || 0)) * 100).toFixed(2)),
+      'Permanencia Obtida': Number(((Number(result?.garantias_obtidas?.[i] || 0)) * 100).toFixed(2)),
+    }
+  })
+
+  const simulationRows = () => (result?.simulacao_historica || []).map(d => ({
+    'Mês/Ano': d.Data,
+    'Armazenamento Inicial (hm³)': Number(d['Armazenamento Inicial'] || 0),
+    'Armazenamento Final (hm³)': Number(d['Armazenamento Final'] || 0),
+    'Afluências (hm³/mês)': Number(d['Afluências (hm³/mês)'] || 0),
+    'Evaporação (hm³)': Number(d['Evaporação (hm³)'] || 0),
+    'Demanda Solicitada (m³/s)': Number(d['Demanda Solicitada (m³/s)'] || 0),
+    'Demanda Atendida (m³/s)': Number(d['Demanda Atendida (m³/s)'] || 0),
+    'Demanda Atendida (hm³)': Number(d['Demanda Atendida (m³/s)'] || 0) * 2.592,
+    'Racionamento (%)': Number(d['Racionamento (%)'] || 0),
+    'Vertimento (hm³)': Number(d['Vertimento (hm³)'] || 0),
+    'Falha': d.Falha || 'Não',
+    'Modo Operação': d['Modo Operação'] || 'Normal',
+  }))
+
+  const exportCurvesCSV = () => {
+    if (!result?.matriz_curvas) return
+    let csv = 'Mes;Alerta;Seca;Seca Severa\n'
+    MESES.forEach((mes, i) => {
+      csv += `${mes};${(result.matriz_curvas[0][i] * 100).toFixed(2)};${(result.matriz_curvas[1][i] * 100).toFixed(2)};${(result.matriz_curvas[2][i] * 100).toFixed(2)}\n`
+    })
+    downloadText(`curvas_${safeName(reservatorio)}.csv`, csv)
+  }
+
+  const exportVolumesCSV = () => {
+    if (!result?.volumes_historicos?.length) return
+    let csv = 'Data;Volume Absoluto (hm3);Volume Percentual (%)\n'
+    const simMesIni = result.mes_inicio ?? mesIni
+    const simAnoIni = result.ano_inicio ?? anoIni
+    const cap = result.capacidade_hm3 || 1
+    result.volumes_historicos.forEach((vol, index) => {
+      const mesDoAno = (simMesIni - 1 + index) % 12
+      const anoAtual = simAnoIni + Math.floor((simMesIni - 1 + index) / 12)
+      csv += `${MESES[mesDoAno]}/${anoAtual};${Number(vol).toFixed(2)};${((Number(vol) / cap) * 100).toFixed(2)}\n`
+    })
+    downloadText(`volumes_${safeName(reservatorio)}.csv`, csv)
+  }
+
+  const exportSimulationExcel = () => {
+    const rows = simulationRows()
+    if (!rows.length) return
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulacao')
+    XLSX.writeFile(wb, `simulacao_${safeName(reservatorio)}.xlsx`)
+  }
+
+  const exportOptimizationExcel = () => {
+    if (!result) return
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(performanceRows()), 'Desempenho')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(curvasParaFaixas(result, scenario)), 'Curvas')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(buildHistoricalVolumeData(result, mesIni, anoIni).map(d => ({
+      Data: d.data,
+      'Volume Percentual (%)': d.origVol,
+      Estado: NIVEL_LABELS[d.origEstado],
+    }))), 'Volumes')
+    const rows = simulationRows()
+    if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulacao')
+    XLSX.writeFile(wb, `otimizacao_${safeName(reservatorio)}.xlsx`)
+  }
   const chartData = buildBandChartData(result?.matriz_curvas)
   const chartDataVolume = buildHistoricalVolumeData(result, mesIni, anoIni)
   const activeDataVolume = zoomDomain ? chartDataVolume.slice(zoomDomain.start, zoomDomain.end + 1) : chartDataVolume
@@ -328,9 +418,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
   }
 
   return (
-    <div className="sim-root" style={{ minHeight: 600, padding: '18px 26px 48px' }}>
+    <div className={`sim-root ${darkMode ? 'opt-dark' : ''}`} style={{ minHeight: 600, padding: '18px 26px 48px' }}>
       <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
       <style>{`.opt-layout{grid-template-columns:340px minmax(0,1fr);gap:0}.opt-side{position:sticky;top:12px;background:#fff;border:1px solid #cbd5e1;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:0;overflow:hidden;font-family:'JetBrains Mono','Consolas',monospace}.opt-side-top{padding:16px;border-bottom:1px solid #cbd5e1;display:flex;flex-direction:column;gap:14px;background:#fff}.opt-side-body{padding:16px;display:flex;flex-direction:column;gap:22px;background:#fff}.opt-label{display:block;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin-bottom:5px}.opt-label.center{text-align:center}.opt-control-row{display:flex;align-items:center;gap:12px}.opt-control-row input[type=range]{flex:1;accent-color:#0ea5e9}.opt-mini{width:64px;text-align:center}.opt-select-wide{width:80%;margin:0 auto;display:block}.opt-period-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}.opt-period-name{width:42px;font-size:9px;text-transform:uppercase;color:#64748b}.opt-period-fields{display:flex;gap:4px}.opt-month{width:86px}.opt-year{width:86px;text-align:center}.opt-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid #cbd5e1;background:#f1f5f9}.opt-tab{border:0;border-right:1px solid #cbd5e1;background:#fff;color:#0284c7;font:700 12px 'JetBrains Mono','Consolas',monospace;padding:10px 16px}.opt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}.opt-matrix-title{text-align:center;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin:0 0 8px}.opt-matrix-labels,.opt-matrix{display:grid;grid-template-columns:repeat(4,1fr)}.opt-matrix-labels span{font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt-matrix{border:1px solid #cbd5e1;border-radius:4px;overflow:hidden}.opt-matrix input{border:0;border-right:1px solid #cbd5e1;background:#f1f5f9;text-align:center;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 4px;min-width:0}.opt-matrix input:last-child{border-right:0}.opt-run{width:100%;padding:12px;border-radius:6px;background:#0284c7;color:#fff;font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;letter-spacing:.08em}.opt-side select,.opt-side input[type=number]{border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;border-radius:4px;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 8px}.opt-perm-table{width:100%;border-collapse:collapse;font:12px 'JetBrains Mono','Consolas',monospace;text-align:center}.opt-perm-table th{color:#64748b;font-size:11px;font-weight:800;padding:8px 6px}.opt-perm-table td{border-top:1px solid #e2e8f0;padding:8px 6px;color:#334155}.opt-perm-table td:first-child{text-align:left;font-weight:800}.opt-section-title{font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px}@media(max-width:920px){.opt-layout{grid-template-columns:1fr;gap:16px}.opt-side{position:relative;top:0;border-radius:var(--radius)}}`}</style>
+      <style>{`.opt-dark{--bg:#160f0a;--card:#211711;--text:#fff5ec;--text-mid:#e5c7ae;--text-light:#b68b6f;--border:#4a3325;--border-light:#332219;--orange-pale:#4a2a14;--orange-deep:#f5a654;--teal-pale:#153a34;--red-pale:#4a1d1d;--yellow-pale:#4a3a14;--blue-pale:#17274a;--shadow:0 2px 18px rgba(0,0,0,.28)}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:var(--bg);color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:var(--bg);color:var(--text);font-family:'Sora',sans-serif}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -340,11 +431,23 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas }) {
           </div>
           <p style={{ fontSize: 11.5, color: 'var(--text-light)', margin: 0 }}>Calcule curvas guia por PSO e envie os limites mensais para o simulador.</p>
         </div>
-        {result && (
-          <button className="opt-btn opt-primary" onClick={apply}>
-            <Send size={14} /> Aplicar no Simulador
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {result && (
+            <>
+              <button className="opt-btn opt-ghost" onClick={exportCurvesCSV}><Download size={14} /> CSV Curvas</button>
+              <button className="opt-btn opt-ghost" onClick={exportVolumesCSV}><Download size={14} /> CSV Volumes</button>
+              <button className="opt-btn opt-ghost" onClick={exportSimulationExcel}><FileSpreadsheet size={14} /> Planilha Simulação</button>
+              <button className="opt-btn opt-ghost" onClick={exportOptimizationExcel}><FileSpreadsheet size={14} /> Salvar Resultados</button>
+              <button className="opt-btn opt-primary" onClick={apply}>
+                <Send size={14} /> Aplicar no Simulador
+              </button>
+            </>
+          )}
+          <button className="opt-btn opt-ghost" onClick={() => setDarkMode(v => !v)} title="Alternar modo escuro">
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            {darkMode ? 'Modo Claro' : 'Modo Escuro'}
           </button>
-        )}
+        </div>
       </div>
 
       {msg && (
