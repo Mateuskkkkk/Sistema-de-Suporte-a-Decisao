@@ -24,10 +24,18 @@ export default function App() {
         top: 0,
         zIndex: 20,
       }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--text)' }}>Sistema de Suporte à Decisão</div>
-          <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
-            Simulação de Série Histórica e Otimização de Níveis Meta.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <img
+            src="/favicon.svg"
+            alt=""
+            aria-hidden="true"
+            style={{ width: 32, height: 32, flex: '0 0 auto' }}
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--text)' }}>Sistema de Suporte à Decisão</div>
+            <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
+              Simulação de Série Histórica e Otimização de Níveis Meta.
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
