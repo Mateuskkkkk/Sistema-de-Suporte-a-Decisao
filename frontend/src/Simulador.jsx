@@ -67,7 +67,7 @@ const CSS = `
   .sim-tab.off:hover { background:var(--orange-pale); color:var(--orange); }
   .sim-ghost { display:flex; align-items:center; gap:6px; background:none; border:1.5px solid var(--border); border-radius:var(--radius-xs); padding:6px 12px; font-size:11.5px; font-weight:600; color:var(--text-mid); cursor:pointer; transition:all 0.15s; }
   .sim-ghost:hover { border-color:var(--orange); color:var(--orange); }
-  .sim-plano-inp { width:100%; border:1.5px solid transparent; border-radius:4px; background:transparent; text-align:center; font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--text); padding:3px 2px; transition:all 0.15s; outline:none; }
+  .sim-plano-inp { width:100%; border:1.5px solid transparent; border-radius:4px; background:transparent; text-align:center; font-size:11px; font-family:'Sora',sans-serif; color:var(--text); padding:3px 2px; transition:all 0.15s; outline:none; }
   .sim-plano-inp:focus { border-color:var(--orange); background:var(--orange-pale); }
   .sim-tr:hover td { background: var(--orange-pale) !important; }
 `
@@ -150,7 +150,7 @@ function Label({ icon: Icon, children }) {
 }
 
 function FC({ as='input', children, style, ...props }) {
-  const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'#fff', color:'var(--text)', fontSize:12.5, outline:'none', transition:'border-color 0.15s', ...style }
+  const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'#fff', color:'var(--text)', fontSize:12.5, fontFamily:'Sora, sans-serif', outline:'none', transition:'border-color 0.15s', ...style }
   const onF = e => e.target.style.borderColor = 'var(--orange)'
   const onB = e => e.target.style.borderColor = 'var(--border)'
   if (as === 'select') return <select style={{ ...base, appearance:'none', cursor:'pointer' }} onFocus={onF} onBlur={onB} {...props}>{children}</select>
@@ -1298,22 +1298,22 @@ function ResSearch({ resList, value, onChange }) {
         onChange={e=>{ setQuery(e.target.value); setOpen(true); if(!e.target.value) onChange('') }}
         onFocus={()=>setOpen(true)}
         placeholder="Digite para buscar…"
-        style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',background:'#fff',color:'var(--text)',fontSize:12.5,outline:'none',transition:'border-color 0.15s'}}
+        style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',background:'var(--card)',color:'var(--text)',fontSize:12.5,outline:'none',transition:'border-color 0.15s'}}
         onMouseEnter={e=>e.target.style.borderColor='var(--orange)'}
         onMouseLeave={e=>{ if(document.activeElement!==e.target) e.target.style.borderColor='var(--border)' }}
         onFocusCapture={e=>e.target.style.borderColor='var(--orange)'}
         onBlurCapture={e=>e.target.style.borderColor='var(--border)'}
       />
       {open && filtered.length > 0 && (
-        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',boxShadow:'var(--shadow)',zIndex:999,maxHeight:200,overflowY:'auto',marginTop:2}}>
+        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',boxShadow:'var(--shadow)',zIndex:999,maxHeight:200,overflowY:'auto',marginTop:2}}>
           {filtered.map(r=>(
             <div key={r.COD}
               onMouseDown={()=>select(r.CORPO)}
               style={{padding:'7px 11px',fontSize:12,cursor:'pointer',borderBottom:'1px solid var(--border-light)',transition:'background 0.1s'}}
               onMouseEnter={e=>e.currentTarget.style.background='var(--orange-pale)'}
-              onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+              onMouseLeave={e=>e.currentTarget.style.background='var(--card)'}>
               <span style={{fontWeight:600,color:'var(--text)'}}>{r.CORPO}</span>
-              <span style={{fontSize:10,color:'var(--text-light)',marginLeft:8,fontFamily:'JetBrains Mono'}}>{r.COD}</span>
+              <span style={{fontSize:10,color:'var(--text-light)',marginLeft:8,fontFamily:'Sora, sans-serif'}}>{r.COD}</span>
             </div>
           ))}
         </div>
@@ -1345,13 +1345,13 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
               const s=resList.find(r=>r.CORPO===val)
               onChange(index,{nome:val,cod:s?.COD||'',capacidade:getCapacidadeHm3(s),est_evap:s?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(s)*0.5})
             }}/>
-            {res.capacidade>0&&<div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>Cap: {res.capacidade.toFixed(2)} hm³ · COD: {res.cod}</div>}
+            {res.capacidade>0&&<div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,fontFamily:'Sora, sans-serif'}}>Cap: {res.capacidade.toFixed(2)} hm³ · COD: {res.cod}</div>}
           </div>
           <div style={{display:'grid',gridTemplateColumns:showGatilho?'1fr 1fr':'1fr 1fr',gap:6}}>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Vol. Inicial (%)</div>
               <FC type="number" min="0" max="100" step="1" value={res.volPct??50} onChange={e=>{const p=parseFloat(e.target.value)||0;onChange(index,{volPct:p,vol_inicial:(res.capacidade*p)/100})}}/>
-              {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'JetBrains Mono'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
+              {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'Sora, sans-serif'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
             </div>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (m³/s)</div>
@@ -1365,7 +1365,7 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
             )}
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Est. Evap.</div>
-              <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'JetBrains Mono'}}>{res.est_evap||'—'}</div>
+              <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'Sora, sans-serif'}}>{res.est_evap||'—'}</div>
             </div>
           </div>
         </div>
@@ -1595,7 +1595,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
   return (
     <div className={`sim-root ${darkMode ? 'app-dark' : ''}`} style={{minHeight:600,paddingBottom:48}}>
       <style>{CSS}</style>
-      <style>{`.sim-root.app-dark{--bg:#160f0a;--card:#211711;--text:#fff5ec;--text-mid:#e5c7ae;--text-light:#b68b6f;--border:#4a3325;--border-light:#332219;--orange-pale:#4a2a14;--orange-deep:#f5a654;--teal-pale:#153a34;--red-pale:#4a1d1d;--yellow-pale:#4a3a14;--blue-pale:#17274a;--shadow-sm:0 1px 6px rgba(0,0,0,.25);--shadow:0 2px 18px rgba(0,0,0,.28)}.sim-root.app-dark input,.sim-root.app-dark select,.sim-root.app-dark textarea{background:var(--bg)!important;color:var(--text)!important;border-color:var(--border)!important}.sim-root.app-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
+      <style>{`.sim-root.app-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow-sm:0 1px 6px rgba(0,0,0,.35);--shadow:0 2px 18px rgba(0,0,0,.45)}.sim-root.app-dark input,.sim-root.app-dark select,.sim-root.app-dark textarea{background:#080503!important;color:var(--text)!important;border-color:var(--border)!important}.sim-root.app-dark option{background:#080503;color:var(--text)}.sim-root.app-dark .sim-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.sim-root.app-dark .sim-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}.sim-root.app-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
 
       <div style={{padding:'18px 26px 0',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
         <div>

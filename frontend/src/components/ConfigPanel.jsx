@@ -24,7 +24,7 @@ function FormControl({ as = 'input', children, style, ...props }) {
     border: '1.5px solid var(--border)',
     borderRadius: 'var(--radius-xs)',
     background: '#fff', color: 'var(--text)',
-    fontSize: 13, outline: 'none',
+    fontSize: 13, fontFamily: 'Sora, sans-serif', outline: 'none',
     transition: 'border-color 0.15s',
     ...style,
   }
@@ -103,7 +103,7 @@ function ReservatorioCard({ res, index, reservatorios, onChange, onRemove }) {
               {reservatorios.map(r => <option key={r.COD} value={r.CORPO}>{r.CORPO}</option>)}
             </FormControl>
             {res.capacidade > 0 && (
-              <div style={{ fontSize: 10.5, color: 'var(--text-light)', marginTop: 3, fontFamily: 'JetBrains Mono' }}>
+              <div style={{ fontSize: 10.5, color: 'var(--text-light)', marginTop: 3, fontFamily: 'Sora, sans-serif' }}>
                 Cap. Máx: {res.capacidade.toFixed(2)} hm³ • COD: {res.cod}
               </div>
             )}
@@ -122,7 +122,7 @@ function ReservatorioCard({ res, index, reservatorios, onChange, onRemove }) {
                 }}
               />
               {res.capacidade > 0 && (
-                <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 3, fontFamily: 'JetBrains Mono' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 3, fontFamily: 'Sora, sans-serif' }}>
                   = {((res.capacidade * (res.volPct ?? 50)) / 100).toFixed(2)} hm³
                 </div>
               )}

@@ -11,7 +11,7 @@ export default function App() {
 
   return (
     <div className={`app-shell ${darkMode ? 'app-dark' : ''}`} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <style>{`.app-shell{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--text:#1e1208;--text-light:#9a7055;--border:#ecdcc8;--card:#fffaf4;font-family:'Sora',sans-serif}.app-shell.app-dark{--bg:#160f0a;--orange-pale:#4a2a14;--orange-deep:#f5a654;--text:#fff5ec;--text-light:#b68b6f;--border:#4a3325;--card:#211711}.theme-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-light);padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}.theme-btn:hover{color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
+      <style>{`.app-shell{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--text:#1e1208;--text-light:#9a7055;--border:#ecdcc8;--card:#fffaf4;font-family:'Sora',sans-serif}.app-shell.app-dark{--bg:#050403;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--text:#fff7ef;--text-light:#c0987c;--border:#2a1a10;--card:#0d0805}.brand-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff7ed;border:1.5px solid var(--border);box-shadow:0 1px 8px rgba(150,90,40,.14);flex:0 0 auto}.app-dark .brand-icon{background:#120b07;border-color:#3a2416;box-shadow:0 0 0 1px rgba(249,115,22,.18),0 2px 14px rgba(0,0,0,.35)}.theme-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-light);padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}.theme-btn:hover{color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
       <header style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -25,12 +25,14 @@ export default function App() {
         zIndex: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <img
-            src="/favicon.svg"
-            alt=""
-            aria-hidden="true"
-            style={{ width: 32, height: 32, flex: '0 0 auto' }}
-          />
+          <span className="brand-icon">
+            <img
+              src="/favicon.svg"
+              alt=""
+              aria-hidden="true"
+              style={{ width: 27, height: 27, display: 'block' }}
+            />
+          </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--text)' }}>Sistema de Suporte à Decisão</div>
             <div style={{ fontSize: 11, color: 'var(--text-light)' }}>

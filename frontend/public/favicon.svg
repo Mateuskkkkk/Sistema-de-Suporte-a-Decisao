@@ -1,5 +1,5 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#FFF7ED"/>
+  <rect width="64" height="64" rx="14" fill="none"/>
   <defs>
     <path id="drop" d="M32 16.8C32 16.8 22.8 28.7 22.8 37.1C22.8 43.5 26.8 48 32 48C37.2 48 41.2 43.5 41.2 37.1C41.2 28.7 32 16.8 32 16.8Z"/>
     <clipPath id="drop-clip">

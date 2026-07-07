@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send,
-  Download, FileSpreadsheet,
+  Download, FileSpreadsheet, Plus, Search, X,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -17,6 +17,25 @@ const BAND_COLORS = {
   alerta: '#d4a017',
   seca: '#e07b2a',
   severa: '#d94040',
+}
+
+const DEFAULT_SCENARIO = {
+  durb: 0.5,
+  dsupl: 0.3,
+  fracDurb: [1, 1, 0.8, 0.5],
+  fracDsup: [1, 0.8, 0.5, 0],
+  garantiaReq: [0.9, 0.95, 0.98, 1],
+}
+
+function createScenario(index) {
+  return {
+    id: `cenario-${Date.now()}-${index}`,
+    name: `Cenário ${index}`,
+    ...DEFAULT_SCENARIO,
+    fracDurb: [...DEFAULT_SCENARIO.fracDurb],
+    fracDsup: [...DEFAULT_SCENARIO.fracDsup],
+    garantiaReq: [...DEFAULT_SCENARIO.garantiaReq],
+  }
 }
 
 function pct(v) {
@@ -93,6 +112,52 @@ function Input(props) {
 
 function Select(props) {
   return <select {...props} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-xs)', background: '#fff', color: 'var(--text)', fontSize: 12, outline: 'none', ...(props.style || {}) }} />
+}
+
+function ReservatorioSearch({ lista, value, onChange }) {
+  const [query, setQuery] = useState(value || '')
+  const [open, setOpen] = useState(false)
+  const ref = React.useRef(null)
+
+  useEffect(() => { setQuery(value || '') }, [value])
+
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = lista
+    .filter(nome => String(nome || '').toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 60)
+
+  const select = (nome) => {
+    setQuery(nome)
+    setOpen(false)
+    onChange(nome)
+  }
+
+  return (
+    <div className="opt-search" ref={ref}>
+      <Search size={13} className="opt-search-icon" />
+      <input
+        className="opt-search-input"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange('') }}
+        onFocus={() => setOpen(true)}
+        placeholder="Digite para buscar..."
+      />
+      {open && filtered.length > 0 && (
+        <div className="opt-search-menu">
+          {filtered.map(nome => (
+            <button key={nome} type="button" className="opt-search-item" onMouseDown={() => select(nome)}>
+              {nome}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function curvasParaFaixas(result, scenario) {
@@ -201,20 +266,20 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   const [anoIni, setAnoIni] = useState(1911)
   const [mesFim, setMesFim] = useState(12)
   const [anoFim, setAnoFim] = useState(2021)
-  const [scenario, setScenario] = useState({
-    durb: 0.5,
-    dsupl: 0.3,
-    fracDurb: [1, 1, 0.8, 0.5],
-    fracDsup: [1, 0.8, 0.5, 0],
-    garantiaReq: [0.9, 0.95, 0.98, 1],
-  })
-  const [loading, setLoading] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [result, setResult] = useState(null)
+  const [scenarios, setScenarios] = useState(() => [{ ...createScenario(1), id: 'cenario-1', name: 'Cenário 1' }])
+  const [activeScenarioId, setActiveScenarioId] = useState('cenario-1')
+  const [loadingId, setLoadingId] = useState(null)
+  const [progressByScenario, setProgressByScenario] = useState({})
+  const [resultsByScenario, setResultsByScenario] = useState({})
   const [msg, setMsg] = useState(null)
   const [refAreaLeft, setRefAreaLeft] = useState(null)
   const [refAreaRight, setRefAreaRight] = useState(null)
   const [zoomDomain, setZoomDomain] = useState(null)
+
+  const scenario = scenarios.find(s => s.id === activeScenarioId) || scenarios[0]
+  const result = resultsByScenario[activeScenarioId] || null
+  const loading = loadingId === activeScenarioId
+  const progress = progressByScenario[activeScenarioId] || 0
 
   useEffect(() => {
     api.reservatorios()
@@ -244,24 +309,59 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       .catch(() => {})
   }, [api, reservatorio])
 
+  const updateScenario = (updater) => {
+    setScenarios(prev => prev.map(item => {
+      if (item.id !== activeScenarioId) return item
+      const patch = typeof updater === 'function' ? updater(item) : updater
+      return { ...item, ...patch }
+    }))
+  }
+
   const setArray = (field, idx, value) => {
-    setScenario(prev => {
+    updateScenario(prev => {
       const arr = [...prev[field]]
       arr[idx] = value
-      return { ...prev, [field]: arr }
+      return { [field]: arr }
+    })
+  }
+
+  const addScenario = () => {
+    const novo = createScenario(scenarios.length + 1)
+    setScenarios(prev => [...prev, novo])
+    setActiveScenarioId(novo.id)
+    setMsg(null)
+    setZoomDomain(null)
+  }
+
+  const removeScenario = (id) => {
+    if (scenarios.length <= 1) return
+    const nextScenarios = scenarios.filter(s => s.id !== id)
+    setScenarios(nextScenarios)
+    if (activeScenarioId === id) setActiveScenarioId(nextScenarios[0]?.id || 'cenario-1')
+    setResultsByScenario(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setProgressByScenario(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
     })
   }
 
   const handleRun = async () => {
     if (!reservatorio) return
-    setLoading(true)
-    setProgress(0)
-    setResult(null)
+    const scenarioId = activeScenarioId
+    const scenarioSnapshot = scenario
+    setLoadingId(scenarioId)
+    setProgressByScenario(prev => ({ ...prev, [scenarioId]: 0 }))
+    setResultsByScenario(prev => ({ ...prev, [scenarioId]: null }))
     setMsg(null)
     setZoomDomain(null)
 
     const payload = {
-      cenario_id: Date.now().toString(),
+      cenario_id: scenarioId,
       reservatorio,
       prob,
       iters,
@@ -270,11 +370,11 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       ano_inicio: anoIni,
       mes_fim: mesFim,
       ano_fim: anoFim,
-      durb_m3s: scenario.durb,
-      dsupl_m3s: scenario.dsupl,
-      frac_durb: scenario.fracDurb,
-      frac_dsup: scenario.fracDsup,
-      garantia_req: scenario.garantiaReq,
+      durb_m3s: scenarioSnapshot.durb,
+      dsupl_m3s: scenarioSnapshot.dsupl,
+      frac_durb: scenarioSnapshot.fracDurb,
+      frac_dsup: scenarioSnapshot.fracDsup,
+      garantia_req: scenarioSnapshot.garantiaReq,
     }
 
     try {
@@ -294,10 +394,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
           if (!chunk.startsWith('data: ')) continue
           const data = JSON.parse(chunk.slice(6))
           if (data.status === 'progresso') {
-            setProgress(Math.round((data.iteracao / data.total_iteracoes) * 100))
+            setProgressByScenario(prev => ({ ...prev, [scenarioId]: Math.round((data.iteracao / data.total_iteracoes) * 100) }))
           } else if (data.status === 'sucesso') {
-            setProgress(100)
-            setResult(data)
+            setProgressByScenario(prev => ({ ...prev, [scenarioId]: 100 }))
+            setResultsByScenario(prev => ({ ...prev, [scenarioId]: data }))
           } else if (data.status === 'erro') {
             setMsg({ type: 'error', text: data.mensagem || 'Erro na otimização' })
           }
@@ -306,7 +406,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     } catch (e) {
       setMsg({ type: 'error', text: e.message })
     } finally {
-      setLoading(false)
+      setLoadingId(null)
     }
   }
 
@@ -420,7 +520,9 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     <div className={`sim-root ${darkMode ? 'opt-dark' : ''}`} style={{ minHeight: 600, padding: '18px 26px 48px' }}>
       <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
       <style>{`.opt-layout{grid-template-columns:340px minmax(0,1fr);gap:0}.opt-side{position:sticky;top:12px;background:#fff;border:1px solid #cbd5e1;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:0;overflow:hidden;font-family:'JetBrains Mono','Consolas',monospace}.opt-side-top{padding:16px;border-bottom:1px solid #cbd5e1;display:flex;flex-direction:column;gap:14px;background:#fff}.opt-side-body{padding:16px;display:flex;flex-direction:column;gap:22px;background:#fff}.opt-label{display:block;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin-bottom:5px}.opt-label.center{text-align:center}.opt-control-row{display:flex;align-items:center;gap:12px}.opt-control-row input[type=range]{flex:1;accent-color:#0ea5e9}.opt-mini{width:64px;text-align:center}.opt-select-wide{width:80%;margin:0 auto;display:block}.opt-period-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}.opt-period-name{width:42px;font-size:9px;text-transform:uppercase;color:#64748b}.opt-period-fields{display:flex;gap:4px}.opt-month{width:86px}.opt-year{width:86px;text-align:center}.opt-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid #cbd5e1;background:#f1f5f9}.opt-tab{border:0;border-right:1px solid #cbd5e1;background:#fff;color:#0284c7;font:700 12px 'JetBrains Mono','Consolas',monospace;padding:10px 16px}.opt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}.opt-matrix-title{text-align:center;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin:0 0 8px}.opt-matrix-labels,.opt-matrix{display:grid;grid-template-columns:repeat(4,1fr)}.opt-matrix-labels span{font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt-matrix{border:1px solid #cbd5e1;border-radius:4px;overflow:hidden}.opt-matrix input{border:0;border-right:1px solid #cbd5e1;background:#f1f5f9;text-align:center;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 4px;min-width:0}.opt-matrix input:last-child{border-right:0}.opt-run{width:100%;padding:12px;border-radius:6px;background:#0284c7;color:#fff;font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;letter-spacing:.08em}.opt-side select,.opt-side input[type=number]{border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;border-radius:4px;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 8px}.opt-perm-table{width:100%;border-collapse:collapse;font:12px 'JetBrains Mono','Consolas',monospace;text-align:center}.opt-perm-table th{color:#64748b;font-size:11px;font-weight:800;padding:8px 6px}.opt-perm-table td{border-top:1px solid #e2e8f0;padding:8px 6px;color:#334155}.opt-perm-table td:first-child{text-align:left;font-weight:800}.opt-section-title{font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px}@media(max-width:920px){.opt-layout{grid-template-columns:1fr;gap:16px}.opt-side{position:relative;top:0;border-radius:var(--radius)}}`}</style>
-      <style>{`.opt-dark{--bg:#160f0a;--card:#211711;--text:#fff5ec;--text-mid:#e5c7ae;--text-light:#b68b6f;--border:#4a3325;--border-light:#332219;--orange-pale:#4a2a14;--orange-deep:#f5a654;--teal-pale:#153a34;--red-pale:#4a1d1d;--yellow-pale:#4a3a14;--blue-pale:#17274a;--shadow:0 2px 18px rgba(0,0,0,.28)}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:var(--bg);color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:var(--bg);color:var(--text);font-family:'Sora',sans-serif}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
+      <style>{`.opt-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow:0 2px 18px rgba(0,0,0,.45)}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-dark option{background:#080503;color:var(--text)}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
+      <style>{`.opt-search{position:relative;width:88%;margin:0 auto}.opt-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none}.opt-search-input{width:100%;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);padding:9px 10px 9px 30px;font:12px 'Sora',sans-serif;outline:none}.opt-search-input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 3px var(--orange-pale)}.opt-search-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);max-height:210px;overflow:auto;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:var(--shadow);padding:4px}.opt-search-item{display:block;width:100%;text-align:left;border:0;border-radius:6px;background:transparent;color:var(--text);padding:8px 9px;font:700 11.5px 'Sora',sans-serif;cursor:pointer}.opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.opt-input-card{border:1.5px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--card) 82%,var(--bg));padding:12px}.opt-demand-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.opt-demand-input{width:100%;text-align:center;border-radius:8px!important;padding:10px!important;font-size:13px!important;font-weight:800!important}.opt-hydro-select{display:block;margin:0 auto;width:180px;text-align:center}.opt-tab{display:inline-flex;align-items:center;gap:7px}.opt-tab.active{background:var(--orange-pale);color:var(--orange-deep)}.opt-tab-add{border:0;background:transparent;color:var(--text-light);padding:9px 12px;cursor:pointer}.opt-tab-add:hover{color:var(--orange-deep);background:var(--orange-pale)}.opt-tab-close{border:0;background:transparent;color:inherit;padding:0;line-height:0;cursor:pointer;opacity:.7}.opt-tab-close:hover{opacity:1;color:var(--red)}.opt-dark .opt-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.opt-dark .opt-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
+      <style>{`.opt-side,.opt-side-top,.opt-side-body,.opt-tab,.opt-btn,.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table,.opt-section-title,.opt-search-input,.opt-search-item,.opt-side select,.opt-side input[type=number],.opt-matrix input,.opt-run{font-family:'Sora',sans-serif}.opt-input-card{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important}.opt-side-body{gap:18px}.opt-matrix-title{color:var(--text-light);letter-spacing:0}.opt-matrix-labels{gap:4px;margin-bottom:4px}.opt-matrix-labels span{font-family:'Sora',sans-serif;font-weight:800}.opt-demand-input,.opt-side select,.opt-side input[type=number],.opt-matrix input{border-radius:var(--radius-xs)!important}.opt-matrix{gap:4px;border:0!important;border-radius:0!important;background:transparent!important;overflow:visible}.opt-matrix input{background:var(--card);color:var(--text);border:1.5px solid var(--border)!important;box-shadow:none!important;padding:8px 4px}.opt-matrix input:last-child{border-right:1.5px solid var(--border)!important}.sim-root:not(.opt-dark) .opt-side{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.sim-root:not(.opt-dark) .opt-side-top,.sim-root:not(.opt-dark) .opt-side-body{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tabbar{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab{background:transparent;color:var(--text-light);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab.active,.sim-root:not(.opt-dark) .opt-tab-add:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-search-input,.sim-root:not(.opt-dark) .opt-search-menu{background:var(--card);color:var(--text);border-color:var(--border)}.sim-root:not(.opt-dark) .opt-search-item{color:var(--text)}.sim-root:not(.opt-dark) .opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-side select,.sim-root:not(.opt-dark) .opt-side input[type=number],.sim-root:not(.opt-dark) .opt-matrix input{background:var(--card);color:var(--text);border-color:var(--border)!important}.sim-root:not(.opt-dark) .opt-ghost{background:var(--card);color:var(--text-mid);border-color:var(--border)}.opt-dark .opt-side select,.opt-dark .opt-side input[type=number],.opt-dark .opt-matrix input{background:#080503;color:var(--text);border-color:var(--border)!important}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -455,14 +557,12 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
         <aside className="opt-side">
           <div className="opt-side-top">
             <div>
-              <label className="opt-label center">Reservatorio</label>
-              <select className="opt-select-wide" value={reservatorio} onChange={e => setReservatorio(e.target.value)}>
-                {lista.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <label className="opt-label center">Reservatório</label>
+              <ReservatorioSearch lista={lista} value={reservatorio} onChange={setReservatorio} />
             </div>
 
             <div>
-              <label className="opt-label">Prob. Afluencia</label>
+              <label className="opt-label">Prob. Afluência</label>
               <div className="opt-control-row">
                 <input type="range" min="0.05" max="0.95" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
                 <input className="opt-mini" type="number" min="0" max="1" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
@@ -470,7 +570,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label">Iteracoes PSO</label>
+              <label className="opt-label">Iterações PSO</label>
               <div className="opt-control-row">
                 <input type="range" min="10" max="500" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
                 <input className="opt-mini" type="number" min="10" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
@@ -478,7 +578,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label">Periodo de Simulacao</label>
+              <label className="opt-label">Período de Simulação</label>
               <div className="opt-period-row">
                 <span className="opt-period-name">Inicio</span>
                 <div className="opt-period-fields">
@@ -496,31 +596,53 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label center">Mes Inicio Ano Hidrologico</label>
-              <select className="opt-month" value={ninicio} onChange={e => setNinicio(Number(e.target.value))}>
+              <label className="opt-label center">Mês Início Ano Hidrológico</label>
+              <select className="opt-month opt-hydro-select" value={ninicio} onChange={e => setNinicio(Number(e.target.value))}>
                 {MESES_NOMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
             </div>
           </div>
 
           <div className="opt-tabbar">
-            <button className="opt-tab" type="button">Cenario 1</button>
+            {scenarios.map(s => (
+              <button
+                key={s.id}
+                className={`opt-tab ${s.id === activeScenarioId ? 'active' : ''}`}
+                type="button"
+                onClick={() => { setActiveScenarioId(s.id); setZoomDomain(null) }}
+              >
+                {s.name}
+                {scenarios.length > 1 && (
+                  <span
+                    className="opt-tab-close"
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => { e.stopPropagation(); removeScenario(s.id) }}
+                  >
+                    <X size={12} />
+                  </span>
+                )}
+              </button>
+            ))}
+            <button className="opt-tab-add" type="button" onClick={addScenario} title="Adicionar cenário">
+              <Plus size={15} />
+            </button>
           </div>
 
           <div className="opt-side-body">
-            <div className="opt-grid2">
+            <div className="opt-input-card opt-demand-grid">
               <label>
                 <span className="opt-label center">Demanda 1 (m3/s)</span>
-                <input type="number" step="0.01" value={scenario.durb} onChange={e => setScenario(p => ({ ...p, durb: Number(e.target.value) }))} style={{ width: '100%', textAlign: 'center' }} />
+                <input className="opt-demand-input" type="number" step="0.01" value={scenario.durb} onChange={e => updateScenario({ durb: Number(e.target.value) })} />
               </label>
               <label>
                 <span className="opt-label center">Demanda 2 (m3/s)</span>
-                <input type="number" step="0.01" value={scenario.dsupl} onChange={e => setScenario(p => ({ ...p, dsupl: Number(e.target.value) }))} style={{ width: '100%', textAlign: 'center' }} />
+                <input className="opt-demand-input" type="number" step="0.01" value={scenario.dsupl} onChange={e => updateScenario({ dsupl: Number(e.target.value) })} />
               </label>
             </div>
 
-            <div>
-              <p className="opt-matrix-title">Permanencia Requeridas (%)</p>
+            <div className="opt-input-card">
+              <p className="opt-matrix-title">Permanências Requeridas (%)</p>
               <div className="opt-matrix-labels">{NIVEL_LABELS.map((label, i) => <span key={label} style={{ color: CURVE_COLORS[i] }}>{label}</span>)}</div>
               <div className="opt-matrix">
                 {scenario.garantiaReq.map((v, i) => (
@@ -529,7 +651,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               </div>
             </div>
 
-            <div>
+            <div className="opt-input-card">
               <p className="opt-matrix-title">Atendimento da Demanda 1</p>
               <div className="opt-matrix">
                 {scenario.fracDurb.map((v, i) => (
@@ -538,7 +660,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               </div>
             </div>
 
-            <div>
+            <div className="opt-input-card">
               <p className="opt-matrix-title">Atendimento da Demanda 2 (%)</p>
               <div className="opt-matrix">
                 {scenario.fracDsup.map((v, i) => (
@@ -549,7 +671,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
             <button className="opt-btn opt-run" onClick={handleRun} disabled={loading || !reservatorio} style={{ opacity: loading ? 0.7 : 1 }}>
               {loading ? <RefreshCw size={14} className="opt-spin" /> : <Play size={14} />}
-              {loading ? `Otimizando ${progress}%` : 'Simular Cenario'}
+              {loading ? `Otimizando ${progress}%` : 'Simular Cenário'}
             </button>
           </div>
         </aside>
