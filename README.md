@@ -142,5 +142,5 @@ Este projeto está licenciado sob a **Apache License 2.0**. Consulte o arquivo [
 Caso este sistema seja utilizado em trabalhos, artigos, relatórios ou pesquisas, recomenda-se citar o repositório e o autor do projeto. Uma forma simples de citação é:
 
 ```text
-MARTINS, Francisco Mateus Bezerra. Sistema de Suporte à Decisão: simulador de balanço hídrico e otimizador de níveis meta. GitHub, 2026. Disponível em: https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao. Acesso em: 7 jul. 2026.
+MARTINS, F. M. B. . Sistema de Suporte à Decisão: simulador de balanço hídrico e otimizador de níveis meta. GitHub, 2026. Disponível em: https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao. Acesso em: x xxx. xxxx.
 ```
