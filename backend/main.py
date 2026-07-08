@@ -118,6 +118,202 @@ class SimulacaoRequest(BaseModel):
     ano_final: int
 
 
+class VazoesBaseRequest(BaseModel):
+    reservatorio: str
+    mes_inicial: int = 1
+    ano_inicial: int = 1911
+    mes_final: int = 12
+    ano_final: int = 2021
+
+
+class PermanenciaRequest(VazoesBaseRequest):
+    vol_inicial_percent: float = 100.0
+
+
+class KnnRequest(VazoesBaseRequest):
+    k: int = 5
+    lags: int = 12
+    horizonte: int = 12
+    teste_meses: int = 24
+
+
+def get_db_connection():
+    if not os.path.exists(DB_PATH):
+        raise HTTPException(status_code=500, detail="Base de dados não encontrada.")
+    return sqlite3.connect(DB_PATH)
+
+
+def carregar_serie_vazoes(reservatorio: str, mes_ini: int, ano_ini: int, mes_fim: int, ano_fim: int) -> pd.DataFrame:
+    conexao = get_db_connection()
+    try:
+        nomes_busca = [reservatorio, texto_para_legado(reservatorio)]
+        df = normalizar_colunas_db(pd.read_sql_query(
+            "SELECT * FROM vazoes WHERE nome_reservatorio IN (?, ?) OR nome_reservatorio LIKE ? OR nome_reservatorio LIKE ?",
+            conexao,
+            params=(nomes_busca[0], nomes_busca[1], f"%{nomes_busca[0]}%", f"%{nomes_busca[1]}%"),
+        ))
+    finally:
+        conexao.close()
+
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"Vazões não encontradas para {reservatorio}")
+
+    df = normalizar_textos_db(df)
+    df["mes_num"] = df["Mês"].map(lambda m: ordem_meses.get(str(m).upper()[:3], None))
+    df = df.dropna(subset=["mes_num", "Vazão (m³/s)", "Ano"]).copy()
+    df["mes_num"] = df["mes_num"].astype(int)
+    df["Ano"] = df["Ano"].astype(int)
+    df["Vazão (m³/s)"] = pd.to_numeric(df["Vazão (m³/s)"], errors="coerce")
+    df = df.dropna(subset=["Vazão (m³/s)"])
+    df["Data"] = pd.to_datetime(df["Ano"].astype(str) + "-" + df["mes_num"].astype(str) + "-01")
+
+    data_inicio = pd.to_datetime(f"{ano_ini}-{mes_ini}-01")
+    data_fim = pd.to_datetime(f"{ano_fim}-{mes_fim}-01") + pd.offsets.MonthEnd(0)
+    df = df[(df["Data"] >= data_inicio) & (df["Data"] <= data_fim)].sort_values("Data").reset_index(drop=True)
+    if df.empty:
+        raise HTTPException(status_code=404, detail="Não há vazões no período selecionado.")
+    return df
+
+
+def carregar_parametros_regularizacao(reservatorio: str):
+    conexao = get_db_connection()
+    try:
+        df_acudes = normalizar_colunas_db(pd.read_sql_query(
+            "SELECT * FROM acudes WHERE CORPO = ? OR CORPO LIKE ? OR CORPO = ? OR CORPO LIKE ? LIMIT 1",
+            conexao,
+            params=(reservatorio, f"%{reservatorio}%", texto_para_legado(reservatorio), f"%{texto_para_legado(reservatorio)}%"),
+        ))
+        if df_acudes.empty:
+            raise HTTPException(status_code=404, detail=f"Reservatório não encontrado: {reservatorio}")
+
+        acude = df_acudes.iloc[0]
+        cod = acude["COD"]
+        cap_hm3 = float(acude["CAPAC (m³)"]) / 1e6
+        est_evap = acude["Est. Evap."]
+
+        df_cav = normalizar_colunas_db(pd.read_sql_query(
+            "SELECT * FROM cav WHERE COD = ? OR CAST(COD AS REAL) = ?",
+            conexao,
+            params=(str(cod), cod),
+        ))
+        if len(df_cav) < 2:
+            cav_vol = np.array([0.0, max(cap_hm3, 0.01)], dtype=float)
+            cav_area = np.array([0.0, 0.0], dtype=float)
+        else:
+            df_cav = df_cav.sort_values("VOLUME (m³)")
+            cav_vol = df_cav["VOLUME (m³)"].astype(float).to_numpy() / 1e6
+            cav_area = df_cav["AREA (km²)"].astype(float).to_numpy()
+
+        est_evap_str = str(int(float(est_evap))) if str(est_evap).strip() else ""
+        df_evap = pd.read_sql_query(
+            'SELECT JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, "SET", OUT, NOV, DEZ '
+            'FROM evaporacao WHERE COD = ? OR COD = ? LIMIT 1',
+            conexao,
+            params=(est_evap_str, str(est_evap)),
+        )
+        if df_evap.empty:
+            evap_mm = np.zeros(12, dtype=float)
+        else:
+            evap_mm = df_evap.iloc[0].fillna(0).astype(float).to_numpy()
+    finally:
+        conexao.close()
+
+    return {
+        "cod": str(cod),
+        "cap_hm3": cap_hm3,
+        "cav_vol": cav_vol.astype(float),
+        "cav_area": cav_area.astype(float),
+        "evap_mm": evap_mm.astype(float),
+    }
+
+
+def vazao_para_hm3_mes(vazao_m3s: float) -> float:
+    return float(vazao_m3s) * 2.592
+
+
+def calcular_q_permanencia(valores: np.ndarray, permanencia: float) -> float:
+    valores = valores[np.isfinite(valores)]
+    if len(valores) == 0:
+        return 0.0
+    prob_nao_excedencia = max(0.0, min(1.0, 1.0 - float(permanencia) / 100.0))
+    return float(np.quantile(valores, prob_nao_excedencia))
+
+
+def simular_garantia_demanda(demanda_m3s: float, aflu_hm3: np.ndarray, evap_m: np.ndarray, cap_hm3: float, cav_vol: np.ndarray, cav_area: np.ndarray, vol_inicial_percent: float):
+    if len(aflu_hm3) == 0:
+        return 0.0, 0
+
+    demanda_hm3 = max(0.0, float(demanda_m3s)) * 2.592
+    vol = max(0.0, min(100.0, float(vol_inicial_percent))) / 100.0 * float(cap_hm3)
+    falhas = 0
+
+    for i in range(len(aflu_hm3)):
+        vol, retirada_efetiva, _, _ = dinamica_mensal_fast(
+            float(vol),
+            float(aflu_hm3[i]),
+            float(evap_m[i]),
+            float(demanda_hm3),
+            0.0,
+            float(cap_hm3),
+            cav_vol,
+            cav_area,
+        )
+        if retirada_efetiva + 1e-7 < demanda_hm3:
+            falhas += 1
+
+    garantia = 1.0 - (falhas / len(aflu_hm3))
+    return float(max(0.0, min(1.0, garantia))), int(falhas)
+
+
+def buscar_vazao_por_garantia(garantia_alvo: float, aflu_hm3: np.ndarray, evap_m: np.ndarray, cap_hm3: float, cav_vol: np.ndarray, cav_area: np.ndarray, vol_inicial_percent: float):
+    alvo = max(0.0, min(1.0, float(garantia_alvo)))
+    high = max(0.001, float(np.nanmax(aflu_hm3 / 2.592)) + (float(cap_hm3) / 2.592))
+
+    garantia_high, _ = simular_garantia_demanda(high, aflu_hm3, evap_m, cap_hm3, cav_vol, cav_area, vol_inicial_percent)
+    expansoes = 0
+    while garantia_high >= alvo and high < 1e5 and expansoes < 20:
+        high *= 2.0
+        garantia_high, _ = simular_garantia_demanda(high, aflu_hm3, evap_m, cap_hm3, cav_vol, cav_area, vol_inicial_percent)
+        expansoes += 1
+
+    low = 0.0
+    for _ in range(28):
+        mid = (low + high) / 2.0
+        garantia_mid, _ = simular_garantia_demanda(mid, aflu_hm3, evap_m, cap_hm3, cav_vol, cav_area, vol_inicial_percent)
+        if garantia_mid >= alvo:
+            low = mid
+        else:
+            high = mid
+
+    garantia_final, falhas = simular_garantia_demanda(low, aflu_hm3, evap_m, cap_hm3, cav_vol, cav_area, vol_inicial_percent)
+    return float(low), garantia_final, falhas
+
+
+def montar_features_knn(valores: np.ndarray, meses: np.ndarray, lags: int, indices: np.ndarray):
+    features = []
+    targets = []
+    for i in indices:
+        if i < lags:
+            continue
+        mes_alvo = int(meses[i])
+        sazonal = [np.sin(2 * np.pi * mes_alvo / 12), np.cos(2 * np.pi * mes_alvo / 12)]
+        janela = valores[i - lags:i]
+        features.append(np.concatenate([janela, sazonal]))
+        targets.append(valores[i])
+    return np.array(features, dtype=float), np.array(targets, dtype=float)
+
+
+def prever_knn(features_treino: np.ndarray, targets_treino: np.ndarray, feature_alvo: np.ndarray, k: int):
+    if len(features_treino) == 0:
+        return 0.0
+    escala = np.std(features_treino, axis=0)
+    escala = np.where(escala == 0, 1.0, escala)
+    dist = np.linalg.norm((features_treino - feature_alvo) / escala, axis=1)
+    vizinhos = np.argsort(dist)[:max(1, min(k, len(dist)))]
+    pesos = 1.0 / (dist[vizinhos] + 1e-9)
+    return float(np.sum(targets_treino[vizinhos] * pesos) / np.sum(pesos))
+
+
 # função principal que roda a simulação mês a mês pra todos os reservatórios
 # recebe os dataframes com as vazões, os parâmetros de cada açude, o modo de operação
 # (Série, Paralelo ou Individual) e a vazão conjunta do sistema
@@ -476,6 +672,155 @@ def processar_simulacao_api(req: SimulacaoRequest):
 
 
 # rota que retorna o plano de secas (faixas de racionamento) de um açude específico
+@app.post("/api/vazoes/permanencia")
+def calcular_permanencias_api(req: PermanenciaRequest):
+    df = carregar_serie_vazoes(req.reservatorio, req.mes_inicial, req.ano_inicial, req.mes_final, req.ano_final)
+    params = carregar_parametros_regularizacao(req.reservatorio)
+    valores_m3s = df["Vazão (m³/s)"].astype(float).to_numpy()
+    aflu_hm3 = valores_m3s * 2.592
+    evap_m = np.array([params["evap_mm"][int(m) - 1] / 1000.0 for m in df["mes_num"].astype(int).to_numpy()], dtype=float)
+
+    resultados = []
+    for q in range(1, 101):
+        vazao, garantia_obtida, falhas = buscar_vazao_por_garantia(
+            q / 100.0,
+            aflu_hm3,
+            evap_m,
+            params["cap_hm3"],
+            params["cav_vol"],
+            params["cav_area"],
+            req.vol_inicial_percent,
+        )
+        resultados.append({
+            "referencia": f"Q{q}",
+            "garantia_requerida": q,
+            "garantia_obtida": round(garantia_obtida * 100, 6),
+            "falhas": falhas,
+            "meses": int(len(df)),
+            "vazao_m3s": round(vazao, 6),
+            "vazao_hm3_mes": round(vazao_para_hm3_mes(vazao), 6),
+        })
+
+    destaques = {row["referencia"]: row for row in resultados if row["referencia"] in {"Q100", "Q99", "Q98", "Q95", "Q90"}}
+    curva = [{
+        "garantia": row["garantia_requerida"],
+        "vazao_m3s": row["vazao_m3s"],
+        "falhas": row["falhas"],
+    } for row in resultados]
+
+    return {
+        "status": "sucesso",
+        "metodo": "Vazoes de garantia calculadas por garantia mensal: garantia = 1 - falhas/meses. Cada Qxx e a maior demanda constante atendida com a garantia requerida.",
+        "reservatorio": req.reservatorio,
+        "periodo": {
+            "inicio": df["Data"].min().strftime("%Y-%m"),
+            "fim": df["Data"].max().strftime("%Y-%m"),
+            "meses": int(len(df)),
+        },
+        "volume_inicial_percent": req.vol_inicial_percent,
+        "capacidade_hm3": round(float(params["cap_hm3"]), 6),
+        "vazao_plena": destaques.get("Q100"),
+        "destaques": destaques,
+        "resultados": resultados,
+        "curva": curva,
+    }
+
+
+@app.post("/api/vazoes/previsao-knn")
+def prever_afluencia_knn_api(req: KnnRequest):
+    df = carregar_serie_vazoes(req.reservatorio, req.mes_inicial, req.ano_inicial, req.mes_final, req.ano_final)
+    valores = df["Vazão (m³/s)"].astype(float).to_numpy()
+    meses = df["mes_num"].astype(int).to_numpy()
+
+    lags = max(1, min(int(req.lags), 24))
+    horizonte = max(1, min(int(req.horizonte), 36))
+    k = max(1, min(int(req.k), 50))
+    teste_meses = max(0, min(int(req.teste_meses), max(0, len(valores) - lags - 2)))
+
+    if len(valores) < lags + 6:
+        raise HTTPException(status_code=400, detail=f"Serie insuficiente para KNN com {lags} defasagens.")
+
+    limite_treino = len(valores) - teste_meses
+    if limite_treino <= lags + 1:
+        limite_treino = len(valores)
+        teste_meses = 0
+
+    idx_treino = np.arange(lags, limite_treino)
+    x_treino, y_treino = montar_features_knn(valores, meses, lags, idx_treino)
+    if len(x_treino) == 0:
+        raise HTTPException(status_code=400, detail="Nao foi possivel montar amostras de treino para o KNN.")
+
+    validacao = []
+    if teste_meses > 0:
+        for i in range(limite_treino, len(valores)):
+            mes_alvo = int(meses[i])
+            sazonal = np.array([np.sin(2 * np.pi * mes_alvo / 12), np.cos(2 * np.pi * mes_alvo / 12)])
+            feature = np.concatenate([valores[i - lags:i], sazonal])
+            previsto = prever_knn(x_treino, y_treino, feature, k)
+            observado = float(valores[i])
+            erro = previsto - observado
+            validacao.append({
+                "data": df.loc[i, "Data"].strftime("%Y-%m"),
+                "observado_m3s": round(observado, 6),
+                "previsto_m3s": round(previsto, 6),
+                "erro_m3s": round(erro, 6),
+            })
+
+    historico = [{
+        "data": row["Data"].strftime("%Y-%m"),
+        "vazao_m3s": round(float(row["Vazão (m³/s)"]), 6),
+        "afluencia_hm3_mes": round(vazao_para_hm3_mes(float(row["Vazão (m³/s)"])), 6),
+    } for _, row in df.iterrows()]
+
+    x_total, y_total = montar_features_knn(valores, meses, lags, np.arange(lags, len(valores)))
+    serie_expandida = valores.astype(float).tolist()
+    ultima_data = df["Data"].max()
+    previsao = []
+    for passo in range(1, horizonte + 1):
+        data_prevista = ultima_data + pd.DateOffset(months=passo)
+        mes_alvo = int(data_prevista.month)
+        sazonal = np.array([np.sin(2 * np.pi * mes_alvo / 12), np.cos(2 * np.pi * mes_alvo / 12)])
+        feature = np.concatenate([np.array(serie_expandida[-lags:], dtype=float), sazonal])
+        previsto = max(0.0, prever_knn(x_total, y_total, feature, k))
+        serie_expandida.append(previsto)
+        previsao.append({
+            "data": data_prevista.strftime("%Y-%m"),
+            "vazao_m3s": round(previsto, 6),
+            "afluencia_hm3_mes": round(vazao_para_hm3_mes(previsto), 6),
+        })
+
+    metricas = {}
+    if validacao:
+        erros = np.array([v["erro_m3s"] for v in validacao], dtype=float)
+        observados = np.array([v["observado_m3s"] for v in validacao], dtype=float)
+        metricas = {
+            "mae_m3s": round(float(np.mean(np.abs(erros))), 6),
+            "rmse_m3s": round(float(np.sqrt(np.mean(erros ** 2))), 6),
+            "mape_percent": round(float(np.mean(np.abs(erros) / np.maximum(np.abs(observados), 1e-9)) * 100), 4),
+        }
+
+    return {
+        "status": "sucesso",
+        "metodo": "KNN mensal com defasagens da vazao e sazonalidade do mes.",
+        "reservatorio": req.reservatorio,
+        "parametros": {
+            "k": k,
+            "lags": lags,
+            "horizonte": horizonte,
+            "teste_meses": teste_meses,
+        },
+        "periodo": {
+            "inicio": df["Data"].min().strftime("%Y-%m"),
+            "fim": df["Data"].max().strftime("%Y-%m"),
+            "meses": int(len(df)),
+        },
+        "metricas": metricas,
+        "historico": historico,
+        "validacao": validacao,
+        "previsao": previsao,
+    }
+
+
 @app.get("/api/plano-secas/{cod_acude}")
 def obter_plano_secas(cod_acude: str):
     try:

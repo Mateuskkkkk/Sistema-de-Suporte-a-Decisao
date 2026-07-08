@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import SimuladorHidrico from './Simulador'
 import OtimizadorMeta from './OtimizadorMeta'
+import PrevisaoVazoes from './PrevisaoVazoes'
 
 export default function App() {
   const [view, setView] = useState('simulador')
@@ -45,6 +46,8 @@ export default function App() {
             {[
               ['simulador', 'Simulador'],
               ['otimizador', 'Otimizador'],
+              ['vazoes', 'Vazões'],
+              ['previsao', 'Previsão'],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -73,7 +76,7 @@ export default function App() {
 
       {view === 'simulador' ? (
         <SimuladorHidrico apiUrl={apiUrl} curvasOtimizadas={curvasOtimizadas} darkMode={darkMode} />
-      ) : (
+      ) : view === 'otimizador' ? (
         <OtimizadorMeta
           apiUrl={apiUrl}
           darkMode={darkMode}
@@ -82,6 +85,10 @@ export default function App() {
             setView('simulador')
           }}
         />
+      ) : view === 'vazoes' ? (
+        <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="qxx" />
+      ) : (
+        <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="knn" />
       )}
     </div>
   )

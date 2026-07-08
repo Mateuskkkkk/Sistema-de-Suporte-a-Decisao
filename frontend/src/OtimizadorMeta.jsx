@@ -632,11 +632,11 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
           <div className="opt-side-body">
             <div className="opt-input-card opt-demand-grid">
               <label>
-                <span className="opt-label center">Demanda 1 (m3/s)</span>
+                <span className="opt-label center">Demanda 1 (m³/s)</span>
                 <input className="opt-demand-input" type="number" step="0.01" value={scenario.durb} onChange={e => updateScenario({ durb: Number(e.target.value) })} />
               </label>
               <label>
-                <span className="opt-label center">Demanda 2 (m3/s)</span>
+                <span className="opt-label center">Demanda 2 (m³/s)</span>
                 <input className="opt-demand-input" type="number" step="0.01" value={scenario.dsupl} onChange={e => updateScenario({ dsupl: Number(e.target.value) })} />
               </label>
             </div>
@@ -719,7 +719,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               </Card>
 
               <Card style={{ padding: 16 }}>
-                <div className="opt-section-title">Desempenho e Vazoes</div>
+                <div className="opt-section-title">Desempenho e Vazões</div>
                 <table className="opt-perm-table">
                   <thead>
                     <tr>
