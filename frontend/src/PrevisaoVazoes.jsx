@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import {
-  Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer,
+  Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, ReferenceArea,
   Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { Activity, BarChart3, Download, RefreshCw, Search, TrendingUp, Waves } from 'lucide-react'
@@ -82,6 +82,41 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
+function useBoxZoom(data, key = 'data') {
+  const [left, setLeft] = useState(null)
+  const [right, setRight] = useState(null)
+  const [domain, setDomain] = useState(null)
+  const activeData = useMemo(() => {
+    if (!domain || !data?.length) return data
+    const start = data.findIndex(d => String(d[key]) === String(domain.start))
+    const end = data.findIndex(d => String(d[key]) === String(domain.end))
+    if (start < 0 || end < 0) return data
+    return data.slice(Math.min(start, end), Math.max(start, end) + 1)
+  }, [data, domain, key])
+  return {
+    data: activeData,
+    isZoomed: Boolean(domain),
+    reset: () => setDomain(null),
+    props: {
+      onMouseDown: e => e?.activeLabel !== undefined && setLeft(e.activeLabel),
+      onMouseMove: e => left !== null && e?.activeLabel !== undefined && setRight(e.activeLabel),
+      onMouseUp: () => {
+        if (left !== null && right !== null && String(left) !== String(right)) setDomain({ start: left, end: right })
+        setLeft(null)
+        setRight(null)
+      },
+    },
+    area: left !== null && right !== null
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      : null,
+  }
+}
+
+function ZoomReset({ zoom }) {
+  if (!zoom?.isZoomed) return null
+  return <button className="pv-btn pv-ghost" onClick={zoom.reset} style={{ padding: '6px 10px', fontSize: 10 }}>Resetar zoom</button>
+}
+
 function safeSheetName(name) {
   return String(name).replace(/[\\/?*[\]:]/g, '').slice(0, 31) || 'Planilha'
 }
@@ -93,7 +128,7 @@ function exportVazoesGarantia(permanencia, reservatorio) {
       'Vazão de garantia': row.referencia,
       'Garantia requerida (%)': row.garantia_requerida,
       'Garantia obtida (%)': row.garantia_obtida,
-      'Vazão (m³/s)': row.vazao_m3s,
+      'Vazão (L/s)': Number(row.vazao_m3s || 0) * 1000,
     }))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qxxRows), safeSheetName('Vazoes de garantia'))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(permanencia.curva || []), safeSheetName('Curva garantia'))
@@ -234,6 +269,13 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
   }, [previsao])
 
   const validationChart = useMemo(() => (previsao?.validacao || []).map(d => ({ data: d.data, Observado: d.observado_m3s, Previsto: d.previsto_m3s })), [previsao])
+  const qxxCurve = useMemo(() => (permanencia?.curva || []).map(row => ({
+    ...row,
+    vazao_ls: Number(row.vazao_m3s || 0) * 1000,
+  })), [permanencia])
+  const qxxZoom = useBoxZoom(qxxCurve, 'garantia')
+  const forecastZoom = useBoxZoom(forecastChart)
+  const validationZoom = useBoxZoom(validationChart)
   const q100 = permanencia?.destaques?.Q100 || permanencia?.vazao_plena
   const q95 = permanencia?.destaques?.Q95
   const q90 = permanencia?.destaques?.Q90
@@ -366,22 +408,26 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
                   <Metric label="Meses usados" value={permanencia.periodo?.meses || 0} sub={`${permanencia.periodo?.inicio} a ${permanencia.periodo?.fim}`} icon={BarChart3} />
-                  <Metric label="Q100 - Vazão plena" value={(q100?.vazao_m3s ?? 0).toFixed(3)} sub="garantia 100%" icon={Waves} />
-                  <Metric label="Q95" value={(q95?.vazao_m3s ?? 0).toFixed(3)} sub={`garantia ${Number(q95?.garantia_obtida ?? 0).toFixed(2)}%`} icon={TrendingUp} />
-                  <Metric label="Q90" value={(q90?.vazao_m3s ?? 0).toFixed(3)} sub={`garantia ${Number(q90?.garantia_obtida ?? 0).toFixed(2)}%`} icon={TrendingUp} />
+                  <Metric label="Q100 - Vazão plena" value={`${(q100?.vazao_m3s ?? 0).toFixed(3)} m³/s`} sub={`${((q100?.vazao_m3s ?? 0) * 1000).toFixed(1)} L/s · garantia 100%`} icon={Waves} />
+                  <Metric label="Q95" value={`${(q95?.vazao_m3s ?? 0).toFixed(3)} m³/s`} sub={`${((q95?.vazao_m3s ?? 0) * 1000).toFixed(1)} L/s · garantia ${Number(q95?.garantia_obtida ?? 0).toFixed(2)}%`} icon={TrendingUp} />
+                  <Metric label="Q90" value={`${(q90?.vazao_m3s ?? 0).toFixed(3)} m³/s`} sub={`${((q90?.vazao_m3s ?? 0) * 1000).toFixed(1)} L/s · garantia ${Number(q90?.garantia_obtida ?? 0).toFixed(2)}%`} icon={TrendingUp} />
                 </div>
 
                 <Card style={{ padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 3 }}>Curva de Vazões de Garantia</div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-light)', marginBottom: 8 }}>Cada ponto representa a maior vazão constante que atende à garantia requerida.</div>
+                  <ZoomReset zoom={qxxZoom}/>
                   <div style={{ height: 285 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={permanencia.curva} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                      <AreaChart data={qxxZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...qxxZoom.props}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis dataKey="garantia" tick={{ fontSize: 10, fill: 'var(--text-light)' }} unit="%" />
-                        <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                        <YAxis yAxisId="m3s" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                        <YAxis yAxisId="ls" orientation="right" tick={{ fontSize: 10, fill: 'var(--orange-deep)' }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Area dataKey="vazao_m3s" name="Vazão de garantia (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.14} strokeWidth={2} dot={false} />
+                        <Area yAxisId="m3s" dataKey="vazao_m3s" name="Vazão de garantia (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.14} strokeWidth={2} dot={false} />
+                        <Line yAxisId="ls" type="monotone" dataKey="vazao_ls" name="Vazão de garantia (L/s)" stroke="#e07b2a" strokeWidth={2} dot={false} />
+                        {qxxZoom.area}
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -391,14 +437,14 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
                   <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 8 }}>Tabela de Vazões de Garantia</div>
                   <div className="pv-table-wrap">
                     <table className="pv-table">
-                      <thead><tr><th>Vazão de garantia</th><th>Garantia requerida</th><th>Garantia obtida</th><th>Vazão (m³/s)</th></tr></thead>
+                      <thead><tr><th>Vazão de garantia</th><th>Garantia requerida</th><th>Garantia obtida</th><th>Vazão (L/s)</th></tr></thead>
                       <tbody>
                         {permanencia.resultados.map(row => (
                           <tr key={row.referencia}>
                             <td style={{ fontWeight: 900, color: row.garantia_requerida === 100 ? 'var(--orange-deep)' : 'var(--text)' }}>{row.referencia}</td>
                             <td>{row.garantia_requerida}%</td>
                             <td>{Number(row.garantia_obtida).toFixed(2)}%</td>
-                            <td>{Number(row.vazao_m3s).toFixed(4)}</td>
+                            <td>{(Number(row.vazao_m3s) * 1000).toFixed(1)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -426,15 +472,17 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
 
                 <Card style={{ padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 8 }}>Previsão KNN</div>
+                  <ZoomReset zoom={forecastZoom}/>
                   <div style={{ height: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={forecastChart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                      <LineChart data={forecastZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...forecastZoom.props}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                         <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                         <Tooltip content={<ChartTooltip />} />
                         <Line type="monotone" dataKey="Historico" name="Histórico" stroke="#264fa3" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="Previsao" name="Previsão" stroke="#e07b2a" strokeWidth={2.5} dot={{ r: 3 }} />
+                        {forecastZoom.area}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -443,15 +491,17 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
                 {validationChart.length > 0 && (
                   <Card style={{ padding: 14 }}>
                     <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 8 }}>Validação Retrospectiva</div>
+                    <ZoomReset zoom={validationZoom}/>
                     <div style={{ height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={validationChart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                        <LineChart data={validationZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...validationZoom.props}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                           <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                           <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                           <Tooltip content={<ChartTooltip />} />
                           <Line type="monotone" dataKey="Observado" stroke="#2a9d8f" strokeWidth={2} dot={false} />
                           <Line type="monotone" dataKey="Previsto" stroke="#e07b2a" strokeWidth={2} dot={false} />
+                          {validationZoom.area}
                         </LineChart>
                       </ResponsiveContainer>
                     </div>

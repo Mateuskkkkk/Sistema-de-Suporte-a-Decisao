@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
   ScatterChart, Scatter,
 } from 'recharts'
 import {
@@ -15,6 +15,15 @@ import * as XLSX from 'xlsx'
 
 // nomes dos meses abreviados, usados em vários lugares do app
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+const CENARIOS_HIDROLOGICOS = [
+  { id: 'historico', label: 'Histórico' },
+  { id: 'afluencia_zero', label: 'Afluência zero' },
+  { id: 'seco_50', label: 'Seco -50%' },
+  { id: 'umido_120', label: 'Úmido +20%' },
+]
+
+const m3sToLps = value => Number(((parseFloat(value) || 0) * 1000).toFixed(3))
+const lpsToM3s = value => Math.max(0, (parseFloat(value) || 0) / 1000)
 
 function getCapacidadeHm3(reservatorio) {
   if (!reservatorio) return 0
@@ -337,7 +346,7 @@ function FailureDetail({ resultados }) {
       <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:falhas.length?12:0 }}>
         {falhas.length>0?<AlertCircle size={16} color="var(--red)"/>:<CheckCircle2 size={16} color="var(--teal)"/>}
         <div>
-          <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Detalhamento das Falhas</div>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Falha de Atendimento da Demanda</div>
           {!falhas.length && <div style={{ fontSize:11.5, color:'var(--teal)', marginTop:2, fontWeight:600 }}>✓ Nenhuma falha no período.</div>}
         </div>
       </div>
@@ -389,7 +398,70 @@ function ResSel({ resultados, sel, onChange }) {
 
 function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `${r},${g},${b}`}
 
-function Charts({ resultados, params, modo }) {
+function useBoxZoom(data, key = 'data') {
+  const [left, setLeft] = useState(null)
+  const [right, setRight] = useState(null)
+  const [domain, setDomain] = useState(null)
+
+  const activeData = useMemo(() => {
+    if (!domain || !data?.length) return data
+    const start = data.findIndex(d => String(d[key]) === String(domain.start))
+    const end = data.findIndex(d => String(d[key]) === String(domain.end))
+    if (start < 0 || end < 0) return data
+    return data.slice(Math.min(start, end), Math.max(start, end) + 1)
+  }, [data, domain, key])
+
+  const zoomProps = {
+    onMouseDown: e => e?.activeLabel !== undefined && setLeft(e.activeLabel),
+    onMouseMove: e => left !== null && e?.activeLabel !== undefined && setRight(e.activeLabel),
+    onMouseUp: () => {
+      if (left !== null && right !== null && String(left) !== String(right)) setDomain({ start: left, end: right })
+      setLeft(null)
+      setRight(null)
+    },
+  }
+
+  return {
+    data: activeData,
+    isZoomed: Boolean(domain),
+    reset: () => setDomain(null),
+    props: zoomProps,
+    area: left !== null && right !== null
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      : null,
+  }
+}
+
+function ZoomReset({ zoom }) {
+  if (!zoom?.isZoomed) return null
+  return (
+    <button className="sim-ghost" onClick={zoom.reset} style={{ marginBottom: 8, padding: '5px 9px', fontSize: 10 }}>
+      Resetar zoom
+    </button>
+  )
+}
+
+const META_LINE_COLORS = {
+  normal: '#2a9d8f',
+  alerta: '#d4a017',
+  seca: '#e07b2a',
+  severa: '#d94040',
+}
+
+function estadoMetaLinha(d) {
+  const modo = String(d?.['Modo Operação'] || '').toLowerCase()
+  const rac = parseFloat(d?.['Racionamento (%)']) || 0
+  if (d?.Falha === 'Sim' || modo.includes('severa') || modo.includes('emerg') || rac >= 70) return 'severa'
+  if (modo.includes('seca') || rac >= 35) return 'seca'
+  if (modo.includes('alerta') || modo.includes('aten') || rac > 0) return 'alerta'
+  return 'normal'
+}
+
+function nomeEstadoMeta(estado) {
+  return ({ normal: 'Normal', alerta: 'Alerta', seca: 'Seca', severa: 'Seca severa' })[estado] || estado
+}
+
+function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
   const [selVol,setSelVol]=useState('todos')
   const [selDem,setSelDem]=useState('todos')
   const [selRac,setSelRac]=useState('todos')
@@ -404,6 +476,7 @@ function Charts({ resultados, params, modo }) {
 
   const mkVolData = (sel) => {
     const res = resSel(sel)
+    const prevByRes = {}
     return allD.map(data => {
       const p = {data}
       res.forEach((r,i) => {
@@ -412,7 +485,17 @@ function Charts({ resultados, params, modo }) {
         const cap = params?.[ri]?.capacidade || 1
         if(d){
           const vf = parseFloat(d['Armazenamento Final'])||0
-          p[`Vol.% (${r.reservatorio})`] = cap>0 ? parseFloat(((vf/cap)*100).toFixed(1)) : 0
+          const volPct = cap>0 ? parseFloat(((vf/cap)*100).toFixed(1)) : 0
+          if (usarNiveisMeta) {
+            const estado = estadoMetaLinha(d)
+            const base = `${estado} (${r.reservatorio})`
+            p[`Vol.${base}`] = volPct
+            const anterior = prevByRes[r.reservatorio]
+            if (anterior && anterior !== estado) p[`Vol.${anterior} (${r.reservatorio})`] = volPct
+            prevByRes[r.reservatorio] = estado
+          } else {
+            p[`Vol.% (${r.reservatorio})`] = volPct
+          }
           p[`Afluência (${r.reservatorio})`] = parseFloat(d['Afluências (hm³/mês)'])||0
         }
       })
@@ -432,7 +515,12 @@ function Charts({ resultados, params, modo }) {
 
   const mkBalData = (sel) => {
     const res = resSel(sel)
-    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Afluência(${r.reservatorio})`]=parseFloat(d['Afluências (hm³/mês)'])||0; p[`Evap.(${r.reservatorio})`]=parseFloat(d['Evaporação (hm³)'])||0; p[`Vertimento(${r.reservatorio})`]=parseFloat(d['Vertimento (hm³)'])||0} }); return p })
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){p[`Afluência(${r.reservatorio})`]=parseFloat(d['Afluências (hm³/mês)'])||0; p[`Evap.(${r.reservatorio})`]=parseFloat(d['Evaporação (hm³)'])||0; p[`Demanda Atendida(${r.reservatorio})`]=(parseFloat(d['Demanda Atendida (m³/s)'])||0)*2.592; p[`Vertimento(${r.reservatorio})`]=parseFloat(d['Vertimento (hm³)'])||0} }); return p })
+  }
+
+  const mkSerieVazoesData = (sel) => {
+    const res = resSel(sel)
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d) p[r.reservatorio]=parseFloat(d['Vazão (m³/s)'])||0 }); return p })
   }
 
   const mkTrData = (sel) => {
@@ -443,30 +531,43 @@ function Charts({ resultados, params, modo }) {
   const volData = mkVolData(selVol)
   const demData = mkDemData(selDem)
   const racData = mkRacData(selRac)
-  const balData = mkBalData(selBal)
+  const serieVazoesData = mkSerieVazoesData(selBal)
   const trData  = mkTrData(selTr)
+  const volZoom = useBoxZoom(volData)
+  const demZoom = useBoxZoom(demData)
+  const racZoom = useBoxZoom(racData)
+  const serieVazoesZoom = useBoxZoom(serieVazoesData)
+  const trZoom = useBoxZoom(trData)
 
   const hasTransf = modo==='Série' && allD.some(data=>{ const p=mkTrData('todos').find(x=>x.data===data); return p&&Object.keys(p).length>1 })
 
   const volKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Vol.')) : []
   const aflKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Afluência')) : []
   const racKeys = racData[0] ? Object.keys(racData[0]).filter(k=>k!=='data') : []
+  const serieKeys = serieVazoesData[0] ? Object.keys(serieVazoesData[0]).filter(k=>k!=='data') : []
   const activeRes = (sel) => sel==='todos'?resultados:[resultados[sel]]
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       <ChartCard title="Volume Armazenado (%)">
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
+        <ZoomReset zoom={volZoom}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
-            <AreaChart data={volData} margin={{top:4,right:28,left:0,bottom:0}}>
+            <AreaChart data={volZoom.data} margin={{top:4,right:28,left:0,bottom:0}} {...volZoom.props}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
               <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'Afluência(hm³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-              {volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
+              {usarNiveisMeta
+                ? volKeys.map((k)=>{
+                    const estado = k.slice(4, k.indexOf(' '))
+                    return <Line key={k} yAxisId="vol" type="linear" dataKey={k} name={k.replace(/^Vol\.([a-z]+) /, (_, e) => `${nomeEstadoMeta(e)} `)} stroke={META_LINE_COLORS[estado] || COLORS[0].stroke} strokeWidth={2.2} dot={false} connectNulls={false}/>
+                  })
+                : volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
               {aflKeys.map((k,i)=><Line key={k} yAxisId="afl" type="monotone" dataKey={k} stroke={COLORS[(i+2)%4].stroke} strokeWidth={1.5} dot={false} strokeDasharray={"4 2"}/>)}
+              {volZoom.area}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -474,9 +575,10 @@ function Charts({ resultados, params, modo }) {
 
       <ChartCard title="Demanda: Solicitada vs Atendida" subtitle="m³/s mensal">
         <ResSel resultados={resultados} sel={selDem} onChange={setSelDem}/>
+        <ZoomReset zoom={demZoom}/>
         <div style={{ height:200 }}>
           <ResponsiveContainer>
-            <LineChart data={demData} margin={{top:4,right:20,left:0,bottom:0}}>
+            <LineChart data={demZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...demZoom.props}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
@@ -485,6 +587,7 @@ function Charts({ resultados, params, modo }) {
                 <Line key={`s${gi}`} type="monotone" dataKey={`Sol.(${r.reservatorio})`} stroke={COLORS[gi%4].stroke} strokeWidth={2} strokeDasharray={"5 3"} dot={false}/>,
                 <Line key={`a${gi}`} type="monotone" dataKey={`At.(${r.reservatorio})`}  stroke={COLORS[gi%4].stroke} strokeWidth={2} dot={false}/>,
               ]})}
+              {demZoom.area}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -493,35 +596,35 @@ function Charts({ resultados, params, modo }) {
       {racKeys.length>0 && (
         <ChartCard title="Racionamento Mensal" subtitle="Níveis Meta — Racionamento aplicado (%)">
           <ResSel resultados={resultados} sel={selRac} onChange={setSelRac}/>
+          <ZoomReset zoom={racZoom}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
-              <BarChart data={racData} margin={{top:4,right:20,left:0,bottom:0}}>
+              <BarChart data={racZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...racZoom.props}>
                 <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
                 {racKeys.map((k,i)=><Bar key={k} dataKey={k} fill={COLORS[resultados.findIndex(r=>r.reservatorio===k)%4]?.stroke||COLORS[0].stroke} fillOpacity={0.75} radius={[3,3,0,0]}/>)}
+                {racZoom.area}
               </BarChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
       )}
 
-      <ChartCard title="Balanço Hídrico" subtitle="Afluência, Evaporação e Vertimento (hm³/mês)">
+      <ChartCard title="Série de Vazões Afluentes" subtitle="Vazão mensal afluente a cada reservatório (m³/s)">
         <ResSel resultados={resultados} sel={selBal} onChange={setSelBal}/>
+        <ZoomReset zoom={serieVazoesZoom}/>
         <div style={{ height:185 }}>
           <ResponsiveContainer>
-            <BarChart data={balData} margin={{top:4,right:20,left:0,bottom:0}}>
+            <LineChart data={serieVazoesZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...serieVazoesZoom.props}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hm³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-              {activeRes(selBal).map((r,i)=>{const gi=resultados.indexOf(r);return[
-                <Bar key={`af${gi}`} dataKey={`Afluência(${r.reservatorio})`} fill="#2a9d8f" fillOpacity={0.65} radius={[3,3,0,0]}/>,
-                <Bar key={`ev${gi}`} dataKey={`Evap.(${r.reservatorio})`}     fill="#e07b2a" fillOpacity={0.65} radius={[3,3,0,0]}/>,
-                <Bar key={`vt${gi}`} dataKey={`Vertimento(${r.reservatorio})`} fill="#264fa3" fillOpacity={0.65} radius={[3,3,0,0]}/>,
-              ]})}
-            </BarChart>
+              {serieKeys.map((k,i)=><Line key={k} type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} strokeWidth={1.8} dot={false}/>)}
+              {serieVazoesZoom.area}
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
@@ -529,14 +632,16 @@ function Charts({ resultados, params, modo }) {
       {hasTransf && (
         <ChartCard title="Transferências entre Reservatórios" subtitle="m³/s mensal">
           <ResSel resultados={resultados} sel={selTr} onChange={setSelTr}/>
+          <ZoomReset zoom={trZoom}/>
           <div style={{ height:180 }}>
             <ResponsiveContainer>
-              <BarChart data={trData} margin={{top:4,right:20,left:0,bottom:0}}>
+              <BarChart data={trZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...trZoom.props}>
                 <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
                 {Object.keys(trData[0]||{}).filter(k=>k!=='data').map((k,i)=><Bar key={k} dataKey={k} fill={k.startsWith('Rec')?'#2a9d8f':'#9b2dca'} fillOpacity={0.7} radius={[3,3,0,0]}/>)}
+                {trZoom.area}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -562,13 +667,18 @@ function VazoesDetail({ resultados, modo }) {
     const p = { data }
     resultados.forEach(res => {
       const d = res.dados.find(x => x.Data === data)
-      if (d) p[res.reservatorio] = parseFloat(d['Vazão (m³/s)'] ?? d['Afluências (hm³/mês)']) || 0
+      if (d) {
+        p[`Afluência(${res.reservatorio})`] = parseFloat(d['Afluências (hm³/mês)']) || 0
+        p[`Demanda Atendida(${res.reservatorio})`] = (parseFloat(d['Demanda Atendida (m³/s)']) || 0) * 2.592
+        p[`Evap.(${res.reservatorio})`] = parseFloat(d['Evaporação (hm³)']) || 0
+      }
     })
     return p
   })
 
   const totalPg = Math.ceil(dados.length / PAGE)
   const pagDados = dados.slice(page * PAGE, (page+1)*PAGE)
+  const balZoom = useBoxZoom(serieData)
 
   const VCOLS_ALL = [
     { key:'Data',                           label:'Mês/Ano',     mono:true  },
@@ -608,18 +718,22 @@ function VazoesDetail({ resultados, modo }) {
         </div>
       )}
 
-      <ChartCard title="Série de Vazões Afluentes" subtitle="Vazão mensal afluente a cada reservatório (m³/s)">
+      <ChartCard title="Balanço Hídrico Mensal" subtitle="Afluência, evaporação e demanda atendida (hm³/mês)">
+        <ZoomReset zoom={balZoom}/>
         <div style={{ height:220 }}>
           <ResponsiveContainer>
-            <LineChart data={serieData} margin={{top:4,right:20,left:0,bottom:0}}>
+            <BarChart data={balZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...balZoom.props}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
-              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
+              <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hm³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-              {resultados.map((res,i)=>(
-                <Line key={i} type="monotone" dataKey={res.reservatorio} stroke={COLORS[i%4].stroke} strokeWidth={1.5} dot={false}/>
-              ))}
-            </LineChart>
+              {resultados.map((res,i)=>[
+                <Bar key={`af${i}`} dataKey={`Afluência(${res.reservatorio})`} fill="#2a9d8f" fillOpacity={0.65} radius={[3,3,0,0]}/>,
+                <Bar key={`da${i}`} dataKey={`Demanda Atendida(${res.reservatorio})`} fill="#d4a017" fillOpacity={0.7} radius={[3,3,0,0]}/>,
+                <Bar key={`ev${i}`} dataKey={`Evap.(${res.reservatorio})`} fill="#e07b2a" fillOpacity={0.65} radius={[3,3,0,0]}/>,
+              ])}
+              {balZoom.area}
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
@@ -694,7 +808,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   const vazoesSystem = new Array(totalMeses).fill(0)
   dfs.forEach(df => df.forEach((d,t) => { vazoesSystem[t] += parseFloat(d['Demanda Atendida (m³/s)'])||0 }))
 
-  // CORREÇÃO: Para o cálculo de garantia, a falha acontece se QUALQUER
+  // Correção: para o cálculo de garantia, a falha acontece se QUALQUER
   // reservatório não atingiu sua meta individual ou conjunta
   const falhasGarantia = Array.from({length:totalMeses}, (_,t) =>
     resultados.some(r=>r.dados[t]?.['Falha']==='Sim')
@@ -707,6 +821,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   const vazaoMedia   = vazoesSemFalha.length ? vazoesSemFalha.reduce((a,b)=>a+b,0)/vazoesSemFalha.length : 0
   const vazaoMaxima  = vazoesSemFalha.length ? Math.max(...vazoesSemFalha) : 0
   const vazaoMinima  = vazoesSemFalha.length ? Math.min(...vazoesSemFalha) : 0
+  const demNominal = (params||[]).reduce((s,p)=>s+(p?.demanda_nominal||0),0) + (vazaoConjunta||0)
 
   const grouped = {}
   vazoesSystem.forEach((v,t) => {
@@ -721,10 +836,11 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
     const perm = grouped[k]
     const freq = (perm/totalMeses*100)
     cumFreq += freq
-    return { vazao:k, perm, freq:freq.toFixed(2), garantia:cumFreq.toFixed(2) }
+    const atendimento = demNominal > 0 ? Math.max(0, Math.min(100, (k / demNominal) * 100)) : 0
+    return { vazao:k, perm, freq:freq.toFixed(2), garantia:cumFreq.toFixed(2), atendimento: atendimento.toFixed(2) }
   })
 
-  if (numFalhas>0) resumo.push({ vazao:'FALHA', perm:numFalhas, freq:(numFalhas/totalMeses*100).toFixed(2), garantia:'-' })
+  if (numFalhas>0) resumo.push({ vazao:'FALHA', perm:numFalhas, freq:(numFalhas/totalMeses*100).toFixed(2), garantia:'-', atendimento:'0.00' })
 
   const curvData = sortedKeys.map((k,i) => ({
     vazao: k,
@@ -732,7 +848,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
     permanencia: parseFloat(resumo[i].freq),
   }))
 
-  const demNominal = (params||[]).reduce((s,p)=>s+(p?.demanda_nominal||0),0) + (vazaoConjunta||0)
+  const garantiaZoom = useBoxZoom(curvData, 'garantia')
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -747,14 +863,16 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
 
       {curvData.length>1 && (
         <ChartCard title="Curva de Permanência e Garantia" subtitle="Garantia acumulada (%) × Vazão total do sistema (m³/s)">
+          <ZoomReset zoom={garantiaZoom}/>
           <div style={{ height:230 }}>
             <ResponsiveContainer>
-              <AreaChart data={curvData} margin={{top:4,right:20,left:0,bottom:0}}>
+              <AreaChart data={garantiaZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...garantiaZoom.props}>
                 <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
                 <XAxis dataKey="garantia" type="number" domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'Garantia Acumulada (%)',position:'insideBottom',offset:-2,fill:'var(--text-light)',fontSize:10}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'Vazão (m³/s)',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/>
                 <Area type="monotone" dataKey="vazao" name="Vazão (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.15} strokeWidth={2} dot={false}/>
+                {garantiaZoom.area}
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -766,7 +884,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
             <thead>
               <tr style={{ background:'var(--bg)' }}>
-                {['Vazão Total Sistema (m³/s)','Permanência (meses)','Frequência (%)','Garantia Acumulada (%)'].map(h=>(
+                {['Vazão Total Sistema (m³/s)','Atendimento (%)','Permanência (meses)','Frequência (%)','Garantia Acumulada (%)'].map(h=>(
                   <th key={h} style={{ padding:'7px 12px', textAlign:'right', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--text-light)', borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -775,6 +893,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
               {resumo.map((row,i)=>(
                 <tr key={i} className="sim-tr" style={{ background:row.vazao==='FALHA'?'var(--red-pale)':i%2===0?'transparent':'rgba(236,220,200,0.15)' }}>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', fontWeight:row.vazao==='FALHA'?700:400, color:row.vazao==='FALHA'?'var(--red)':'var(--text)' }}>{row.vazao==='FALHA'?'FALHA':parseFloat(row.vazao).toFixed(3)}</td>
+                  <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.vazao==='FALHA'?'var(--red)':'var(--teal)', fontWeight:600 }}>{row.vazao==='FALHA'?'0.00%':`${row.atendimento}%`}</td>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.perm}</td>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono' }}>{row.freq}%</td>
                   <td style={{ padding:'6px 12px', textAlign:'right', borderBottom:'1px solid var(--border-light)', fontFamily:'JetBrains Mono', color:row.garantia==='-'?'var(--text-light)':'var(--blue)', fontWeight:row.garantia==='-'?400:600 }}>{row.garantia === '-' ? '—' : `${row.garantia}%`}</td>
@@ -835,7 +954,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           <Card key={idx} style={{ overflow:'hidden' }}>
             <div style={{ padding:'11px 16px', background:'var(--bg)', borderBottom:'1.5px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
               <div>
-                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>🌊 {r.reservatorio}</span>
+                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>{r.reservatorio}</span>
                 <span style={{ fontSize:11, color:'var(--text-light)', marginLeft:10 }}>Demanda Total: <strong style={{ fontFamily:'JetBrains Mono' }}>{demTot.toFixed(3)} m³/s</strong></span>
               </div>
               {demConj>0 && (
@@ -967,7 +1086,7 @@ const FAIXAS_COR = {
 // =============================================================================
 // CORRIGIDO: PlanoSecasPanel agora recebe onFaixasChange e chama ao salvar sessão
 // =============================================================================
-function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao }) {
+function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao, onOpenOtimizador }) {
   const [faixas,setFaixas]=useState(null)
   const [faixasOriginal,setFaixasOriginal]=useState(null)
   const [loading,setLoading]=useState(false)
@@ -1086,6 +1205,8 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao }) {
         <div style={{fontSize:11,color:'var(--blue)',lineHeight:1.6}}>Os valores <strong>JAN…DEZ</strong> são o limite máximo de volume (% da capacidade) que ativa o nível nesse mês. <strong>Racionamento</strong> = (%) de redução na demanda. Clique em <strong>Aplicar na Sessão</strong> para usar nas simulações. Para persistir permanentemente edite o arquivo <strong>banco_site.db</strong>.</div>
       </div>
 
+      {faixas && faixas.length > 0 && <NiveisMeta faixas={faixas}/>}
+
       {loading?<Card style={{padding:'36px',textAlign:'center'}}><RefreshCw size={26} color="var(--orange)" className="sim-spin" style={{marginBottom:9}}/><div style={{fontSize:11.5,color:'var(--text-light)'}}>Carregando…</div></Card>
       :faixas&&faixas.length>0?(
         <Card style={{overflow:'hidden'}}>
@@ -1124,7 +1245,22 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao }) {
           </div>
         </Card>
       ):(
-        <Card style={{padding:'28px',textAlign:'center'}}><div style={{fontSize:12,color:'var(--text-light)'}}>Nenhuma faixa definida. Clique em <strong>+ Faixa</strong> para adicionar.</div></Card>
+        <Card style={{padding:'28px',textAlign:'center'}}>
+          <Shield size={24} color="var(--text-light)" style={{opacity:0.35,marginBottom:10}}/>
+          <div style={{fontSize:12,color:'var(--text-light)',lineHeight:1.6,marginBottom:12}}>
+            Este reservatório ainda não possui níveis meta no banco de dados.
+          </div>
+          <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
+            {onOpenOtimizador && (
+              <button className="sim-ghost" onClick={onOpenOtimizador} style={{borderColor:'var(--orange)',color:'var(--orange-deep)'}}>
+                <Activity size={12}/> Abrir Otimizador
+              </button>
+            )}
+            <button className="sim-ghost" onClick={add}>
+              <Plus size={11}/> Criar Faixa Manual
+            </button>
+          </div>
+        </Card>
       )}
 
       {msg&&<div style={{marginTop:9,padding:'7px 11px',borderRadius:'var(--radius-xs)',
@@ -1133,8 +1269,6 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao }) {
         fontSize:11.5,fontWeight:600,lineHeight:1.5}}>
         {msg.type==='success'?'✓':msg.type==='session'?'⚡':msg.type==='info'?'ℹ':'✗'} {msg.text}
       </div>}
-
-      {faixas && faixas.length > 0 && <NiveisMeta faixas={faixas}/>}
     </div>
   )
 }
@@ -1208,6 +1342,7 @@ function NiveisMeta({ faixas }) {
       limiteSevera: severa,
     }
   })
+  const metaZoom = useBoxZoom(data, 'mes')
 
   const Tip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -1230,12 +1365,13 @@ function NiveisMeta({ faixas }) {
       <div style={{ marginBottom:14 }}>
         <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>Limites de Ativação por Mês</div>
         <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>
-          Bandas de volume: verde = zona segura · vermelho = nível crítico activo
+          Bandas de volume: verde = zona segura · vermelho = nível crítico ativo
         </div>
       </div>
+      <ZoomReset zoom={metaZoom}/>
       <div style={{ height:260 }}>
         <ResponsiveContainer>
-          <AreaChart data={data} margin={{top:4,right:20,left:0,bottom:4}}>
+          <AreaChart data={metaZoom.data} margin={{top:4,right:20,left:0,bottom:4}} {...metaZoom.props}>
             <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
             <XAxis dataKey="mes" tick={{fontSize:10,fill:'var(--text-light)'}}/>
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
@@ -1245,6 +1381,7 @@ function NiveisMeta({ faixas }) {
             <Area type="linear" dataKey="seca" stackId="meta" name="Seca" stroke={corBandasMeta.seca} fill={corBandasMeta.seca} fillOpacity={0.5} dot={false} activeDot={false}/>
             <Area type="linear" dataKey="alerta" stackId="meta" name="Alerta" stroke={corBandasMeta.alerta} fill={corBandasMeta.alerta} fillOpacity={0.48} dot={false} activeDot={false}/>
             <Area type="linear" dataKey="normal" stackId="meta" name="Normal" stroke={corBandasMeta.normal} fill={corBandasMeta.normal} fillOpacity={0.45} dot={false} activeDot={false}/>
+            {metaZoom.area}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -1252,10 +1389,11 @@ function NiveisMeta({ faixas }) {
         {faixasOrdenadas.map((f, i) => {
           const cor = cores[i]
           const rac = parseFloat(f.Racionamento) || 0
+          const racTexto = Number.isInteger(rac) ? String(rac) : rac.toFixed(2)
           return (
             <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:`${cor}22`, color:cor, border:`1.5px solid ${cor}66` }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:cor, display:'inline-block', flexShrink:0 }}/>
-              {f.Faixa}{rac > 0 ? ` — ${rac}% de Racionamento` : ' — Sem Racionamento'}
+              {f.Faixa}{rac > 0 ? ` — ${racTexto}% de Racionamento` : ' — Sem Racionamento'}
             </span>
           )
         })}
@@ -1354,8 +1492,11 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
               {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'Sora, sans-serif'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
             </div>
             <div>
-              <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (m³/s)</div>
-              <FC type="number" min="0" step="0.1" value={res.demanda} onChange={e=>onChange(index,{demanda:parseFloat(e.target.value)||0})}/>
+              <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (L/s)</div>
+              <FC type="number" min="0" step="10" value={m3sToLps(res.demanda1 ?? res.demanda ?? 0)} onChange={e=>{
+                const demanda1 = lpsToM3s(e.target.value)
+                onChange(index,{demanda1,demanda:demanda1})
+              }}/>
             </div>
             {showGatilho && index===0 &&(
               <div>
@@ -1363,10 +1504,6 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
                 <FC type="number" min="0" max="100" step="1" value={res.gatilho} onChange={e=>onChange(index,{gatilho:parseFloat(e.target.value)||0})}/>
               </div>
             )}
-            <div>
-              <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Est. Evap.</div>
-              <div style={{padding:'7px 10px',border:'1.5px solid var(--border-light)',borderRadius:'var(--radius-xs)',background:'var(--bg)',color:'var(--text-light)',fontSize:12.5,fontFamily:'Sora, sans-serif'}}>{res.est_evap||'—'}</div>
-            </div>
           </div>
         </div>
       )}
@@ -1374,14 +1511,38 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
   )
 }
 
-function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset }) {
-  const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0,gatilho:10}])
+function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, appliedCurvas }) {
+  const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
+  const [cenarioHidrologico,setCenarioHidrologico]=useState('historico')
   const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
   const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
+
+  useEffect(() => {
+    if (!appliedCurvas?.reservatorio || !resList.length) return
+    const f = resList.find(r => r.CORPO === appliedCurvas.reservatorio || String(r.COD) === String(appliedCurvas.reservatorio))
+    const demanda1 = Math.max(0, Number(appliedCurvas.scenario?.durb || 0) + Number(appliedCurvas.scenario?.dsupl || 0))
+    const item = {
+      nome: f?.CORPO || appliedCurvas.reservatorio,
+      cod: f?.COD || appliedCurvas.reservatorio,
+      capacidade: getCapacidadeHm3(f),
+      est_evap: f?.['Est. Evap.'] || '',
+      volPct: 50,
+      vol_inicial: getCapacidadeHm3(f) * 0.5,
+      demanda1,
+      demanda: demanda1,
+      gatilho: 10,
+    }
+    setPresetSel('')
+    setModo('Individual')
+    setModoLocked(false)
+    setItems([item])
+    onResChange&&onResChange([item])
+    onReset&&onReset({ keepCurvas: true })
+  }, [appliedCurvas?.id, resList])
 
   const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
 
@@ -1391,7 +1552,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:getCapacidadeHm3(f),est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(f)*0.5,demanda:0,gatilho:10}
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:getCapacidadeHm3(f),est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(f)*0.5,demanda1:0,demanda:0,gatilho:10}
     })
     setItems(ni)
     onResChange&&onResChange(ni)
@@ -1401,7 +1562,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
   const clearPreset=()=>{
     setPresetSel('')
     setModoLocked(false)
-    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}]
+    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}]
     setItems(empty)
     onResChange&&onResChange(empty)
     onReset&&onReset()
@@ -1409,8 +1570,9 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
   const submit=()=>{
     onSimulate({
-      reservatorios:items.map(it=>({nome:String(it.nome||''),cod:String(it.cod||''),capacidade:parseFloat(it.capacidade)||0,est_evap:String(it.est_evap??''),vol_inicial:parseFloat(it.vol_inicial)||0,demanda:parseFloat(it.demanda)||0,gatilho:parseFloat(it.gatilho)||0})),
-      modo:String(modo),vazao_conjunta:modo==='Individual'?0:(parseFloat(vazaoConj)||0),
+      reservatorios:items.map(it=>({nome:String(it.nome||''),cod:String(it.cod||''),capacidade:parseFloat(it.capacidade)||0,est_evap:String(it.est_evap??''),vol_inicial:parseFloat(it.vol_inicial)||0,demanda:parseFloat(it.demanda1 ?? it.demanda)||0,demanda1:parseFloat(it.demanda1 ?? it.demanda)||0,gatilho:parseFloat(it.gatilho)||0})),
+      modo:String(modo),vazao_conjunta:modo==='Individual'?0:lpsToM3s(vazaoConj),
+      cenario_hidrologico:String(cenarioHidrologico),
       mes_inicial:String(mesIni),ano_inicial:parseInt(anoIni),
       mes_final:String(mesFim),ano_final:parseInt(anoFim),
     })
@@ -1440,7 +1602,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
         <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
       ))}
 
-      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda:0.5,gatilho:30}])}
+      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}])}
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-light)';e.currentTarget.style.background='none'}}>
@@ -1459,10 +1621,15 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {modo!=='Individual'&&(
         <div style={{marginTop:9}}>
-          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Vazão Conjunta (m³/s)</div>
-          <FC type="number" min="0" step="0.1" value={vazaoConj} onChange={e=>setVazaoConj(e.target.value)}/>
+          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Vazão Conjunta (L/s)</div>
+          <FC type="number" min="0" step="10" value={vazaoConj} onChange={e=>setVazaoConj(Math.max(0, parseFloat(e.target.value)||0))}/>
         </div>
       )}
+
+      <Label icon={Activity}>Cenário Hidrológico</Label>
+      <FC as="select" value={cenarioHidrologico} onChange={e=>setCenarioHidrologico(e.target.value)}>
+        {CENARIOS_HIDROLOGICOS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+      </FC>
 
       <Label icon={Calendar}>Período</Label>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
@@ -1503,7 +1670,7 @@ function X({ size=14 }) {
 // =============================================================================
 // CORRIGIDO: componente raiz agora gerencia planoSecasSession e injeta no payload
 // =============================================================================
-export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = false }) {
+export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = false, onOpenOtimizador }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [resList,setResList]=useState([])
   const [presets,setPresets]=useState([])
@@ -1512,7 +1679,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState(null)
   const [apiError,setApiError]=useState(null)
-  const [activeTab,setActiveTab]=useState('sim')
+  const [activeTab,setActiveTab]=useState('padrao')
   const [resultTab,setResultTab]=useState('graficos')
   const [activeRes,setActiveRes]=useState([])
 
@@ -1527,7 +1694,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       ...prev,
       [curvasOtimizadas.reservatorio]: curvasOtimizadas.faixas,
     }))
-    setActiveTab('secas')
+    setActiveTab('meta')
   }, [curvasOtimizadas?.id])
 
   useEffect(()=>{
@@ -1536,14 +1703,14 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       .catch(e=>setApiError(e.message))
   },[api])
 
-  const handleReset=()=>{
+  const handleReset=(options={})=>{
     setResultados(null)
     setSimMeta(null)
     setError(null)
-    setActiveTab('sim')
+    setActiveTab(options.keepCurvas ? 'meta' : 'padrao')
     setResultTab('graficos')
     // NOVO: limpa as faixas de sessão ao resetar o cenário
-    setPlanoSecasSession({})
+    if (!options.keepCurvas) setPlanoSecasSession({})
   }
 
   // NOVO: recebe a notificação do PlanoSecasPanel quando o usuário clica "Aplicar na Sessão"
@@ -1558,6 +1725,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       // CORRIGIDO: injeta plano_secas_custom em cada reservatório que tiver faixas na sessão
       const payloadComPlano = {
         ...payload,
+        usar_niveis_meta: activeTab === 'meta',
         reservatorios: payload.reservatorios.map(r => ({
           ...r,
           plano_secas_custom: planoSecasSession[r.cod] || planoSecasSession[r.nome] || null,
@@ -1569,23 +1737,23 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       setSimMeta({
         modo:payload.modo,
         vazaoConjunta:payload.vazao_conjunta,
-        params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda,capacidade:r.capacidade}))
+        params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda,capacidade:r.capacidade})),
+        usarNiveisMeta: activeTab === 'meta',
       })
-      setActiveTab('sim');setResultTab('graficos')
+      setResultTab('graficos')
       setTimeout(()=>document.getElementById('sim-anchor')?.scrollIntoView({behavior:'smooth',block:'start'}),200)
     }catch(e){setError(e.message)}
     finally{setLoading(false)}
   }
 
   const MAIN_TABS=[
-    {id:'sim',    label:'▶ Simulação'},
-    {id:'secas',  label:'🛡 Níveis Meta'},
+    {id:'padrao', label:'Simulação Padrão'},
+    {id:'meta',   label:'Simulação com Níveis Meta'},
   ]
   const RES_TABS=[
-    {id:'graficos',  label:'📈 Gráficos'},
-    {id:'vazoes',    label:'💧 Vazões'},
-    {id:'garantia',  label:'📊 Garantia'},
-    {id:'tabela',    label:'📋 Dados'},
+    {id:'graficos',  label:'Gráficos'},
+    {id:'vazoes',    label:'Balanço Hídrico'},
+    {id:'garantia',  label:'Garantia'},
   ]
 
   // indica visualmente se há faixas customizadas ativas na sessão
@@ -1649,12 +1817,22 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
 
       <div style={{padding:'14px 26px 0',display:'grid',gridTemplateColumns:'295px 1fr',gap:16,alignItems:'start'}}>
 
-        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset}/>
+        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} appliedCurvas={curvasOtimizadas}/>
 
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
-          {activeTab==='sim'&&(
+          {(activeTab==='padrao' || activeTab==='meta')&&(
             <>
+              {activeTab==='meta'&&(
+                <PlanoSecasPanel
+                  api={api}
+                  reservatorios={activeRes}
+                  onFaixasChange={handleFaixasChange}
+                  faixasSessao={planoSecasSession}
+                  onOpenOtimizador={onOpenOtimizador}
+                />
+              )}
+
               {error&&(
                 <div style={{background:'var(--red-pale)',border:'1.5px solid var(--red)',borderRadius:'var(--radius-sm)',padding:'10px 14px',display:'flex',alignItems:'center',gap:9}}>
                   <AlertTriangle size={13} color="var(--red)"/>
@@ -1694,24 +1872,14 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
                   <MesesAbastecidos resultados={resultados} modo={simMeta?.modo||'Individual'} params={simMeta?.params}/>
                   <FailureDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>
 
-                  {resultTab==='graficos'  && <Charts resultados={resultados} params={simMeta?.params} modo={simMeta?.modo||'Individual'}/>}
+                  {resultTab==='graficos'  && <Charts resultados={resultados} params={simMeta?.params} modo={simMeta?.modo||'Individual'} usarNiveisMeta={simMeta?.usarNiveisMeta}/>}
                   {resultTab==='vazoes'    && <VazoesDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>}
                   {resultTab==='garantia'  && simMeta && <GarantiaAnalise resultados={resultados} modo={simMeta.modo} vazaoConjunta={simMeta.vazaoConjunta} params={simMeta.params}/>}
-                  {resultTab==='tabela'    && <ResultsTable resultados={resultados} modo={simMeta?.modo||'Individual'}/>}
                 </>
               )}
             </>
           )}
 
-          {/* CORRIGIDO: passa onFaixasChange para PlanoSecasPanel */}
-          {activeTab==='secas'&&(
-            <PlanoSecasPanel
-              api={api}
-              reservatorios={activeRes}
-              onFaixasChange={handleFaixasChange}
-              faixasSessao={planoSecasSession}
-            />
-          )}
         </div>
       </div>
     </div>

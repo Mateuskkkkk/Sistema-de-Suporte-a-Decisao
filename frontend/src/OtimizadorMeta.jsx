@@ -19,9 +19,12 @@ const BAND_COLORS = {
   severa: '#d94040',
 }
 
+const m3sToLps = value => Number(((Number(value) || 0) * 1000).toFixed(3))
+const lpsToM3s = value => Math.max(0, (Number(value) || 0) / 1000)
+
 const DEFAULT_SCENARIO = {
   durb: 0.5,
-  dsupl: 0.3,
+  dsupl: 0,
   fracDurb: [1, 1, 0.8, 0.5],
   fracDsup: [1, 0.8, 0.5, 0],
   garantiaReq: [0.9, 0.95, 0.98, 1],
@@ -112,6 +115,36 @@ function Input(props) {
 
 function Select(props) {
   return <select {...props} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-xs)', background: '#fff', color: 'var(--text)', fontSize: 12, outline: 'none', ...(props.style || {}) }} />
+}
+
+function useBoxZoom(data, key = 'data') {
+  const [left, setLeft] = useState(null)
+  const [right, setRight] = useState(null)
+  const [domain, setDomain] = useState(null)
+  const activeData = useMemo(() => {
+    if (!domain || !data?.length) return data
+    const start = data.findIndex(d => String(d[key]) === String(domain.start))
+    const end = data.findIndex(d => String(d[key]) === String(domain.end))
+    if (start < 0 || end < 0) return data
+    return data.slice(Math.min(start, end), Math.max(start, end) + 1)
+  }, [data, domain, key])
+  return {
+    data: activeData,
+    isZoomed: Boolean(domain),
+    reset: () => setDomain(null),
+    props: {
+      onMouseDown: e => e?.activeLabel !== undefined && setLeft(e.activeLabel),
+      onMouseMove: e => left !== null && e?.activeLabel !== undefined && setRight(e.activeLabel),
+      onMouseUp: () => {
+        if (left !== null && right !== null && String(left) !== String(right)) setDomain({ start: left, end: right })
+        setLeft(null)
+        setRight(null)
+      },
+    },
+    area: left !== null && right !== null
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      : null,
+  }
 }
 
 function ReservatorioSearch({ lista, value, onChange }) {
@@ -419,7 +452,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       result,
       scenario,
     })
-    setMsg({ type: 'success', text: 'Curvas enviadas para o simulador. Abra o Simulador e selecione o mesmo reservatório.' })
+    setMsg({ type: 'success', text: 'Curvas enviadas para o simulador com reservatório e demandas preenchidos.' })
   }
 
   const performanceRows = () => NIVEL_LABELS.map((label, i) => {
@@ -495,6 +528,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   }
   const chartData = buildBandChartData(result?.matriz_curvas)
   const chartDataVolume = buildHistoricalVolumeData(result, mesIni, anoIni)
+  const bandZoom = useBoxZoom(chartData, 'mes')
   const activeDataVolume = zoomDomain ? chartDataVolume.slice(zoomDomain.start, zoomDomain.end + 1) : chartDataVolume
 
   const handleVolumeZoom = () => {
@@ -521,7 +555,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
       <style>{`.opt-layout{grid-template-columns:340px minmax(0,1fr);gap:0}.opt-side{position:sticky;top:12px;background:#fff;border:1px solid #cbd5e1;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:0;overflow:hidden;font-family:'JetBrains Mono','Consolas',monospace}.opt-side-top{padding:16px;border-bottom:1px solid #cbd5e1;display:flex;flex-direction:column;gap:14px;background:#fff}.opt-side-body{padding:16px;display:flex;flex-direction:column;gap:22px;background:#fff}.opt-label{display:block;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin-bottom:5px}.opt-label.center{text-align:center}.opt-control-row{display:flex;align-items:center;gap:12px}.opt-control-row input[type=range]{flex:1;accent-color:#0ea5e9}.opt-mini{width:64px;text-align:center}.opt-select-wide{width:80%;margin:0 auto;display:block}.opt-period-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}.opt-period-name{width:42px;font-size:9px;text-transform:uppercase;color:#64748b}.opt-period-fields{display:flex;gap:4px}.opt-month{width:86px}.opt-year{width:86px;text-align:center}.opt-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid #cbd5e1;background:#f1f5f9}.opt-tab{border:0;border-right:1px solid #cbd5e1;background:#fff;color:#0284c7;font:700 12px 'JetBrains Mono','Consolas',monospace;padding:10px 16px}.opt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}.opt-matrix-title{text-align:center;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin:0 0 8px}.opt-matrix-labels,.opt-matrix{display:grid;grid-template-columns:repeat(4,1fr)}.opt-matrix-labels span{font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt-matrix{border:1px solid #cbd5e1;border-radius:4px;overflow:hidden}.opt-matrix input{border:0;border-right:1px solid #cbd5e1;background:#f1f5f9;text-align:center;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 4px;min-width:0}.opt-matrix input:last-child{border-right:0}.opt-run{width:100%;padding:12px;border-radius:6px;background:#0284c7;color:#fff;font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;letter-spacing:.08em}.opt-side select,.opt-side input[type=number]{border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;border-radius:4px;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 8px}.opt-perm-table{width:100%;border-collapse:collapse;font:12px 'JetBrains Mono','Consolas',monospace;text-align:center}.opt-perm-table th{color:#64748b;font-size:11px;font-weight:800;padding:8px 6px}.opt-perm-table td{border-top:1px solid #e2e8f0;padding:8px 6px;color:#334155}.opt-perm-table td:first-child{text-align:left;font-weight:800}.opt-section-title{font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px}@media(max-width:920px){.opt-layout{grid-template-columns:1fr;gap:16px}.opt-side{position:relative;top:0;border-radius:var(--radius)}}`}</style>
       <style>{`.opt-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow:0 2px 18px rgba(0,0,0,.45)}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-dark option{background:#080503;color:var(--text)}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
-      <style>{`.opt-search{position:relative;width:88%;margin:0 auto}.opt-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none}.opt-search-input{width:100%;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);padding:9px 10px 9px 30px;font:12px 'Sora',sans-serif;outline:none}.opt-search-input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 3px var(--orange-pale)}.opt-search-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);max-height:210px;overflow:auto;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:var(--shadow);padding:4px}.opt-search-item{display:block;width:100%;text-align:left;border:0;border-radius:6px;background:transparent;color:var(--text);padding:8px 9px;font:700 11.5px 'Sora',sans-serif;cursor:pointer}.opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.opt-input-card{border:1.5px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--card) 82%,var(--bg));padding:12px}.opt-demand-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.opt-demand-input{width:100%;text-align:center;border-radius:8px!important;padding:10px!important;font-size:13px!important;font-weight:800!important}.opt-hydro-select{display:block;margin:0 auto;width:180px;text-align:center}.opt-tab{display:inline-flex;align-items:center;gap:7px}.opt-tab.active{background:var(--orange-pale);color:var(--orange-deep)}.opt-tab-add{border:0;background:transparent;color:var(--text-light);padding:9px 12px;cursor:pointer}.opt-tab-add:hover{color:var(--orange-deep);background:var(--orange-pale)}.opt-tab-close{border:0;background:transparent;color:inherit;padding:0;line-height:0;cursor:pointer;opacity:.7}.opt-tab-close:hover{opacity:1;color:var(--red)}.opt-dark .opt-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.opt-dark .opt-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
+      <style>{`.opt-search{position:relative;width:88%;margin:0 auto}.opt-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none}.opt-search-input{width:100%;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);padding:9px 10px 9px 30px;font:12px 'Sora',sans-serif;outline:none}.opt-search-input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 3px var(--orange-pale)}.opt-search-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);max-height:210px;overflow:auto;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:var(--shadow);padding:4px}.opt-search-item{display:block;width:100%;text-align:left;border:0;border-radius:6px;background:transparent;color:var(--text);padding:8px 9px;font:700 11.5px 'Sora',sans-serif;cursor:pointer}.opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.opt-input-card{border:1.5px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--card) 82%,var(--bg));padding:12px}.opt-demand-grid{display:grid;grid-template-columns:1fr;gap:12px}.opt-demand-input{width:100%;text-align:center;border-radius:8px!important;padding:10px!important;font-size:13px!important;font-weight:800!important}.opt-hydro-select{display:block;margin:0 auto;width:180px;text-align:center}.opt-tab{display:inline-flex;align-items:center;gap:7px}.opt-tab.active{background:var(--orange-pale);color:var(--orange-deep)}.opt-tab-add{border:0;background:transparent;color:var(--text-light);padding:9px 12px;cursor:pointer}.opt-tab-add:hover{color:var(--orange-deep);background:var(--orange-pale)}.opt-tab-close{border:0;background:transparent;color:inherit;padding:0;line-height:0;cursor:pointer;opacity:.7}.opt-tab-close:hover{opacity:1;color:var(--red)}.opt-dark .opt-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.opt-dark .opt-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
       <style>{`.opt-side,.opt-side-top,.opt-side-body,.opt-tab,.opt-btn,.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table,.opt-section-title,.opt-search-input,.opt-search-item,.opt-side select,.opt-side input[type=number],.opt-matrix input,.opt-run{font-family:'Sora',sans-serif}.opt-input-card{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important}.opt-side-body{gap:18px}.opt-matrix-title{color:var(--text-light);letter-spacing:0}.opt-matrix-labels{gap:4px;margin-bottom:4px}.opt-matrix-labels span{font-family:'Sora',sans-serif;font-weight:800}.opt-demand-input,.opt-side select,.opt-side input[type=number],.opt-matrix input{border-radius:var(--radius-xs)!important}.opt-matrix{gap:4px;border:0!important;border-radius:0!important;background:transparent!important;overflow:visible}.opt-matrix input{background:var(--card);color:var(--text);border:1.5px solid var(--border)!important;box-shadow:none!important;padding:8px 4px}.opt-matrix input:last-child{border-right:1.5px solid var(--border)!important}.sim-root:not(.opt-dark) .opt-side{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.sim-root:not(.opt-dark) .opt-side-top,.sim-root:not(.opt-dark) .opt-side-body{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tabbar{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab{background:transparent;color:var(--text-light);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab.active,.sim-root:not(.opt-dark) .opt-tab-add:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-search-input,.sim-root:not(.opt-dark) .opt-search-menu{background:var(--card);color:var(--text);border-color:var(--border)}.sim-root:not(.opt-dark) .opt-search-item{color:var(--text)}.sim-root:not(.opt-dark) .opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-side select,.sim-root:not(.opt-dark) .opt-side input[type=number],.sim-root:not(.opt-dark) .opt-matrix input{background:var(--card);color:var(--text);border-color:var(--border)!important}.sim-root:not(.opt-dark) .opt-ghost{background:var(--card);color:var(--text-mid);border-color:var(--border)}.opt-dark .opt-side select,.opt-dark .opt-side input[type=number],.opt-dark .opt-matrix input{background:#080503;color:var(--text);border-color:var(--border)!important}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -632,12 +666,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
           <div className="opt-side-body">
             <div className="opt-input-card opt-demand-grid">
               <label>
-                <span className="opt-label center">Demanda 1 (m³/s)</span>
-                <input className="opt-demand-input" type="number" step="0.01" value={scenario.durb} onChange={e => updateScenario({ durb: Number(e.target.value) })} />
-              </label>
-              <label>
-                <span className="opt-label center">Demanda 2 (m³/s)</span>
-                <input className="opt-demand-input" type="number" step="0.01" value={scenario.dsupl} onChange={e => updateScenario({ dsupl: Number(e.target.value) })} />
+                <span className="opt-label center">Demanda (L/s)</span>
+                <input className="opt-demand-input" type="number" min="0" step="10" value={m3sToLps(scenario.durb)} onChange={e => updateScenario({ durb: lpsToM3s(e.target.value) })} />
               </label>
             </div>
 
@@ -652,19 +682,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div className="opt-input-card">
-              <p className="opt-matrix-title">Atendimento da Demanda 1</p>
+              <p className="opt-matrix-title">Atendimento da Demanda (%)</p>
               <div className="opt-matrix">
                 {scenario.fracDurb.map((v, i) => (
                   <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('fracDurb', i, Number(e.target.value) / 100)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="opt-input-card">
-              <p className="opt-matrix-title">Atendimento da Demanda 2 (%)</p>
-              <div className="opt-matrix">
-                {scenario.fracDsup.map((v, i) => (
-                  <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('fracDsup', i, Number(e.target.value) / 100)} />
                 ))}
               </div>
             </div>
@@ -700,19 +721,25 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               <Card style={{ padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 900, marginBottom: 12 }}>
                   <CheckCircle2 size={16} color="var(--teal)" /> Resultado para {reservatorio}
+                  {bandZoom.isZoomed && (
+                    <button className="opt-btn opt-ghost" onClick={bandZoom.reset} style={{ marginLeft: 'auto', padding: '6px 10px', fontSize: 10 }}>
+                      Resetar Zoom
+                    </button>
+                  )}
                 </div>
                 <div style={{ height: 330 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
+                    <AreaChart data={bandZoom.data} margin={{ top: 10, right: 12, bottom: 0, left: -18 }} {...bandZoom.props}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ecdcc8" />
                       <XAxis dataKey="mes" tick={{ fill: '#9a7055', fontSize: 11 }} tickLine={false} />
                       <YAxis domain={[0, 100]} tick={{ fill: '#9a7055', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
                       <Tooltip formatter={v => `${Number(v).toFixed(2)}%`} />
                       <Legend />
-                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Seca Severa" dataKey="severa" stroke={BAND_COLORS.severa} fill={BAND_COLORS.severa} fillOpacity={0.55} />
-                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Seca" dataKey="seca" stroke={BAND_COLORS.seca} fill={BAND_COLORS.seca} fillOpacity={0.5} />
-                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Alerta" dataKey="alerta" stroke={BAND_COLORS.alerta} fill={BAND_COLORS.alerta} fillOpacity={0.48} />
-                      <Area isAnimationActive={false} type="monotone" stackId="meta" name="Normal" dataKey="normal" stroke={BAND_COLORS.normal} fill={BAND_COLORS.normal} fillOpacity={0.45} />
+                      <Area isAnimationActive={false} type="linear" stackId="meta" name="Seca Severa" dataKey="severa" stroke={BAND_COLORS.severa} fill={BAND_COLORS.severa} fillOpacity={0.55} />
+                      <Area isAnimationActive={false} type="linear" stackId="meta" name="Seca" dataKey="seca" stroke={BAND_COLORS.seca} fill={BAND_COLORS.seca} fillOpacity={0.5} />
+                      <Area isAnimationActive={false} type="linear" stackId="meta" name="Alerta" dataKey="alerta" stroke={BAND_COLORS.alerta} fill={BAND_COLORS.alerta} fillOpacity={0.48} />
+                      <Area isAnimationActive={false} type="linear" stackId="meta" name="Normal" dataKey="normal" stroke={BAND_COLORS.normal} fill={BAND_COLORS.normal} fillOpacity={0.45} />
+                      {bandZoom.area}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
