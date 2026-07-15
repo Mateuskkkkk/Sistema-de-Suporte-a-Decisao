@@ -75,7 +75,12 @@ export default function App() {
       </header>
 
       {view === 'simulador' ? (
-        <SimuladorHidrico apiUrl={apiUrl} curvasOtimizadas={curvasOtimizadas} darkMode={darkMode} />
+        <SimuladorHidrico
+          apiUrl={apiUrl}
+          curvasOtimizadas={curvasOtimizadas}
+          darkMode={darkMode}
+          onOpenOtimizador={() => setView('otimizador')}
+        />
       ) : view === 'otimizador' ? (
         <OtimizadorMeta
           apiUrl={apiUrl}
