@@ -124,6 +124,7 @@ function exportExcel(resultados, modo) {
         'Evaporação (hm³)':            parseFloat(d['Evaporação (hm³)'] ?? 0),
         'Demanda Solicitada (m³/s)':   parseFloat(d['Demanda Solicitada (m³/s)'] ?? 0),
         'Demanda Atendida (m³/s)':     parseFloat(d['Demanda Atendida (m³/s)'] ?? 0),
+        'Retirada Total (m³/s)':       parseFloat(d['Retirada Total (m³/s)'] ?? 0),
         'Demanda Atendida (hm³)':      parseFloat(d['Demanda Atendida (m³/s)'] ?? 0) * (segundos / 1e6),
         'Racionamento (%)':            parseFloat(d['Racionamento (%)'] ?? 0),
         'Vertimento (hm³)':            parseFloat(d['Vertimento (hm³)'] ?? 0),
@@ -689,6 +690,7 @@ function VazoesDetail({ resultados, modo }) {
     { key:'Armazenamento Final',            label:'Vol. Fin.',   mono:true  },
     { key:'Demanda Solicitada (m³/s)',      label:'Dem. Sol.',   mono:true  },
     { key:'Demanda Atendida (m³/s)',        label:'Dem. At.',    mono:true  },
+    { key:'Retirada Total (m³/s)',          label:'Ret. Total',  mono:true  },
     { key:'Transferência Recebida (m³/s)',  label:'Tr. Rec.',    mono:true  },
     { key:'Transferência Enviada (m³/s)',   label:'Tr. Env.',    mono:true  },
     { key:'Racionamento (%)',               label:'Rac.(%)',     mono:true  },
@@ -697,7 +699,7 @@ function VazoesDetail({ resultados, modo }) {
     { key:'Modo Operação',                  label:'Modo',        align:'center'},
   ]
 
-  const VCOLS = modo==='Série' ? VCOLS_ALL : VCOLS_ALL.filter(c=>!c.key.startsWith('Transferência'))
+  const VCOLS = modo==='Série' ? VCOLS_ALL : VCOLS_ALL.filter(c=>!c.key.includes('Transferência'))
 
   function fv(val,key){
     if(val===null||val===undefined||val==='') return '—'
@@ -821,7 +823,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   const vazaoMedia   = vazoesSemFalha.length ? vazoesSemFalha.reduce((a,b)=>a+b,0)/vazoesSemFalha.length : 0
   const vazaoMaxima  = vazoesSemFalha.length ? Math.max(...vazoesSemFalha) : 0
   const vazaoMinima  = vazoesSemFalha.length ? Math.min(...vazoesSemFalha) : 0
-  const demNominal = (params||[]).reduce((s,p)=>s+(p?.demanda_nominal||0),0) + (vazaoConjunta||0)
+  const demNominal = (params||[]).reduce((s,p)=>s+(p?.demanda_nominal||0),0) + (modo==='Paralelo'?(vazaoConjunta||0):0)
 
   const grouped = {}
   vazoesSystem.forEach((v,t) => {
@@ -913,7 +915,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         const df    = r.dados
         const p     = params?.[idx]
         const demNom = p?.demanda_nominal || 0
-        const demConj = idx===0 ? (vazaoConjunta||0) : 0
+        const demConj = modo==='Paralelo'&&idx===0 ? (vazaoConjunta||0) : 0
         const demTot = demNom + demConj
 
         const gruposVistos = new Set()
@@ -996,12 +998,12 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
 }
 
 const RCOLS_BASE = [
-  {key:'Data',label:'Data',align:'left'},{key:'Armazenamento Inicial',label:'Vol. Ini (hm³)',mono:true},{key:'Afluências (hm³/mês)',label:'Afluência (hm³)',mono:true},{key:'Evaporação (hm³)',label:'Evap. (hm³)',mono:true},{key:'Demanda Solicitada (m³/s)',label:'Dem. Sol.',mono:true},{key:'Demanda Atendida (m³/s)',label:'Dem. At.',mono:true},{key:'Transferência Recebida (m³/s)',label:'Tr. Rec.',mono:true},{key:'Transferência Enviada (m³/s)',label:'Tr. Env.',mono:true},{key:'Racionamento (%)',label:'Rac.(%)',mono:true},{key:'Vertimento (hm³)',label:'Vertimento',mono:true},{key:'Armazenamento Final',label:'Vol. Fin.',mono:true},{key:'Falha',label:'Falha',align:'center'},{key:'Modo Operação',label:'Modo',align:'center'},
+  {key:'Data',label:'Data',align:'left'},{key:'Armazenamento Inicial',label:'Vol. Ini (hm³)',mono:true},{key:'Afluências (hm³/mês)',label:'Afluência (hm³)',mono:true},{key:'Evaporação (hm³)',label:'Evap. (hm³)',mono:true},{key:'Demanda Solicitada (m³/s)',label:'Dem. Sol.',mono:true},{key:'Demanda Atendida (m³/s)',label:'Dem. At.',mono:true},{key:'Retirada Total (m³/s)',label:'Ret. Total',mono:true},{key:'Transferência Recebida (m³/s)',label:'Tr. Rec.',mono:true},{key:'Transferência Enviada (m³/s)',label:'Tr. Env.',mono:true},{key:'Racionamento (%)',label:'Rac.(%)',mono:true},{key:'Vertimento (hm³)',label:'Vertimento',mono:true},{key:'Armazenamento Final',label:'Vol. Fin.',mono:true},{key:'Falha',label:'Falha',align:'center'},{key:'Modo Operação',label:'Modo',align:'center'},
 ]
 
 function getRCols(modo) {
   if (modo === 'Série') return RCOLS_BASE
-  return RCOLS_BASE.filter(c => !c.key.startsWith('Transferência'))
+  return RCOLS_BASE.filter(c => !c.key.includes('Transferência'))
 }
 
 const PG=15
@@ -1075,6 +1077,52 @@ function ResultsTable({ resultados, modo }) {
   )
 }
 
+const PGPS_PERMANENCIAS = [
+  {estado:'Normal',meta:90,color:'var(--teal)'},
+  {estado:'Alerta',meta:5,color:'var(--yellow)'},
+  {estado:'Seca',meta:3,color:'var(--orange)'},
+  {estado:'Seca Severa',meta:2,color:'var(--red)'},
+]
+
+function PgpsValidation({ resultados }) {
+  const controlador = resultados.find(r=>String(r.reservatorio).toLowerCase()==='fogareiro')
+  const dados = controlador?.dados||[]
+  if(!dados.length) return null
+  const contagens = dados.reduce((acc,row)=>{
+    const estado=row['Modo Operação']||'Normal'
+    acc[estado]=(acc[estado]||0)+1
+    return acc
+  },{})
+
+  return (
+    <Card style={{padding:0,overflow:'hidden'}}>
+      <div style={{padding:'13px 16px 10px',borderBottom:'1px solid var(--border-light)'}}>
+        <div style={{fontSize:13.5,fontWeight:800,color:'var(--text)'}}>Validação do Cenário 1 (PGPS)</div>
+        <div style={{fontSize:10.5,color:'var(--text-light)',marginTop:2}}>Permanência do hidrossistema definida pelo volume mensal do Fogareiro.</div>
+      </div>
+      <div style={{overflowX:'auto'}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:11.5}}>
+          <thead><tr style={{background:'var(--bg)',color:'var(--text-light)'}}>
+            {['Estado','Meta do plano','Obtida','Meses','Diferença'].map(h=><th key={h} style={{padding:'8px 12px',textAlign:h==='Estado'?'left':'right',fontWeight:700,borderBottom:'1px solid var(--border)'}}>{h}</th>)}
+          </tr></thead>
+          <tbody>{PGPS_PERMANENCIAS.map(item=>{
+            const meses=contagens[item.estado]||0
+            const obtida=meses/dados.length*100
+            const diferenca=obtida-item.meta
+            return <tr key={item.estado} style={{borderBottom:'1px solid var(--border-light)'}}>
+              <td style={{padding:'8px 12px',fontWeight:700,color:item.color}}>{item.estado}</td>
+              <td style={{padding:'8px 12px',textAlign:'right'}}>{item.meta.toFixed(1)}%</td>
+              <td style={{padding:'8px 12px',textAlign:'right',fontWeight:700}}>{obtida.toFixed(2)}%</td>
+              <td style={{padding:'8px 12px',textAlign:'right',fontFamily:'JetBrains Mono, monospace'}}>{meses}</td>
+              <td style={{padding:'8px 12px',textAlign:'right',color:Math.abs(diferenca)<=0.5?'var(--teal)':'var(--text-mid)'}}>{diferenca>=0?'+':''}{diferenca.toFixed(2)} p.p.</td>
+            </tr>
+          })}</tbody>
+        </table>
+      </div>
+    </Card>
+  )
+}
+
 const FAIXAS_COR = {
   'Acima do Teto':{bg:'var(--teal-pale)',t:'var(--teal)'},
   'Normal':{bg:'var(--blue-pale)',t:'var(--blue)'},
@@ -1116,7 +1164,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao, onO
         const faixasAtivas = faixasSessao?.[reservatorio.cod] || faixasSessao?.[reservatorio.nome]
         setFaixas(JSON.parse(JSON.stringify(faixasAtivas || d)))
         setFaixasOriginal(JSON.parse(JSON.stringify(d)))
-        if (faixasAtivas) setMsg({type:'session',text:'Curvas otimizadas carregadas na sessão para este reservatório.'})
+        if (faixasAtivas) setMsg({type:'session',text:'Curvas carregadas na sessão para este reservatório.'})
       })
       .catch(()=>{ setFaixas([]); setFaixasOriginal([]) })
       .finally(()=>setLoading(false))
@@ -1460,9 +1508,10 @@ function ResSearch({ resList, value, onChange }) {
   )
 }
 
-function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) {
+function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo, cenarioHidrossistema }) {
   const [open,setOpen]=useState(true)
-  const showGatilho = modo !== 'Individual'
+  const isPgpsFq = cenarioHidrossistema==='pgps_fogareiro_quixeramobim_cenario_1'
+  const showGatilho = modo !== 'Individual' && (isPgpsFq ? String(res.cod)==='16' : index===0)
   return (
     <div style={{background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',marginBottom:6,overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',cursor:'pointer',borderBottom:open?'1.5px solid var(--border-light)':'none'}} onClick={()=>setOpen(!open)}>
@@ -1498,10 +1547,10 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
                 onChange(index,{demanda1,demanda:demanda1})
               }}/>
             </div>
-            {showGatilho && index===0 &&(
+            {showGatilho&&(
               <div>
                 <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Gatilho Transf. (%)</div>
-                <FC type="number" min="0" max="100" step="1" value={res.gatilho} onChange={e=>onChange(index,{gatilho:parseFloat(e.target.value)||0})}/>
+                <FC type="number" min="0" max="100" step="1" value={isPgpsFq?30:res.gatilho} disabled={isPgpsFq} onChange={e=>onChange(index,{gatilho:parseFloat(e.target.value)||0})}/>
               </div>
             )}
           </div>
@@ -1511,15 +1560,17 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo }) 
   )
 }
 
-function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, appliedCurvas }) {
+function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, onPresetApply, appliedCurvas }) {
   const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
+  const [atendimentoTransferencia,setAtendimentoTransferencia]=useState(100)
   const [cenarioHidrologico,setCenarioHidrologico]=useState('historico')
   const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
   const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
+  const [cenarioHidrossistema,setCenarioHidrossistema]=useState(null)
 
   useEffect(() => {
     if (!appliedCurvas?.reservatorio || !resList.length) return
@@ -1537,6 +1588,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
       gatilho: 10,
     }
     setPresetSel('')
+    setCenarioHidrossistema(null)
     setModo('Individual')
     setModoLocked(false)
     setItems([item])
@@ -1552,15 +1604,30 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setModo(p.modo); setModoLocked(true)
     const ni=p.reservatorios.map(cod=>{
       const f=resList.find(r=>r.COD===cod||r.CORPO===cod)
-      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade:getCapacidadeHm3(f),est_evap:f?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(f)*0.5,demanda1:0,demanda:0,gatilho:10}
+      const defaults=p.defaults?.[String(cod)]||{}
+      const capacidade=getCapacidadeHm3(f)
+      const volPct=defaults.vol_inicial_percent??50
+      const demanda1=lpsToM3s(defaults.demanda_lps??0)
+      return {nome:f?.CORPO||cod,cod:f?.COD||cod,capacidade,est_evap:f?.['Est. Evap.']||'',volPct,vol_inicial:capacidade*volPct/100,demanda1,demanda:demanda1,gatilho:defaults.gatilho_percent??10}
     })
+    setCenarioHidrossistema(p.cenario_hidrossistema||null)
+    setVazaoConj(p.vazao_transferencia_lps??0)
+    setAtendimentoTransferencia(p.atendimento_transferencia_percent??100)
+    if(p.periodo){
+      setMesIni(p.periodo.mes_inicial);setAnoIni(p.periodo.ano_inicial)
+      setMesFim(p.periodo.mes_final);setAnoFim(p.periodo.ano_final)
+    }
     setItems(ni)
     onResChange&&onResChange(ni)
     onReset&&onReset()
+    onPresetApply&&onPresetApply(p)
   }
 
   const clearPreset=()=>{
     setPresetSel('')
+    setCenarioHidrossistema(null)
+    setVazaoConj(0)
+    setAtendimentoTransferencia(100)
     setModoLocked(false)
     const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}]
     setItems(empty)
@@ -1572,7 +1639,9 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     onSimulate({
       reservatorios:items.map(it=>({nome:String(it.nome||''),cod:String(it.cod||''),capacidade:parseFloat(it.capacidade)||0,est_evap:String(it.est_evap??''),vol_inicial:parseFloat(it.vol_inicial)||0,demanda:parseFloat(it.demanda1 ?? it.demanda)||0,demanda1:parseFloat(it.demanda1 ?? it.demanda)||0,gatilho:parseFloat(it.gatilho)||0})),
       modo:String(modo),vazao_conjunta:modo==='Individual'?0:lpsToM3s(vazaoConj),
+      atendimento_transferencia:modo==='Série'?Math.max(0,Math.min(100,parseFloat(atendimentoTransferencia)||0)):100,
       cenario_hidrologico:String(cenarioHidrologico),
+      cenario_hidrossistema:cenarioHidrossistema,
       mes_inicial:String(mesIni),ano_inicial:parseInt(anoIni),
       mes_final:String(mesFim),ano_final:parseInt(anoFim),
     })
@@ -1599,7 +1668,7 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       <Label icon={Database}>Reservatórios</Label>
       {items.map((res,i)=>(
-        <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo}/>
+        <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo} cenarioHidrossistema={cenarioHidrossistema}/>
       ))}
 
       <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}])}
@@ -1621,8 +1690,12 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {modo!=='Individual'&&(
         <div style={{marginTop:9}}>
-          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Vazão Conjunta (L/s)</div>
+          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>{modo==='Série'?'Vazão de Transferência (L/s)':'Vazão Conjunta (L/s)'}</div>
           <FC type="number" min="0" step="10" value={vazaoConj} onChange={e=>setVazaoConj(Math.max(0, parseFloat(e.target.value)||0))}/>
+          {modo==='Série'&&<div style={{marginTop:7}}>
+            <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Atendimento da Transferência (%)</div>
+            <FC type="number" min="0" max="100" step="1" value={atendimentoTransferencia} onChange={e=>setAtendimentoTransferencia(Math.max(0,Math.min(100,parseFloat(e.target.value)||0)))}/>
+          </div>}
         </div>
       )}
 
@@ -1719,6 +1792,18 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
     setPlanoSecasSession(prev => ({ ...prev, [cod]: faixas }))
   }
 
+  const handlePresetApply = (preset) => {
+    if (!preset?.cenario_hidrossistema) return
+    setActiveTab('meta')
+    const niveis = preset.niveis_meta
+    if (niveis?.reservatorio_cod && niveis?.faixas?.length) {
+      setPlanoSecasSession(prev => ({
+        ...prev,
+        [String(niveis.reservatorio_cod)]: niveis.faixas,
+      }))
+    }
+  }
+
   const handleSimulate=async(payload)=>{
     setLoading(true);setError(null)
     try{
@@ -1739,6 +1824,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
         vazaoConjunta:payload.vazao_conjunta,
         params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda,capacidade:r.capacidade})),
         usarNiveisMeta: activeTab === 'meta',
+        cenarioHidrossistema: payload.cenario_hidrossistema,
       })
       setResultTab('graficos')
       setTimeout(()=>document.getElementById('sim-anchor')?.scrollIntoView({behavior:'smooth',block:'start'}),200)
@@ -1817,7 +1903,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
 
       <div style={{padding:'14px 26px 0',display:'grid',gridTemplateColumns:'295px 1fr',gap:16,alignItems:'start'}}>
 
-        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} appliedCurvas={curvasOtimizadas}/>
+        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} onPresetApply={handlePresetApply} appliedCurvas={curvasOtimizadas}/>
 
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
@@ -1871,6 +1957,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
                   <MetricsRow resultados={resultados} modo={simMeta?.modo||'Individual'}/>
                   <MesesAbastecidos resultados={resultados} modo={simMeta?.modo||'Individual'} params={simMeta?.params}/>
                   <FailureDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>
+                  {simMeta?.cenarioHidrossistema==='pgps_fogareiro_quixeramobim_cenario_1'&&<PgpsValidation resultados={resultados}/>}
 
                   {resultTab==='graficos'  && <Charts resultados={resultados} params={simMeta?.params} modo={simMeta?.modo||'Individual'} usarNiveisMeta={simMeta?.usarNiveisMeta}/>}
                   {resultTab==='vazoes'    && <VazoesDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>}

@@ -8,6 +8,7 @@ const COLS = [
   { key: 'Evaporação (hm³)', label: 'Evap. (hm³)', mono: true },
   { key: 'Demanda Solicitada (m³/s)', label: 'Dem. Sol. (m³/s)', mono: true },
   { key: 'Demanda Atendida (m³/s)', label: 'Dem. At. (m³/s)', mono: true },
+  { key: 'Retirada Total (m³/s)', label: 'Retirada Total (m³/s)', mono: true },
   { key: 'Transferência Recebida (m³/s)', label: 'Transf. Rec.', mono: true },
   { key: 'Transferência Enviada (m³/s)', label: 'Transf. Env.', mono: true },
   { key: 'Racionamento (%)', label: 'Rac. (%)', mono: true },

@@ -345,6 +345,45 @@ def gerar_resultado_final(niveis_metas, aflu_hm3, evap_serie_m, dem_total_hm3, r
     garantias = engine_simulacao_temporal(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, mes_inicio)
     return garantias, nmetas
 
+
+def diferenciar_retiradas_equivalentes(ret_vec_hm3, diferenca_relativa=0.0001):
+    retiradas = np.asarray(ret_vec_hm3, dtype=float).copy()
+    if retiradas.size < 2:
+        return retiradas
+
+    escala = max(1.0, float(np.max(np.abs(retiradas))))
+    inicio = 0
+    while inicio < retiradas.size:
+        fim = inicio
+        while fim + 1 < retiradas.size and np.isclose(
+            ret_vec_hm3[inicio],
+            ret_vec_hm3[fim + 1],
+            rtol=1e-10,
+            atol=1e-12 * escala,
+        ):
+            fim += 1
+
+        quantidade = fim - inicio + 1
+        valor = float(ret_vec_hm3[inicio])
+        if quantidade > 1 and valor > 0:
+            proximo = float(ret_vec_hm3[fim + 1]) if fim + 1 < retiradas.size else 0.0
+            espaco = max(0.0, valor - proximo)
+            passo = min(valor * diferenca_relativa, espaco / quantidade)
+            for deslocamento in range(1, quantidade):
+                retiradas[inicio + deslocamento] = valor - (passo * deslocamento)
+        inicio = fim + 1
+
+    return retiradas
+
+
+def calcular_erro_garantias(garantias, garantia_req):
+    obtidas = np.asarray(garantias, dtype=float)
+    requeridas = np.asarray(garantia_req, dtype=float)
+    if obtidas.size != requeridas.size:
+        raise ValueError("Garantias obtidas e requeridas devem possuir o mesmo tamanho.")
+    denominadores = np.maximum(np.abs(requeridas), 1e-9)
+    return float(np.sum(((obtidas - requeridas) / denominadores) ** 2))
+
 def funcao_objetivo_pso(x_matrix, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec_hm3, cap_hm3, cav_vol, cav_area, garantia_req, aflu_prob, evap_ano, ninicio, mes_inicio):
     n_particles = x_matrix.shape[0]
     resultados = np.zeros(n_particles)
@@ -358,7 +397,7 @@ def funcao_objetivo_pso(x_matrix, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec
             resultados[i] = 1e6
             continue
         garantias = engine_simulacao_temporal(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, mes_inicio)
-        resultados[i] = np.sum(((garantias - np.array(garantia_req)) / np.array(garantia_req)) ** 2)
+        resultados[i] = calcular_erro_garantias(garantias, garantia_req)
     return resultados
 
 
@@ -373,6 +412,7 @@ def simular_generator(payload: SimularPayload):
         aflu_hm3 = aflu * fator_conv
         dem_total_hm3 = (payload.durb_m3s + payload.dsupl_m3s) * fator_conv
         ret_vec_hm3 = (payload.durb_m3s * fator_conv * np.array(payload.frac_durb)) + (payload.dsupl_m3s * fator_conv * np.array(payload.frac_dsup))
+        ret_vec_otimizacao_hm3 = diferenciar_retiradas_equivalentes(ret_vec_hm3)
         evap_serie_m = evap / 1000.0
 
         meses_serie = np.array([(payload.mes_inicio - 1 + i) % 12 + 1 for i in range(len(aflu_hm3))])
@@ -396,7 +436,7 @@ def simular_generator(payload: SimularPayload):
             np.random.seed(payload.seed)
         optimizer = ps.single.GlobalBestPSO(n_particles=200, dimensions=n_vars, options={'c1': 0.5, 'c2': 0.3, 'w': 0.9}, bounds=bounds)
 
-        kwargs = dict(aflu_hm3=aflu_hm3, evap_serie_m=evap_serie_m, dem_total_hm3=dem_total_hm3, ret_vec_hm3=ret_vec_hm3, cap_hm3=cap_hm3, cav_vol=cav_vol, cav_area=cav_area, garantia_req=payload.garantia_req, aflu_prob=aflu_prob, evap_ano=evap_ano, ninicio=payload.ninicio, mes_inicio=payload.mes_inicio)
+        kwargs = dict(aflu_hm3=aflu_hm3, evap_serie_m=evap_serie_m, dem_total_hm3=dem_total_hm3, ret_vec_hm3=ret_vec_otimizacao_hm3, cap_hm3=cap_hm3, cav_vol=cav_vol, cav_area=cav_area, garantia_req=payload.garantia_req, aflu_prob=aflu_prob, evap_ano=evap_ano, ninicio=payload.ninicio, mes_inicio=payload.mes_inicio)
 
         passos_por_bloco = 5
         total_blocos = max(1, payload.iters // passos_por_bloco)
@@ -420,7 +460,7 @@ def simular_generator(payload: SimularPayload):
             yield f"data: {json.dumps(progresso_data)}\n\n"
 
         melhores_metas = np.sort(best_pos / 10.0)
-        garantias_finais, curvas_finais = gerar_resultado_final(melhores_metas, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec_hm3, cap_hm3, cav_vol, cav_area, aflu_prob, evap_ano, payload.ninicio, payload.mes_inicio)
+        garantias_finais, curvas_finais = gerar_resultado_final(melhores_metas, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec_otimizacao_hm3, cap_hm3, cav_vol, cav_area, aflu_prob, evap_ano, payload.ninicio, payload.mes_inicio)
         volumes_hist = simular_serie_historica_fast(curvas_finais, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, payload.mes_inicio)
         volumes_hist = np.where(np.isfinite(volumes_hist), volumes_hist, 0.0)
         sim_detalhada = simular_serie_historica_detalhada_fast(curvas_finais, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_vol, cav_area, payload.mes_inicio)

@@ -103,6 +103,58 @@ ordem_meses = {
 }
 
 
+MESES_ORDEM = tuple(ordem_meses.keys())
+FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID = "pgps_fogareiro_quixeramobim_cenario_1"
+FOGAREIRO_QUIXERAMOBIM_CENARIO_1 = {
+    "id": FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID,
+    "controlador_cod": "119",
+    "receptor_cod": "16",
+    "gatilho_receptor_percent": 30.0,
+    "limites_percent": {
+        "Alerta": [49.152542, 46.610169, 45.762712, 50.000000, 67.796610, 66.101695, 64.406780, 62.711864, 60.169492, 57.627119, 54.237288, 51.694915],
+        "Seca": [39.830508, 38.135593, 37.288136, 41.525424, 57.627119, 55.084746, 53.389831, 51.694915, 50.000000, 47.457627, 44.915254, 42.372881],
+        "Seca Severa": [27.966102, 26.271186, 25.423729, 30.508475, 41.525424, 39.830508, 38.135593, 37.288136, 35.593220, 33.898305, 31.355932, 29.661017],
+    },
+    # Retiradas locais. A Tabela 5.3 soma a retirada do Fogareiro com a
+    # transferencia: 272 + 500 = 772 L/s no estado Normal, por exemplo.
+    "demandas_lps": {
+        "119": {"Normal": 272.0, "Alerta": 220.0, "Seca": 139.6, "Seca Severa": 6.0},
+        "16": {"Normal": 342.0, "Alerta": 301.8, "Seca": 213.3, "Seca Severa": 70.5},
+    },
+    "transferencias_lps": {
+        "Normal": 500.0,
+        "Alerta": 400.0,
+        "Seca": 300.0,
+        "Seca Severa": 85.0,
+    },
+}
+
+
+def faixas_fogareiro_quixeramobim_percentuais():
+    demandas = FOGAREIRO_QUIXERAMOBIM_CENARIO_1["demandas_lps"]["119"]
+    normal = demandas["Normal"]
+    faixas = []
+    for nome in ("Seca Severa", "Seca", "Alerta"):
+        linha = {
+            "Faixa": nome,
+            "Racionamento": round((1.0 - demandas[nome] / normal) * 100.0, 2),
+        }
+        linha.update({
+            mes: round(valor, 2)
+            for mes, valor in zip(
+                MESES_ORDEM,
+                FOGAREIRO_QUIXERAMOBIM_CENARIO_1["limites_percent"][nome],
+            )
+        })
+        faixas.append(linha)
+    faixas.append({
+        "Faixa": "Normal",
+        "Racionamento": 0.0,
+        **{mes: 100.0 for mes in MESES_ORDEM},
+    })
+    return faixas
+
+
 
 # recebe os limites mensais (% do volume) e o racionamento de cada nÃ­vel meta
 class FaixaCustom(BaseModel):
@@ -139,12 +191,14 @@ class SimulacaoRequest(BaseModel):
     reservatorios: List[Reservatorio]
     modo: str
     vazao_conjunta: float
+    atendimento_transferencia: float = 100.0
     mes_inicial: str
     ano_inicial: int
     mes_final: str
     ano_final: int
     cenario_hidrologico: str = "historico"
     usar_niveis_meta: bool = False
+    cenario_hidrossistema: Optional[str] = None
 
 
 class VazoesBaseRequest(BaseModel):
@@ -360,7 +414,36 @@ def normalizar_modo_simulacao(modo: str) -> str:
     return "individual"
 
 
-def simular_sistema_n(series, params, modo, vazao_conjunta):
+def estado_fogareiro_quixeramobim(
+    volume_hm3: float,
+    capacidade_hm3: float,
+    mes: int,
+) -> str:
+    limites = FOGAREIRO_QUIXERAMOBIM_CENARIO_1["limites_percent"]
+    indice_mes = max(1, min(int(mes), 12)) - 1
+    volume_percent = (
+        volume_hm3 / capacidade_hm3 * 100.0
+        if capacidade_hm3 > 0
+        else 0.0
+    )
+    tolerancia_percent = 1e-6
+    if volume_percent <= limites["Seca Severa"][indice_mes] + tolerancia_percent:
+        return "Seca Severa"
+    if volume_percent <= limites["Seca"][indice_mes] + tolerancia_percent:
+        return "Seca"
+    if volume_percent <= limites["Alerta"][indice_mes] + tolerancia_percent:
+        return "Alerta"
+    return "Normal"
+
+
+def simular_sistema_n(
+    series,
+    params,
+    modo,
+    vazao_conjunta,
+    atendimento_transferencia=100.0,
+    cenario_hidrossistema=None,
+):
     n_res = len(series)
     if n_res == 0:
         return []
@@ -368,6 +451,28 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
     n_meses = len(series[0]["datas"])
     modo_id = normalizar_modo_simulacao(modo)
     vazao_conjunta = float(vazao_conjunta)
+    atendimento_transferencia = max(0.0, min(float(atendimento_transferencia), 100.0)) / 100.0
+    cenario_fq_ativo = (
+        cenario_hidrossistema == FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID
+        and modo_id == "serie"
+    )
+    indices_por_codigo = {
+        str(param.get("cod", "")): indice
+        for indice, param in enumerate(params)
+    }
+    indice_controlador_fq = indices_por_codigo.get(
+        FOGAREIRO_QUIXERAMOBIM_CENARIO_1["controlador_cod"]
+    )
+    indice_receptor_fq = indices_por_codigo.get(
+        FOGAREIRO_QUIXERAMOBIM_CENARIO_1["receptor_cod"]
+    )
+    if cenario_fq_ativo and (
+        indice_controlador_fq is None or indice_receptor_fq is None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="O cenário PGPS requer os reservatórios Fogareiro e Quixeramobim.",
+        )
 
     for serie in series[1:]:
         if len(serie["datas"]) != n_meses or serie["datas"] != series[0]["datas"]:
@@ -383,6 +488,7 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
             "armazenamento_final": np.zeros(n_meses, dtype=float),
             "demanda_solicitada": np.zeros(n_meses, dtype=float),
             "demanda_atendida": np.zeros(n_meses, dtype=float),
+            "retirada_total": np.zeros(n_meses, dtype=float),
             "racionamento": np.zeros(n_meses, dtype=float),
             "transferencia_recebida": np.zeros(n_meses, dtype=float),
             "transferencia_enviada": np.zeros(n_meses, dtype=float),
@@ -397,6 +503,14 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
     evaporacoes_m = [serie["evaporacao_mm"] / 1000.0 for serie in series]
 
     for t in range(n_meses):
+        estado_sistema_fq = None
+        if cenario_fq_ativo:
+            estado_sistema_fq = estado_fogareiro_quixeramobim(
+                volumes_atuais[indice_controlador_fq],
+                float(params[indice_controlador_fq]["capacidade"]),
+                series[indice_controlador_fq]["meses_num"][t],
+            )
+
         demandas_iniciais = []
         racionamentos = []
         nomes_faixas_atuais = []
@@ -411,8 +525,18 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
 
             rac = 0.0
             nome_faixa = "Normal"
+            codigo = str(p.get("cod", ""))
+            demandas_cenario = FOGAREIRO_QUIXERAMOBIM_CENARIO_1["demandas_lps"].get(codigo)
+            if cenario_fq_ativo and demandas_cenario:
+                demanda_normal = demandas_cenario["Normal"] / 1000.0
+                demanda_estado = demandas_cenario[estado_sistema_fq] / 1000.0
+                rac = (1.0 - demanda_estado / demanda_normal) * 100.0
+                nome_faixa = estado_sistema_fq
+            else:
+                demanda_normal = float(p["demanda_nominal"])
+
             regras = p["regras_secas"].get(mes_atual, []) if p["regras_secas"] else []
-            if regras:
+            if regras and not cenario_fq_ativo:
                 nome_faixa = "Acima do Teto"
                 for limite, rac_regra, faixa in regras:
                     if pct_vol <= limite:
@@ -420,7 +544,7 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
                         nome_faixa = faixa
                         break
 
-            demandas_iniciais.append(float(p["demanda_nominal"]))
+            demandas_iniciais.append(demanda_normal)
             racionamentos.append(rac)
             nomes_faixas_atuais.append(nome_faixa)
 
@@ -473,25 +597,61 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
 
         elif modo_id == "serie":
             for i in range(n_res):
-                demanda_base = demandas_iniciais[i] + (vazao_conjunta if i == 0 else 0.0)
-                demandas_finais[i] = demanda_base * (1.0 - racionamentos[i] / 100.0)
+                demandas_finais[i] = demandas_iniciais[i] * (1.0 - racionamentos[i] / 100.0)
 
-            for i in range(1, n_res):
-                idx_sender = i
-                idx_receiver = i - 1
-                vol_gatilho = float(params[idx_receiver]["capacidade"]) * (
-                    float(params[idx_receiver]["gatilho"]) / 100.0
+            if cenario_fq_ativo:
+                idx_sender = indice_controlador_fq
+                idx_receiver = indice_receptor_fq
+                vol_gatilho = (
+                    float(params[idx_receiver]["capacidade"])
+                    * FOGAREIRO_QUIXERAMOBIM_CENARIO_1["gatilho_receptor_percent"]
+                    / 100.0
                 )
                 if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho:
-                    vol_demanda_hm3 = demandas_finais[idx_receiver] * (SEGUNDOS_MES_PADRAO / 1e6)
-                    disponivel_sender = prev_volumes_pos_natureza[idx_sender]
-                    qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
-                    prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
-                    prev_volumes_pos_natureza[idx_sender] -= qtd_transferir_hm3
+                    transferencia_normal = (
+                        FOGAREIRO_QUIXERAMOBIM_CENARIO_1["transferencias_lps"]["Normal"]
+                    )
+                    fator_estado = (
+                        FOGAREIRO_QUIXERAMOBIM_CENARIO_1["transferencias_lps"][estado_sistema_fq]
+                        / transferencia_normal
+                    )
+                    fluxo_enviado_alvo = (
+                        vazao_conjunta * fator_estado * atendimento_transferencia
+                    )
+                    volume_enviado_alvo = fluxo_enviado_alvo * (SEGUNDOS_MES_PADRAO / 1e6)
+                    volume_enviado = min(
+                        volume_enviado_alvo,
+                        max(prev_volumes_pos_natureza[idx_sender], 0.0),
+                    )
+                    volume_recebido = volume_enviado
 
-                    fluxo_transferido = qtd_transferir_hm3 * (1e6 / SEGUNDOS_MES_PADRAO)
-                    transferencias_registradas[idx_receiver] += fluxo_transferido
-                    transferencias_enviadas[idx_sender] += fluxo_transferido
+                    prev_volumes_pos_natureza[idx_receiver] += volume_recebido
+                    prev_volumes_pos_natureza[idx_sender] -= volume_enviado
+
+                    transferencias_registradas[idx_receiver] = (
+                        volume_recebido * (1e6 / SEGUNDOS_MES_PADRAO)
+                    )
+                    transferencias_enviadas[idx_sender] = (
+                        volume_enviado * (1e6 / SEGUNDOS_MES_PADRAO)
+                    )
+            else:
+                for i in range(1, n_res):
+                    idx_sender = i
+                    idx_receiver = i - 1
+                    vol_gatilho = float(params[idx_receiver]["capacidade"]) * (
+                        float(params[idx_receiver]["gatilho"]) / 100.0
+                    )
+                    if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho:
+                        fluxo_transferencia = vazao_conjunta * atendimento_transferencia
+                        vol_demanda_hm3 = fluxo_transferencia * (SEGUNDOS_MES_PADRAO / 1e6)
+                        disponivel_sender = prev_volumes_pos_natureza[idx_sender]
+                        qtd_transferir_hm3 = min(vol_demanda_hm3, disponivel_sender)
+                        prev_volumes_pos_natureza[idx_receiver] += qtd_transferir_hm3
+                        prev_volumes_pos_natureza[idx_sender] -= qtd_transferir_hm3
+
+                        fluxo_transferido = qtd_transferir_hm3 * (1e6 / SEGUNDOS_MES_PADRAO)
+                        transferencias_registradas[idx_receiver] += fluxo_transferido
+                        transferencias_enviadas[idx_sender] += fluxo_transferido
 
         else:
             for i in range(n_res):
@@ -507,9 +667,7 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
             if modo_id == "paralelo":
                 saida["demanda_solicitada"][t] = demandas_solicitadas_paralelo[i]
             else:
-                saida["demanda_solicitada"][t] = demandas_iniciais[i] + (
-                    vazao_conjunta if i == 0 else 0.0
-                )
+                saida["demanda_solicitada"][t] = demandas_iniciais[i]
                 saida["transferencia_recebida"][t] = transferencias_registradas[i]
                 saida["transferencia_enviada"][t] = transferencias_enviadas[i]
 
@@ -538,6 +696,9 @@ def simular_sistema_n(series, params, modo, vazao_conjunta):
             saida["falha"][t] = "Sim" if falhou else "Não"
             falhas_do_mes.append(falhou)
             saida["demanda_atendida"][t] = demanda_atendida_hm3 * (1e6 / SEGUNDOS_MES_PADRAO)
+            saida["retirada_total"][t] = (
+                saida["demanda_atendida"][t] + transferencias_enviadas[i]
+            )
             saida["evaporacao_hm3"][t] = evap_hm3
             saida["vertimento_hm3"][t] = vertimento
             saida["armazenamento_final"][t] = vol_final
@@ -578,14 +739,48 @@ def listar_presets():
         for nome_sis, group in df_hidro.groupby('hidrossistema'):
             # detecta o modo de operaÃ§Ã£o pelo texto salvo no banco
             modo = group['operacao'].iloc[0]
-            modo_operacao = ("SÃ©rie"    if 'ser'   in str(modo).lower() else
+            modo_operacao = ("Série"     if 'ser'   in str(modo).lower() else
                              "Paralelo" if 'paral' in str(modo).lower() else
                              "Individual")
-            presets.append({
+            preset = {
                 "nome":          nome_sis,
                 "modo":          modo_operacao,
                 "reservatorios": group['cod_acude'].astype(str).tolist()
-            })
+            }
+            codigos = set(preset["reservatorios"])
+            if {"16", "119"}.issubset(codigos) and modo_operacao == "Série":
+                preset.update({
+                    "nome": "Fogareiro/Quixeramobim - PGPS Cenário 1",
+                    "reservatorios": ["119", "16"],
+                    "cenario_hidrossistema": FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID,
+                    "fonte": "Plano de Gestão Proativa de Seca, cenário 1 escolhido",
+                    "periodo": {
+                        "mes_inicial": "JAN",
+                        "ano_inicial": 1911,
+                        "mes_final": "DEZ",
+                        "ano_final": 2019,
+                    },
+                    "defaults": {
+                        "16": {
+                            "demanda_lps": 342.0,
+                            "vol_inicial_percent": 100.0,
+                            "gatilho_percent": 30.0,
+                        },
+                        "119": {
+                            "demanda_lps": 272.0,
+                            "vol_inicial_percent": 100.0,
+                            "gatilho_percent": 0.0,
+                        },
+                    },
+                    "niveis_meta": {
+                        "reservatorio_cod": "119",
+                        "faixas": faixas_fogareiro_quixeramobim_percentuais(),
+                    },
+                    "vazao_transferencia_lps": 500.0,
+                    "atendimento_transferencia_percent": 100.0,
+                    "transferencias_lps": FOGAREIRO_QUIXERAMOBIM_CENARIO_1["transferencias_lps"],
+                })
+            presets.append(preset)
         return presets
     finally:
         conexao.close()
@@ -726,6 +921,7 @@ def montar_registros_simulador(serie, saida):
             "Armazenamento Final": float(saida["armazenamento_final"][i]),
             "Demanda Solicitada (m³/s)": float(saida["demanda_solicitada"][i]),
             "Demanda Atendida (m³/s)": float(saida["demanda_atendida"][i]),
+            "Retirada Total (m³/s)": float(saida["retirada_total"][i]),
             "Racionamento (%)": float(saida["racionamento"][i]),
             "Transferência Recebida (m³/s)": float(saida["transferencia_recebida"][i]),
             "Transferência Enviada (m³/s)": float(saida["transferencia_enviada"][i]),
@@ -765,6 +961,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
             )
             series.append(serie)
             params.append({
+                "cod": str(reservatorio.cod),
                 "cav_vol": cav_vol,
                 "cav_area": cav_area,
                 "regras_secas": regras_mes,
@@ -776,7 +973,17 @@ def processar_simulacao_api(req: SimulacaoRequest):
     finally:
         conexao.close()
 
-    saidas = simular_sistema_n(series, params, req.modo, req.vazao_conjunta)
+    cenario_hidrossistema_ativo = (
+        req.cenario_hidrossistema if req.usar_niveis_meta else None
+    )
+    saidas = simular_sistema_n(
+        series,
+        params,
+        req.modo,
+        req.vazao_conjunta,
+        req.atendimento_transferencia,
+        cenario_hidrossistema_ativo,
+    )
     resultados = [
         {
             "reservatorio": req.reservatorios[i].nome,
@@ -784,7 +991,11 @@ def processar_simulacao_api(req: SimulacaoRequest):
         }
         for i in range(len(series))
     ]
-    return {"status": "sucesso", "resultados": resultados}
+    return {
+        "status": "sucesso",
+        "resultados": resultados,
+        "cenario_hidrossistema": cenario_hidrossistema_ativo,
+    }
 
 
 # rota que retorna o plano de secas (faixas de racionamento) de um aÃ§ude especÃ­fico

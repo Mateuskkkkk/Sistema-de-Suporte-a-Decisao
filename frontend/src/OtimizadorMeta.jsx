@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
 } from 'recharts'
 import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send,
-  Download, FileSpreadsheet, Plus, Search, X,
+  Download, FileSpreadsheet, FileText, Plus, Search, X,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { elementToPngDataUrl } from './components/ChartExportMenu'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const MESES_NOMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -59,6 +60,15 @@ function downloadText(filename, content, type = 'text/csv;charset=utf-8;') {
 
 function safeName(value) {
   return String(value || 'otimizacao').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_')
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 function makeApi(base) {
@@ -308,6 +318,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   const [refAreaLeft, setRefAreaLeft] = useState(null)
   const [refAreaRight, setRefAreaRight] = useState(null)
   const [zoomDomain, setZoomDomain] = useState(null)
+  const levelsChartRef = useRef(null)
+  const volumeChartRef = useRef(null)
 
   const scenario = scenarios.find(s => s.id === activeScenarioId) || scenarios[0]
   const result = resultsByScenario[activeScenarioId] || null
@@ -526,6 +538,67 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulacao')
     XLSX.writeFile(wb, `otimizacao_${safeName(reservatorio)}.xlsx`)
   }
+
+  const exportOptimizationReport = async () => {
+    if (!result) return
+    setMsg({ type: 'success', text: 'Gerando relat\u00f3rio visual...' })
+    try {
+      const [levelsImage, volumeImage] = await Promise.all([
+        elementToPngDataUrl(levelsChartRef.current),
+        elementToPngDataUrl(volumeChartRef.current),
+      ])
+      const performance = performanceRows()
+      const curves = curvasParaFaixas(result, scenario)
+      const performanceHtml = performance.map(row => `
+        <tr>
+          <td>${escapeHtml(row['Nivel Operacional'])}</td>
+          <td>${escapeHtml(row['Vazao Total (L/s)'])}</td>
+          <td>${escapeHtml(row['Permanencia Exigida'])}%</td>
+          <td>${escapeHtml(row['Permanencia Obtida'])}%</td>
+        </tr>`).join('')
+      const curvesHtml = curves.map(row => `
+        <tr>
+          <td>${escapeHtml(row.Faixa)}</td>
+          ${MESES.map(month => `<td>${escapeHtml(row[month])}</td>`).join('')}
+        </tr>`).join('')
+      const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Relat&oacute;rio da otimiza&ccedil;&atilde;o - ${escapeHtml(reservatorio)}</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;color:#1e1208;background:#fff}main{max-width:1120px;margin:0 auto;padding:32px}
+    h1{font-size:24px;margin:0 0 5px}h2{font-size:16px;margin:28px 0 10px;color:#c46318}p{margin:4px 0;color:#6f4b32}
+    .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}.meta div{border:1px solid #ecdcc8;padding:10px}.meta b{display:block;font-size:11px;color:#9a7055;margin-bottom:4px}
+    figure{margin:12px 0 24px;border:1px solid #ecdcc8;padding:12px;break-inside:avoid}figure img{display:block;width:100%;height:auto}figcaption{font-size:12px;font-weight:700;margin-bottom:9px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ecdcc8;padding:7px;text-align:center}th{background:#fdf6ee;color:#6f4b32}td:first-child,th:first-child{text-align:left;font-weight:700}
+    footer{margin-top:28px;padding-top:12px;border-top:1px solid #ecdcc8;font-size:10px;color:#9a7055}@media print{main{max-width:none;padding:12mm}figure{page-break-inside:avoid}}
+  </style>
+</head>
+<body><main>
+  <h1>Relat&oacute;rio da otimiza&ccedil;&atilde;o de n&iacute;veis meta</h1>
+  <p>${escapeHtml(reservatorio)} &middot; ${escapeHtml(scenario.name)}</p>
+  <div class="meta">
+    <div><b>Demanda</b>${escapeHtml(m3sToLps(scenario.durb))} L/s</div>
+    <div><b>Per&iacute;odo</b>${MESES[mesIni - 1]}/${anoIni} a ${MESES[mesFim - 1]}/${anoFim}</div>
+    <div><b>Probabilidade de aflu&ecirc;ncia</b>${escapeHtml((prob * 100).toFixed(0))}%</div>
+    <div><b>Itera&ccedil;&otilde;es PSO</b>${escapeHtml(iters)}</div>
+  </div>
+  ${levelsImage ? `<figure><figcaption>Curvas dos n&iacute;veis meta</figcaption><img src="${levelsImage}" alt="Curvas dos n&iacute;veis meta"></figure>` : ''}
+  <h2>Desempenho por n&iacute;vel operacional</h2>
+  <table><thead><tr><th>N&iacute;vel</th><th>Vaz&atilde;o total (L/s)</th><th>Perman&ecirc;ncia exigida</th><th>Perman&ecirc;ncia obtida</th></tr></thead><tbody>${performanceHtml}</tbody></table>
+  ${volumeImage ? `<figure><figcaption>S&eacute;rie hist&oacute;rica de volumes</figcaption><img src="${volumeImage}" alt="S&eacute;rie hist&oacute;rica de volumes"></figure>` : ''}
+  <h2>Valores mensais das curvas (% do volume)</h2>
+  <table><thead><tr><th>N&iacute;vel</th>${MESES.map(month => `<th>${month}</th>`).join('')}</tr></thead><tbody>${curvesHtml}</tbody></table>
+  <footer>Gerado pelo Sistema de Suporte &agrave; Decis&atilde;o em ${new Date().toLocaleString('pt-BR')}.</footer>
+</main></body></html>`
+      downloadText(`relatorio_otimizacao_${safeName(reservatorio)}.html`, html, 'text/html;charset=utf-8;')
+      setMsg({ type: 'success', text: 'Relat\u00f3rio visual exportado com gr\u00e1ficos e valores dos n\u00edveis.' })
+    } catch (error) {
+      setMsg({ type: 'error', text: `Falha ao gerar relat\u00f3rio: ${error.message}` })
+    }
+  }
   const chartData = buildBandChartData(result?.matriz_curvas)
   const chartDataVolume = buildHistoricalVolumeData(result, mesIni, anoIni)
   const bandZoom = useBoxZoom(chartData, 'mes')
@@ -572,7 +645,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               <button className="opt-btn opt-ghost" onClick={exportCurvesCSV}><Download size={14} /> CSV Curvas</button>
               <button className="opt-btn opt-ghost" onClick={exportVolumesCSV}><Download size={14} /> CSV Volumes</button>
               <button className="opt-btn opt-ghost" onClick={exportSimulationExcel}><FileSpreadsheet size={14} /> Planilha Simulação</button>
-              <button className="opt-btn opt-ghost" onClick={exportOptimizationExcel}><FileSpreadsheet size={14} /> Salvar Resultados</button>
+              <button className="opt-btn opt-ghost" onClick={exportOptimizationExcel}><FileSpreadsheet size={14} /> Excel Resultados</button>
+              <button className="opt-btn opt-ghost" onClick={exportOptimizationReport}><FileText size={14} /> Salvar relat&oacute;rio</button>
               <button className="opt-btn opt-primary" onClick={apply}>
                 <Send size={14} /> Aplicar no Simulador
               </button>
@@ -727,7 +801,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                     </button>
                   )}
                 </div>
-                <div style={{ height: 330 }}>
+                <div ref={levelsChartRef} data-chart-name="curvas_niveis_meta" style={{ height: 330 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={bandZoom.data} margin={{ top: 10, right: 12, bottom: 0, left: -18 }} {...bandZoom.props}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ecdcc8" />
@@ -791,7 +865,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                       </button>
                     )}
                   </div>
-                  <div style={{ height: 300, userSelect: 'none' }}>
+                  <div ref={volumeChartRef} data-chart-name="serie_historica_volumes" style={{ height: 300, userSelect: 'none' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         data={activeDataVolume}

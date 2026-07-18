@@ -3,6 +3,7 @@ import { Moon, Sun } from 'lucide-react'
 import SimuladorHidrico from './Simulador'
 import OtimizadorMeta from './OtimizadorMeta'
 import PrevisaoVazoes from './PrevisaoVazoes'
+import ChartExportMenu from './components/ChartExportMenu'
 
 export default function App() {
   const [view, setView] = useState('simulador')
@@ -95,6 +96,7 @@ export default function App() {
       ) : (
         <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="knn" />
       )}
+      <ChartExportMenu />
     </div>
   )
 }
