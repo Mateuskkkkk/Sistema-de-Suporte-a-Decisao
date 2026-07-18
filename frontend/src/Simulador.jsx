@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react'
 import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar,
+  AreaChart, Area, LineChart, Line, BarChart, Bar, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
   ScatterChart, Scatter,
 } from 'recharts'
@@ -12,6 +12,7 @@ import {
   Activity,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { downloadElementAsPng } from './components/ChartExportMenu'
 
 // nomes dos meses abreviados, usados em vários lugares do app
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
@@ -373,15 +374,32 @@ function FailureDetail({ resultados }) {
     </Card>
   )
 }
-function ChartCard({ title, subtitle, children }) {
+function ChartCard({ title, subtitle, children, action }) {
   return (
     <Card className="sim-fade" style={{ padding:'16px 18px' }}>
-      <div style={{ marginBottom:12 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>{title}</div>
-        {subtitle && <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>{subtitle}</div>}
+      <div style={{ marginBottom:12, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>{title}</div>
+          {subtitle && <div style={{ fontSize:11, color:'var(--text-light)', marginTop:2 }}>{subtitle}</div>}
+        </div>
+        {action}
       </div>
       {children}
     </Card>
+  )
+}
+
+function ExportTableImageButton({ targetId, filename }) {
+  return (
+    <button
+      type="button"
+      className="sim-ghost"
+      title="Exportar tabela como imagem PNG"
+      onClick={() => downloadElementAsPng(document.getElementById(targetId), filename)}
+      style={{ flexShrink:0 }}
+    >
+      <Download size={12}/> Imagem PNG
+    </button>
   )
 }
 
@@ -497,7 +515,6 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
           } else {
             p[`Vol.% (${r.reservatorio})`] = volPct
           }
-          p[`Afluência (${r.reservatorio})`] = parseFloat(d['Afluências (hm³/mês)'])||0
         }
       })
       return p
@@ -526,7 +543,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
 
   const mkTrData = (sel) => {
     const res = resSel(sel)
-    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){const rc=parseFloat(d['Transferência Recebida (m³/s)'])||0; const ev=parseFloat(d['Transferência Enviada (m³/s)'])||0; if(rc>0||ev>0){p[`Rec.(${r.reservatorio})`]=rc; p[`Env.(${r.reservatorio})`]=ev}} }); return p })
+    return allD.map(data => { const p={data}; res.forEach(r=>{ const d=r.dados.find(x=>x.Data===data); if(d){const ev=parseFloat(d['Transferência Enviada (m³/s)'])||0; if(ev>0)p[`Env.(${r.reservatorio})`]=ev} }); return p })
   }
 
   const volData = mkVolData(selVol)
@@ -540,12 +557,14 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
   const serieVazoesZoom = useBoxZoom(serieVazoesData)
   const trZoom = useBoxZoom(trData)
 
-  const hasTransf = modo==='Série' && allD.some(data=>{ const p=mkTrData('todos').find(x=>x.data===data); return p&&Object.keys(p).length>1 })
-
-  const volKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Vol.')) : []
-  const aflKeys = volData[0] ? Object.keys(volData[0]).filter(k=>k!=='data'&&k.startsWith('Afluência')) : []
-  const racKeys = racData[0] ? Object.keys(racData[0]).filter(k=>k!=='data') : []
-  const serieKeys = serieVazoesData[0] ? Object.keys(serieVazoesData[0]).filter(k=>k!=='data') : []
+  const keysFromAllRows = (data, predicate=()=>true) => [
+    ...new Set(data.flatMap(row=>Object.keys(row).filter(k=>k!=='data'&&predicate(k))))
+  ]
+  const volKeys = keysFromAllRows(volData,k=>k.startsWith('Vol.'))
+  const racKeys = keysFromAllRows(racData)
+  const serieKeys = keysFromAllRows(serieVazoesData)
+  const trKeys = keysFromAllRows(trData)
+  const hasTransf = modo==='Série' && trKeys.length>0
   const activeRes = (sel) => sel==='todos'?resultados:[resultados[sel]]
 
   return (
@@ -555,11 +574,10 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
         <ZoomReset zoom={volZoom}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
-            <AreaChart data={volZoom.data} margin={{top:4,right:28,left:0,bottom:0}} {...volZoom.props}>
+            <ComposedChart data={volZoom.data} margin={{top:4,right:28,left:0,bottom:0}} {...volZoom.props}>
               <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
-              <YAxis yAxisId="afl" orientation="right" tick={{fontSize:10,fill:'var(--teal)'}} label={{value:'Afluência(hm³)',angle:90,position:'insideRight',fill:'var(--teal)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {usarNiveisMeta
                 ? volKeys.map((k)=>{
@@ -567,9 +585,8 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
                     return <Line key={k} yAxisId="vol" type="linear" dataKey={k} name={k.replace(/^Vol\.([a-z]+) /, (_, e) => `${nomeEstadoMeta(e)} `)} stroke={META_LINE_COLORS[estado] || COLORS[0].stroke} strokeWidth={2.2} dot={false} connectNulls={false}/>
                   })
                 : volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
-              {aflKeys.map((k,i)=><Line key={k} yAxisId="afl" type="monotone" dataKey={k} stroke={COLORS[(i+2)%4].stroke} strokeWidth={1.5} dot={false} strokeDasharray={"4 2"}/>)}
               {volZoom.area}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
@@ -641,7 +658,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-                {Object.keys(trData[0]||{}).filter(k=>k!=='data').map((k,i)=><Bar key={k} dataKey={k} fill={k.startsWith('Rec')?'#2a9d8f':'#9b2dca'} fillOpacity={0.7} radius={[3,3,0,0]}/>)}
+                {trKeys.map((k)=><Bar key={k} dataKey={k} fill="#9b2dca" fillOpacity={0.7} radius={[3,3,0,0]}/>)}
                 {trZoom.area}
               </BarChart>
             </ResponsiveContainer>
@@ -804,6 +821,14 @@ function VazoesDetail({ resultados, modo }) {
 function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
   if (!resultados?.length) return null
 
+  const nomeFaixaGarantia = valor => valor === 'Acima do Teto' ? 'Normal' : (valor || 'Normal')
+  const ordemFaixaGarantia = valor => ({
+    normal: 0,
+    alerta: 1,
+    seca: 2,
+    'seca severa': 3,
+  })[nomeFaixaGarantia(valor).trim().toLocaleLowerCase('pt-BR')] ?? 99
+
   const totalMeses = resultados[0].dados.length
   const dfs = resultados.map(r => r.dados)
 
@@ -881,9 +906,13 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         </ChartCard>
       )}
 
-      <ChartCard title="Análise de Vazões Totais do Sistema" subtitle="Permanência, frequência e garantia acumulada">
+      <ChartCard
+        title="Análise de Vazões Totais do Sistema"
+        subtitle="Permanência, frequência e garantia acumulada"
+        action={<ExportTableImageButton targetId="garantia-tabela-sistema" filename="analise_vazoes_totais_sistema"/>}
+      >
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+          <table id="garantia-tabela-sistema" style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
             <thead>
               <tr style={{ background:'var(--bg)' }}>
                 {['Vazão Total Sistema (m³/s)','Atendimento (%)','Permanência (meses)','Frequência (%)','Garantia Acumulada (%)'].map(h=>(
@@ -923,7 +952,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
         df.forEach(d => {
           if (d['Falha'] === 'Sim') return
           const rac      = parseFloat(d['Racionamento (%)']) || 0
-          const nome     = d['Modo Operação'] || 'Normal'
+          const nome     = nomeFaixaGarantia(d['Modo Operação'])
           const chave    = `${nome}__${rac}`
           if (!gruposVistos.has(chave)) {
             gruposVistos.add(chave)
@@ -931,7 +960,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           }
         })
 
-        grupos.sort((a,b) => a.rac - b.rac || a.nome.localeCompare(b.nome))
+        grupos.sort((a,b) => ordemFaixaGarantia(a.nome) - ordemFaixaGarantia(b.nome) || a.rac - b.rac)
 
         let cumG = 0
         const tabelaRes = []
@@ -940,7 +969,7 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           const filtro = df.filter(d =>
             d['Falha'] === 'Não' &&
             (parseFloat(d['Racionamento (%)']) || 0) === rac &&
-            (d['Modo Operação'] || 'Normal') === nome
+            nomeFaixaGarantia(d['Modo Operação']) === nome
           )
           if (!filtro.length) return
           const vazAlvo = demTot * (1 - rac / 100)
@@ -959,14 +988,17 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
                 <span style={{ fontSize:13, fontWeight:800, color:'var(--text)' }}>{r.reservatorio}</span>
                 <span style={{ fontSize:11, color:'var(--text-light)', marginLeft:10 }}>Demanda Total: <strong style={{ fontFamily:'JetBrains Mono' }}>{demTot.toFixed(3)} m³/s</strong></span>
               </div>
-              {demConj>0 && (
-                <span style={{ fontSize:10.5, background:'var(--blue-pale)', color:'var(--blue)', borderRadius:6, padding:'2px 9px', fontWeight:600 }}>
-                  {demNom.toFixed(3)} (espec.) + {demConj.toFixed(3)} (conjunta) = {demTot.toFixed(3)} m³/s
-                </span>
-              )}
+              <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+                {demConj>0 && (
+                  <span style={{ fontSize:10.5, background:'var(--blue-pale)', color:'var(--blue)', borderRadius:6, padding:'2px 9px', fontWeight:600 }}>
+                    {demNom.toFixed(3)} (espec.) + {demConj.toFixed(3)} (conjunta) = {demTot.toFixed(3)} m³/s
+                  </span>
+                )}
+                <ExportTableImageButton targetId={`garantia-tabela-res-${idx}`} filename={`garantia_${r.reservatorio}`}/>
+              </div>
             </div>
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+              <table id={`garantia-tabela-res-${idx}`} style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
                 <thead>
                   <tr style={{ background:'var(--bg)' }}>
                     {['Nível Meta','Racionamento (%)','Vazão Total (m³/s)','Meses Responsável','Frequência (%)','Garantia (%)'].map(h=>(
