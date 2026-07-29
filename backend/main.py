@@ -8,6 +8,7 @@ import sqlite3
 import os
 import unicodedata
 from typing import List, Dict, Optional
+from forecast_engine import router as previsao_router
 from optimizer_engine import router as otimizador_router, dinamica_mensal_fast
 
 # cria a aplicaÃ§Ã£o FastAPI
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(otimizador_router)
+app.include_router(previsao_router)
 
 # caminho do banco de dados SQLite na mesma pasta do script
 DB_PATH = os.path.join(os.path.abspath("."), "banco_site.db")

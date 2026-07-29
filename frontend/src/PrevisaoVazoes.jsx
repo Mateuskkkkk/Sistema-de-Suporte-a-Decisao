@@ -3,7 +3,10 @@ import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, ReferenceArea,
   Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { Activity, BarChart3, Download, RefreshCw, Search, TrendingUp, Waves } from 'lucide-react'
+import {
+  Activity, BarChart3, BrainCircuit, Check, Download, RefreshCw, Search,
+  SlidersHorizontal, TrendingUp, Waves,
+} from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
@@ -136,7 +139,7 @@ function exportVazoesGarantia(permanencia, reservatorio) {
   XLSX.writeFile(wb, `vazoes_garantia_${String(reservatorio || 'reservatorio').replace(/\s+/g, '_')}.xlsx`)
 }
 
-function exportPrevisaoKnn(previsao, reservatorio) {
+function exportPrevisao(previsao, reservatorio, importancia) {
   const wb = XLSX.utils.book_new()
   if (previsao?.previsao?.length) {
     const validacaoPorData = new Map((previsao.validacao || []).map(row => [row.data, row]))
@@ -166,23 +169,39 @@ function exportPrevisaoKnn(previsao, reservatorio) {
     const metricas = [{
       Reservatório: previsao.reservatorio || reservatorio,
       Método: previsao.metodo,
+      Modelo: String(previsao.modelo || '').toUpperCase(),
       K: previsao.parametros?.k,
-      Defasagens: previsao.parametros?.lags,
-      Horizonte: previsao.parametros?.horizonte,
+      'Defasagens de afluência': previsao.parametros?.lags,
+      'Horizonte (meses)': previsao.parametros?.horizonte,
+      'Defasagem climática (meses)': previsao.parametros?.lag_climatico,
       'Meses de teste': previsao.parametros?.teste_meses,
+      'Indicadores selecionados': (previsao.indicadores || []).map(item => item.label).join(', ') || 'Nenhum (modelo hidrológico e sazonal)',
       'Período inicial': previsao.periodo?.inicio,
       'Período final': previsao.periodo?.fim,
       'Meses usados': previsao.periodo?.meses,
       'MAE (m³/s)': previsao.metricas?.mae_m3s,
       'RMSE (m³/s)': previsao.metricas?.rmse_m3s,
-      'MAPE (%)': previsao.metricas?.mape_percent,
+      NSE: previsao.metricas?.nse,
+      Correlação: previsao.metricas?.correlacao,
+      'Viés (m³/s)': previsao.metricas?.vies_m3s,
     }]
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...historicoRows, ...previsaoRows]), safeSheetName('Serie mensal e previsao'))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(previsao.validacao || []), safeSheetName('Validacao'))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(previsao.previsao || []), safeSheetName('Previsao futura'))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(metricas), safeSheetName('Parametros e metricas'))
+    if (importancia?.indicadores?.length) {
+      const rows = importancia.indicadores.map(item => ({
+        Posição: item.posicao,
+        Indicador: item.label,
+        'Contribuição relativa (%)': item.contribuicao_relativa_percent,
+        'Variabilidade individual R² (%)': item.variabilidade_individual_r2_percent,
+        'Aumento do MSE por permutação (%)': item.aumento_mse_percent,
+        Selecionado: (previsao.indicadores || []).some(selected => selected.id === item.id) ? 'Sim' : 'Não',
+      }))
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), safeSheetName('Importancia indicadores'))
+    }
   }
-  XLSX.writeFile(wb, `previsao_knn_${String(reservatorio || 'reservatorio').replace(/\s+/g, '_')}.xlsx`)
+  XLSX.writeFile(wb, `previsao_afluencia_${String(reservatorio || 'reservatorio').replace(/\s+/g, '_')}.xlsx`)
 }
 
 export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' }) {
@@ -193,11 +212,22 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
   const [activeTab, setActiveTab] = useState(mode)
   const [periodo, setPeriodo] = useState({ mesInicial: 1, anoInicial: 1911, mesFinal: 12, anoFinal: 2021 })
   const [qxx, setQxx] = useState({ volInicial: 100 })
-  const [knn, setKnn] = useState({ k: 5, lags: 12, horizonte: 12, testeMeses: 24 })
+  const [knn, setKnn] = useState({
+    modelo: 'knn',
+    k: 5,
+    lags: 12,
+    horizonte: 3,
+    lagClimatico: 3,
+    testeMeses: 120,
+    metodoImportancia: 'permutacao',
+  })
   const [loading, setLoading] = useState(false)
+  const [loadingImportance, setLoadingImportance] = useState(false)
   const [msg, setMsg] = useState(null)
   const [permanencia, setPermanencia] = useState(null)
   const [previsao, setPrevisao] = useState(null)
+  const [importancia, setImportancia] = useState(null)
+  const [selectedIndicators, setSelectedIndicators] = useState([])
 
   useEffect(() => {
     fetch(`${base}/api/reservatorios`)
@@ -241,20 +271,73 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
     }
   }
 
+  const forecastPayload = () => ({
+    ...payloadBase(),
+    modelo: knn.modelo,
+    k: Number(knn.k),
+    lags: Number(knn.lags),
+    horizonte: Number(knn.horizonte),
+    lag_climatico: Number(knn.lagClimatico),
+    teste_meses: Number(knn.testeMeses),
+  })
+
+  const updateForecastConfig = changes => {
+    setKnn(current => ({ ...current, ...changes }))
+    setImportancia(null)
+    setSelectedIndicators([])
+    setPrevisao(null)
+  }
+
+  const recommendedIndicators = items => {
+    const selected = []
+    for (const item of items) {
+      const conflictsWithDipole = item.id === 'dipolo'
+        ? selected.includes('tna') || selected.includes('tsa')
+        : ['tna', 'tsa'].includes(item.id) && selected.includes('dipolo')
+      if (!conflictsWithDipole) selected.push(item.id)
+      if (selected.length === 3) break
+    }
+    return selected
+  }
+
+  const analyzeIndicators = async () => {
+    if (!reservatorio) return
+    setLoadingImportance(true)
+    setMsg(null)
+    try {
+      const data = await postJson(`${base}/api/previsao/importancia`, {
+        ...forecastPayload(),
+        metodo_importancia: knn.metodoImportancia,
+      })
+      setImportancia(data)
+      setSelectedIndicators(recommendedIndicators(data.indicadores))
+      setPrevisao(null)
+      setMsg({ type: 'success', text: 'Indicadores classificados. Três variáveis não redundantes foram pré-selecionadas.' })
+    } catch (e) {
+      setMsg({ type: 'error', text: e.message })
+    } finally {
+      setLoadingImportance(false)
+    }
+  }
+
+  const toggleIndicator = indicator => {
+    setSelectedIndicators(current => current.includes(indicator)
+      ? current.filter(item => item !== indicator)
+      : [...current, indicator])
+    setPrevisao(null)
+  }
+
   const runKnn = async () => {
     if (!reservatorio) return
     setLoading(true)
     setMsg(null)
     try {
-      const data = await postJson(`${base}/api/vazoes/previsao-knn`, {
-        ...payloadBase(),
-        k: Number(knn.k),
-        lags: Number(knn.lags),
-        horizonte: Number(knn.horizonte),
-        teste_meses: Number(knn.testeMeses),
+      const data = await postJson(`${base}/api/previsao/executar`, {
+        ...forecastPayload(),
+        indicadores: selectedIndicators,
       })
       setPrevisao(data)
-      setMsg({ type: 'success', text: 'Previsão KNN concluída.' })
+      setMsg({ type: 'success', text: `Previsão ${knn.modelo.toUpperCase()} concluída.` })
     } catch (e) {
       setMsg({ type: 'error', text: e.message })
     } finally {
@@ -283,7 +366,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
   const pageTitle = activeTab === 'qxx' ? 'Vazões de Garantia' : 'Previsão de Afluência'
   const pageSubtitle = activeTab === 'qxx'
     ? 'Cálculo de Q1 a Q100 por garantia mensal da demanda.'
-    : 'Previsão mensal de afluência por KNN usando a série histórica disponível.'
+    : 'Compare KNN e XGBoost, classifique indicadores climáticos e escolha as variáveis do modelo.'
 
   useEffect(() => {
     if (mode === 'qxx' || mode === 'knn') setActiveTab(mode)
@@ -291,7 +374,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
 
   return (
     <div className={`pv-root ${darkMode ? 'pv-dark' : ''}`} style={{ minHeight: 600, padding: '18px 26px 48px' }}>
-      <style>{`.pv-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pv-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--blue-pale:#071634;--red-pale:#2a0c0c;--shadow:0 2px 18px rgba(0,0,0,.45)}.pv-layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}.pv-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif}.pv-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.pv-ghost{background:var(--card);color:var(--text-mid);border:1.5px solid var(--border)}.pv-tabbar{display:flex;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;padding:3px;width:fit-content}.pv-tab{border:0;border-radius:7px;background:transparent;color:var(--text-light);font:900 12px 'Sora',sans-serif;padding:8px 13px;cursor:pointer}.pv-tab.on{background:var(--orange-pale);color:var(--orange-deep)}.pv-section{border-top:1.5px solid var(--border-light);padding-top:13px;margin-top:13px}.pv-table-wrap{max-height:430px;overflow:auto;border:1.5px solid var(--border);border-radius:var(--radius-sm)}.pv-table{width:100%;border-collapse:collapse;font-size:12px}.pv-table th{position:sticky;top:0;background:var(--card);color:var(--text-light);text-align:left;padding:8px;border-bottom:1.5px solid var(--border-light)}.pv-table td{padding:8px;border-bottom:1px solid var(--border-light)}@keyframes pv-spin{to{transform:rotate(360deg)}}.pv-spin{animation:pv-spin 1s linear infinite}@media(max-width:920px){.pv-layout{grid-template-columns:1fr}.pv-tabbar{width:100%}.pv-tab{flex:1}}`}</style>
+      <style>{`.pv-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pv-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--blue-pale:#071634;--red-pale:#2a0c0c;--shadow:0 2px 18px rgba(0,0,0,.45)}.pv-layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}.pv-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif}.pv-btn:disabled{cursor:not-allowed;opacity:.55}.pv-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.pv-ghost{background:var(--card);color:var(--text-mid);border:1.5px solid var(--border)}.pv-tabbar{display:flex;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;padding:3px;width:fit-content}.pv-tab{border:0;border-radius:7px;background:transparent;color:var(--text-light);font:900 12px 'Sora',sans-serif;padding:8px 13px;cursor:pointer}.pv-tab.on{background:var(--orange-pale);color:var(--orange-deep)}.pv-section{border-top:1.5px solid var(--border-light);padding-top:13px;margin-top:13px}.pv-model-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--border-light);padding:4px;border-radius:9px}.pv-model-option{border:0;border-radius:7px;padding:8px 6px;background:transparent;color:var(--text-light);font:900 11px 'Sora',sans-serif;cursor:pointer}.pv-model-option.on{background:var(--card);color:var(--orange-deep);box-shadow:0 1px 5px rgba(80,40,10,.12)}.pv-indicator-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}.pv-indicator{display:grid;grid-template-columns:18px minmax(0,1fr) 45px;gap:8px;align-items:center;width:100%;padding:8px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--card);color:var(--text);text-align:left;cursor:pointer;font-family:'Sora',sans-serif}.pv-indicator.on{border-color:var(--teal);background:var(--teal-pale)}.pv-check{width:16px;height:16px;border:1.5px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;background:var(--card)}.pv-indicator.on .pv-check{background:var(--teal);border-color:var(--teal);color:#fff}.pv-importance-track{height:4px;border-radius:3px;background:var(--border-light);overflow:hidden;margin-top:4px}.pv-importance-fill{height:100%;background:var(--orange);border-radius:3px}.pv-table-wrap{max-height:430px;overflow:auto;border:1.5px solid var(--border);border-radius:var(--radius-sm)}.pv-table{width:100%;border-collapse:collapse;font-size:12px}.pv-table th{position:sticky;top:0;background:var(--card);color:var(--text-light);text-align:left;padding:8px;border-bottom:1.5px solid var(--border-light)}.pv-table td{padding:8px;border-bottom:1px solid var(--border-light)}@keyframes pv-spin{to{transform:rotate(360deg)}}.pv-spin{animation:pv-spin 1s linear infinite}@media(max-width:920px){.pv-layout{grid-template-columns:1fr}.pv-tabbar{width:100%}.pv-tab{flex:1}}`}</style>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -306,7 +389,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
             className="pv-btn pv-ghost"
             onClick={() => activeTab === 'qxx'
               ? exportVazoesGarantia(permanencia, reservatorio)
-              : exportPrevisaoKnn(previsao, reservatorio)}
+              : exportPrevisao(previsao, reservatorio, importancia)}
           >
             <Download size={14} /> Excel
           </button>
@@ -316,7 +399,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
       {!isFixedMode && (
         <div className="pv-tabbar" style={{ marginBottom: 14 }}>
           <button className={`pv-tab ${activeTab === 'qxx' ? 'on' : ''}`} onClick={() => setActiveTab('qxx')}>Vazões de Garantia</button>
-          <button className={`pv-tab ${activeTab === 'knn' ? 'on' : ''}`} onClick={() => setActiveTab('knn')}>Previsão KNN</button>
+          <button className={`pv-tab ${activeTab === 'knn' ? 'on' : ''}`} onClick={() => setActiveTab('knn')}>Previsão de Afluência</button>
         </div>
       )}
 
@@ -327,7 +410,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
       )}
 
       <div className="pv-layout">
-        <Card style={{ padding: 16, position: 'sticky', top: 14 }}>
+        <Card style={{ padding: 16, position: 'sticky', top: 14, maxHeight: 'calc(100vh - 28px)', overflowY: 'auto' }}>
           <Field label="Reservatório">
             <div style={{ position: 'relative' }}>
               <Search size={13} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--text-light)' }} />
@@ -335,7 +418,13 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
               {query && filtrados.length > 0 && query !== reservatorio && (
                 <div style={{ position: 'absolute', zIndex: 20, left: 0, right: 0, top: 'calc(100% + 4px)', maxHeight: 220, overflow: 'auto', background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-xs)', boxShadow: 'var(--shadow)', padding: 4 }}>
                   {filtrados.map(nome => (
-                    <button key={nome} type="button" onClick={() => { setReservatorio(nome); setQuery(nome) }} style={{ display: 'block', width: '100%', textAlign: 'left', border: 0, background: 'transparent', color: 'var(--text)', padding: '7px 9px', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>
+                    <button key={nome} type="button" onClick={() => {
+                      setReservatorio(nome)
+                      setQuery(nome)
+                      setImportancia(null)
+                      setSelectedIndicators([])
+                      setPrevisao(null)
+                    }} style={{ display: 'block', width: '100%', textAlign: 'left', border: 0, background: 'transparent', color: 'var(--text)', padding: '7px 9px', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>
                       {nome}
                     </button>
                   ))}
@@ -379,24 +468,91 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
           ) : (
             <>
               <div className="pv-section">
+                <Field label="Modelo">
+                  <div className="pv-model-switch">
+                    <button type="button" className={`pv-model-option ${knn.modelo === 'knn' ? 'on' : ''}`} onClick={() => updateForecastConfig({ modelo: 'knn' })}>KNN</button>
+                    <button type="button" className={`pv-model-option ${knn.modelo === 'xgboost' ? 'on' : ''}`} onClick={() => updateForecastConfig({ modelo: 'xgboost' })}>XGBoost</button>
+                  </div>
+                </Field>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Field label="K">
-                    <Control type="number" min="1" max="50" value={knn.k} onChange={e => setKnn(p => ({ ...p, k: e.target.value }))} />
+                  {knn.modelo === 'knn' && (
+                    <Field label="Vizinhos (K)">
+                      <Control type="number" min="1" max="50" value={knn.k} onChange={e => updateForecastConfig({ k: e.target.value })} />
+                    </Field>
+                  )}
+                  <Field label="Lags de afluência">
+                    <Control type="number" min="1" max="24" value={knn.lags} onChange={e => updateForecastConfig({ lags: e.target.value })} />
                   </Field>
-                  <Field label="Defasagens">
-                    <Control type="number" min="1" max="24" value={knn.lags} onChange={e => setKnn(p => ({ ...p, lags: e.target.value }))} />
+                  <Field label="Horizonte (meses)">
+                    <Control type="number" min="1" max="12" value={knn.horizonte} onChange={e => updateForecastConfig({ horizonte: e.target.value })} />
                   </Field>
-                  <Field label="Horizonte">
-                    <Control type="number" min="1" max="36" value={knn.horizonte} onChange={e => setKnn(p => ({ ...p, horizonte: e.target.value }))} />
+                  <Field label="Lag climático">
+                    <Control type="number" min="1" max="12" value={knn.lagClimatico} onChange={e => updateForecastConfig({ lagClimatico: e.target.value })} />
                   </Field>
-                  <Field label="Teste meses">
-                    <Control type="number" min="0" max="120" value={knn.testeMeses} onChange={e => setKnn(p => ({ ...p, testeMeses: e.target.value }))} />
+                  <Field label="Validação (meses)">
+                    <Control type="number" min="12" max="240" value={knn.testeMeses} onChange={e => updateForecastConfig({ testeMeses: e.target.value })} />
                   </Field>
                 </div>
               </div>
-              <button className="pv-btn pv-primary" onClick={runKnn} disabled={loading || !reservatorio} style={{ width: '100%', marginTop: 16, opacity: loading ? 0.75 : 1 }}>
-                {loading ? <RefreshCw size={14} className="pv-spin" /> : <Activity size={14} />}
-                {loading ? 'Calculando...' : 'Gerar Previsão'}
+
+              <div className="pv-section">
+                <Field label="Método de importância">
+                  <Control as="select" value={knn.metodoImportancia} onChange={e => updateForecastConfig({ metodoImportancia: e.target.value })}>
+                    <option value="permutacao">Permutação do modelo</option>
+                    <option value="select_k_best">Select K Best</option>
+                    <option value="ganho_xgboost">Ganho do XGBoost</option>
+                    <option value="copeland">Copeland unificado</option>
+                  </Control>
+                </Field>
+                <button className="pv-btn pv-ghost" onClick={analyzeIndicators} disabled={loadingImportance || loading || !reservatorio} style={{ width: '100%', marginTop: 9 }}>
+                  {loadingImportance ? <RefreshCw size={14} className="pv-spin" /> : <SlidersHorizontal size={14} />}
+                  {loadingImportance ? 'Analisando...' : 'Analisar Indicadores'}
+                </button>
+
+                {importancia?.indicadores?.length ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--text-light)', textTransform: 'uppercase' }}>Variáveis do modelo</div>
+                      <button type="button" onClick={() => {
+                        setSelectedIndicators(importancia.indicadores.map(item => item.id))
+                        setPrevisao(null)
+                      }} style={{ border: 0, background: 'transparent', color: 'var(--orange-deep)', font: "800 10px 'Sora', sans-serif", cursor: 'pointer' }}>Selecionar todas</button>
+                    </div>
+                    <div className="pv-indicator-list">
+                      {importancia.indicadores.map(item => {
+                        const checked = selectedIndicators.includes(item.id)
+                        return (
+                          <button key={item.id} type="button" className={`pv-indicator ${checked ? 'on' : ''}`} onClick={() => toggleIndicator(item.id)}>
+                            <span className="pv-check">{checked && <Check size={11} />}</span>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ display: 'block', fontSize: 11, fontWeight: 900 }}>{item.label}</span>
+                              <span style={{ display: 'block', fontSize: 9.5, color: 'var(--text-light)', marginTop: 2 }}>R² individual {Number(item.variabilidade_individual_r2_percent).toFixed(1)}%</span>
+                              <span className="pv-importance-track"><span className="pv-importance-fill" style={{ width: `${Math.min(100, item.contribuicao_relativa_percent)}%`, display: 'block' }} /></span>
+                            </span>
+                            <span style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--orange-deep)', textAlign: 'right' }}>{Number(item.contribuicao_relativa_percent).toFixed(1)}%</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {selectedIndicators.includes('dipolo') && selectedIndicators.includes('tna') && selectedIndicators.includes('tsa') && (
+                      <div style={{ marginTop: 8, padding: 8, borderRadius: 7, background: 'var(--orange-pale)', color: 'var(--text-mid)', fontSize: 10.5, lineHeight: 1.4 }}>
+                        O dipolo é calculado por TNA − TSA. Usar os três juntos adiciona variáveis redundantes.
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8, color: 'var(--text-light)', fontSize: 9.5, lineHeight: 1.4 }}>
+                      A contribuição relativa soma 100%. O R² individual é apenas a associação isolada de cada índice.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ marginTop: 9, color: 'var(--text-light)', fontSize: 10.5, lineHeight: 1.45 }}>
+                    Analise os índices para obter o ranking e selecionar as variáveis climáticas.
+                  </div>
+                )}
+              </div>
+
+              <button className="pv-btn pv-primary" onClick={runKnn} disabled={loading || loadingImportance || !reservatorio || !importancia} style={{ width: '100%', marginTop: 16 }}>
+                {loading ? <RefreshCw size={14} className="pv-spin" /> : <BrainCircuit size={14} />}
+                {loading ? 'Calculando...' : `Gerar Previsão ${knn.modelo.toUpperCase()}`}
               </button>
             </>
           )}
@@ -466,12 +622,51 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
                   <Metric label="Meses usados" value={previsao.periodo?.meses || 0} sub={`${previsao.periodo?.inicio} a ${previsao.periodo?.fim}`} icon={BarChart3} />
+                  <Metric label="Modelo" value={String(previsao.modelo || '').toUpperCase()} sub={`${previsao.indicadores?.length || 0} indicador(es) climático(s)`} icon={BrainCircuit} />
                   {previsao?.metricas?.rmse_m3s !== undefined && <Metric label="RMSE validação" value={previsao.metricas.rmse_m3s.toFixed(3)} sub="m³/s" icon={TrendingUp} />}
                   {previsao?.metricas?.mae_m3s !== undefined && <Metric label="MAE validação" value={previsao.metricas.mae_m3s.toFixed(3)} sub="m³/s" icon={TrendingUp} />}
+                  {previsao?.metricas?.nse !== null && previsao?.metricas?.nse !== undefined && <Metric label="NSE validação" value={previsao.metricas.nse.toFixed(3)} sub="1,0 representa ajuste perfeito" icon={Activity} />}
                 </div>
 
+                {importancia?.indicadores?.length > 0 && (
+                  <Card style={{ padding: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 9 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 900 }}>Indicadores Climáticos</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2 }}>{importancia.metodo_label} · contribuição relativa normalizada</div>
+                      </div>
+                      <div style={{ padding: '5px 8px', borderRadius: 7, background: 'var(--teal-pale)', color: 'var(--teal)', fontSize: 10, fontWeight: 900 }}>
+                        {previsao.indicadores?.length || 0} selecionado(s)
+                      </div>
+                    </div>
+                    <div className="pv-table-wrap" style={{ maxHeight: 300 }}>
+                      <table className="pv-table">
+                        <thead>
+                          <tr><th>Posição</th><th>Indicador</th><th>Usado</th><th>Contribuição relativa</th><th>R² individual</th><th>ΔMSE permutação</th></tr>
+                        </thead>
+                        <tbody>
+                          {importancia.indicadores.map(item => {
+                            const used = (previsao.indicadores || []).some(selected => selected.id === item.id)
+                            return (
+                              <tr key={item.id}>
+                                <td>{item.posicao}º</td>
+                                <td style={{ fontWeight: 900 }}>{item.label}</td>
+                                <td style={{ color: used ? 'var(--teal)' : 'var(--text-light)', fontWeight: 900 }}>{used ? 'Sim' : 'Não'}</td>
+                                <td>{Number(item.contribuicao_relativa_percent).toFixed(2)}%</td>
+                                <td>{Number(item.variabilidade_individual_r2_percent).toFixed(2)}%</td>
+                                <td>{Number(item.aumento_mse_percent).toFixed(2)}%</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                )}
+
                 <Card style={{ padding: 14 }}>
-                  <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 8 }}>Previsão KNN</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 3 }}>Previsão {String(previsao.modelo || '').toUpperCase()}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-light)', marginBottom: 8 }}>Modelos diretos e independentes para cada horizonte futuro.</div>
                   <ZoomReset zoom={forecastZoom}/>
                   <div style={{ height: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -510,9 +705,9 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
               </>
             ) : (
               <Card style={{ padding: 46, textAlign: 'center' }}>
-                <Activity size={34} color="var(--orange)" style={{ opacity: 0.55, marginBottom: 10 }} />
-                <div style={{ fontSize: 15, fontWeight: 900 }}>Gere uma previsão KNN</div>
-                <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>A previsão usa defasagens da série e sazonalidade mensal.</div>
+                <BrainCircuit size={34} color="var(--orange)" style={{ opacity: 0.55, marginBottom: 10 }} />
+                <div style={{ fontSize: 15, fontWeight: 900 }}>Configure sua previsão</div>
+                <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>Classifique os indicadores, escolha as variáveis e execute KNN ou XGBoost.</div>
               </Card>
             )
           )}
