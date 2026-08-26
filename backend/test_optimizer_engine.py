@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -6,10 +7,51 @@ from optimizer_engine import (
     calcular_erro_garantias,
     diferenciar_retiradas_equivalentes,
     engine_simulacao_temporal,
+    nomes_faixas,
+    validar_faixas_payload,
 )
 
 
 class EquivalentTargetLevelTests(unittest.TestCase):
+    def test_band_labels_support_two_to_four_operational_bands(self):
+        self.assertEqual(nomes_faixas(2), ["Normal", "Alerta"])
+        self.assertEqual(nomes_faixas(3), ["Normal", "Alerta", "Seca"])
+        self.assertEqual(
+            nomes_faixas(4), ["Normal", "Alerta", "Seca", "Seca Severa"]
+        )
+
+    def test_band_labels_accept_valid_custom_names(self):
+        self.assertEqual(
+            nomes_faixas(3, ["Operação Plena", "Restrição", "Emergência"]),
+            ["Operação Plena", "Restrição", "Emergência"],
+        )
+
+        with self.assertRaises(ValueError):
+            nomes_faixas(3, ["Normal", "Alerta"])
+        with self.assertRaises(ValueError):
+            nomes_faixas(3, ["Normal", "", "Seca"])
+        with self.assertRaises(ValueError):
+            nomes_faixas(3, ["Normal", "normal", "Seca"])
+
+    def test_band_payload_enforces_limit_and_vector_sizes(self):
+        payload = SimpleNamespace(
+            quantidade_faixas=3,
+            frac_durb=[1.0, 0.8, 0.5],
+            frac_dsup=[1.0, 0.5, 0.0],
+            garantia_req=[0.9, 0.98, 1.0],
+            faixas_nomes=["Plena", "Restrita", "Crítica"],
+        )
+        validar_faixas_payload(payload)
+
+        payload.quantidade_faixas = 5
+        with self.assertRaises(ValueError):
+            validar_faixas_payload(payload)
+
+        payload.quantidade_faixas = 3
+        payload.garantia_req = [0.9, 1.0]
+        with self.assertRaises(ValueError):
+            validar_faixas_payload(payload)
+
     def test_distinct_attendances_are_not_adjusted(self):
         withdrawals = np.array([1.0, 0.9, 0.8, 0.5])
 

@@ -162,6 +162,7 @@ def faixas_fogareiro_quixeramobim_percentuais():
 class FaixaCustom(BaseModel):
     Faixa: str
     Racionamento: float
+    NomeFaixaNormal: Optional[str] = None
     JAN: float = 100
     FEV: float = 100
     MAR: float = 100
@@ -539,7 +540,7 @@ def simular_sistema_n(
 
             regras = p["regras_secas"].get(mes_atual, []) if p["regras_secas"] else []
             if regras and not cenario_fq_ativo:
-                nome_faixa = "Acima do Teto"
+                nome_faixa = p.get("nome_faixa_normal", "Acima do Teto")
                 for limite, rac_regra, faixa in regras:
                     if pct_vol <= limite:
                         rac = float(rac_regra)
@@ -967,6 +968,12 @@ def processar_simulacao_api(req: SimulacaoRequest):
                 "cav_vol": cav_vol,
                 "cav_area": cav_area,
                 "regras_secas": regras_mes,
+                "nome_faixa_normal": (
+                    reservatorio.plano_secas_custom[0].NomeFaixaNormal
+                    if reservatorio.plano_secas_custom
+                    and reservatorio.plano_secas_custom[0].NomeFaixaNormal
+                    else "Acima do Teto"
+                ),
                 "capacidade": float(reservatorio.capacidade),
                 "vol_ini": float(reservatorio.vol_inicial),
                 "demanda_nominal": float(reservatorio.demanda),

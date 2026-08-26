@@ -31,7 +31,45 @@ class SimularPayload(BaseModel):
     frac_durb: List[float]
     frac_dsup: List[float]
     garantia_req: List[float]
+    quantidade_faixas: int = 4
+    faixas_nomes: Optional[List[str]] = None
     seed: Optional[int] = None
+
+
+def nomes_faixas(
+    quantidade_faixas: int,
+    nomes_personalizados: Optional[List[str]] = None,
+) -> list[str]:
+    nomes_padrao = ["Normal", "Alerta", "Seca", "Seca Severa"]
+    if nomes_personalizados is None:
+        return nomes_padrao[:quantidade_faixas]
+
+    nomes = [str(nome).strip() for nome in nomes_personalizados]
+    if len(nomes) != quantidade_faixas:
+        raise ValueError(f"Informe exatamente {quantidade_faixas} nomes de faixas.")
+    if any(not nome for nome in nomes):
+        raise ValueError("Os nomes das faixas não podem ficar vazios.")
+    if len({nome.casefold() for nome in nomes}) != len(nomes):
+        raise ValueError("Os nomes das faixas devem ser diferentes entre si.")
+    return nomes
+
+
+def validar_faixas_payload(payload: SimularPayload) -> None:
+    quantidade = int(payload.quantidade_faixas)
+    if not 2 <= quantidade <= 4:
+        raise ValueError("A quantidade de faixas deve estar entre 2 e 4.")
+    tamanhos = {
+        "atendimento da demanda": len(payload.frac_durb),
+        "atendimento suplementar": len(payload.frac_dsup),
+        "permanências requeridas": len(payload.garantia_req),
+    }
+    invalidos = [nome for nome, tamanho in tamanhos.items() if tamanho != quantidade]
+    if invalidos:
+        raise ValueError(
+            "Cada vetor de faixas deve possuir "
+            f"{quantidade} valores: " + ", ".join(invalidos) + "."
+        )
+    nomes_faixas(quantidade, payload.faixas_nomes)
 
 
 def get_db_path():
@@ -404,6 +442,8 @@ def funcao_objetivo_pso(x_matrix, aflu_hm3, evap_serie_m, dem_total_hm3, ret_vec
 
 def simular_generator(payload: SimularPayload):
     try:
+        validar_faixas_payload(payload)
+        faixas_nomes = nomes_faixas(payload.quantidade_faixas, payload.faixas_nomes)
         aflu, evap, cap_hm3, cav_vol, cav_area = carregar_dados_fisicos(
             payload.reservatorio, payload.mes_inicio, payload.ano_inicio, payload.mes_fim, payload.ano_fim
         )
@@ -475,7 +515,7 @@ def simular_generator(payload: SimularPayload):
             ret_ef_m3s = float(sim_detalhada[i, 4] / segundos_mes)
             rac = 0.0 if ret_sol_m3s <= 0 else max(0.0, (1.0 - (ret_ef_m3s / ret_sol_m3s)) * 100.0)
             estado_idx = int(sim_detalhada[i, 7])
-            modo_operacao = "Normal" if estado_idx == 0 else ("Alerta" if estado_idx == 1 else ("Seca" if estado_idx == 2 else "Seca Severa"))
+            modo_operacao = faixas_nomes[estado_idx]
             simulacao_historica.append({
                 "Data": f"{meses_rotulo[mes_idx]}/{ano_atual}",
                 "Armazenamento Inicial": float(sim_detalhada[i, 0]),
@@ -492,6 +532,8 @@ def simular_generator(payload: SimularPayload):
         
         resultado_final = {
             "status": "sucesso", "cenario_id": payload.cenario_id, "custo_final": float(best_cost),
+            "quantidade_faixas": int(payload.quantidade_faixas),
+            "faixas_nomes": faixas_nomes,
             "niveis_meta": melhores_metas[::-1].tolist(), "garantias_obtidas": garantias_finais.tolist(),
             "matriz_curvas": curvas_finais[::-1].tolist(), "volumes_historicos": volumes_hist.tolist(),
             "simulacao_historica": simulacao_historica,

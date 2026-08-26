@@ -1373,54 +1373,48 @@ function nivelColor(idx, total) {
 }
 
 function NiveisMeta({ faixas }) {
-  const n = faixas.length
-
+  const nomeFaixaNormal = faixas.find(f => f.NomeFaixaNormal)?.NomeFaixaNormal || 'Normal'
   const faixasOrdenadas = [...faixas].sort((a, b) => {
     const ma = MESES.reduce((s,m) => s+(parseFloat(a[m])||0), 0)
     const mb = MESES.reduce((s,m) => s+(parseFloat(b[m])||0), 0)
     return mb - ma
   })
 
-  const cores = faixasOrdenadas.map((f, i) => {
+  // A faixa Normal ocupa sempre o restante entre o maior limite e 100%.
+  const faixasRestritas = faixasOrdenadas.filter(f => (
+    f._tipoFaixa === 'restrita' || String(f.Faixa || '').trim().toLowerCase() !== 'normal'
+  ))
+  const n = faixasRestritas.length
+
+  const cores = faixasRestritas.map((f, i) => {
+    if (f._cor) return f._cor
     const nome = String(f.Faixa || '').toLowerCase()
     if (nome.includes('alerta') || nome.includes('atenção') || nome.includes('atencao')) return '#d4a017'
     if (nome.includes('severa') || nome.includes('emergência') || nome.includes('emergencia') || nome.includes('crítico') || nome.includes('critico')) return '#d94040'
     if (nome.includes('seca')) return '#e07b2a'
     return nivelColor(i, n)
   })
-  const corBandasMeta = {
-    normal: '#2a9d8f',
-    alerta: '#d4a017',
-    seca: '#e07b2a',
-    severa: '#d94040',
-  }
 
-  const findFaixa = (patterns, fallbackIndex) => {
-    const found = faixasOrdenadas.find(f => {
-      const nome = String(f.Faixa || '').toLowerCase()
-      return patterns.some(p => nome.includes(p))
-    })
-    return found || faixasOrdenadas[fallbackIndex] || faixasOrdenadas[0]
-  }
-
-  const faixaAlerta = findFaixa(['alerta', 'atenção', 'atencao'], 0)
-  const faixaSeca = findFaixa(['seca'], 1)
-  const faixaSevera = findFaixa(['severa', 'emergência', 'emergencia', 'crítico', 'critico'], 2)
+  const bandasGrafico = [
+    ...faixasRestritas.map((faixa, i) => ({
+      faixa,
+      chave: `faixa_${i + 1}`,
+      nome: faixa.Faixa || `Faixa ${i + 1}`,
+      cor: cores[i],
+    })).reverse(),
+    { chave: 'faixa_0', nome: nomeFaixaNormal, cor: '#2a9d8f' },
+  ]
 
   const data = MESES.map(mes => {
-    const alerta = parseFloat(faixaAlerta?.[mes]) || 0
-    const seca = parseFloat(faixaSeca?.[mes]) || 0
-    const severa = parseFloat(faixaSevera?.[mes]) || 0
-    return {
-      mes,
-      severa,
-      seca: Math.max(0, seca - severa),
-      alerta: Math.max(0, alerta - seca),
-      normal: Math.max(0, 100 - alerta),
-      limiteAlerta: alerta,
-      limiteSeca: seca,
-      limiteSevera: severa,
-    }
+    const linha = { mes }
+    let limiteAnterior = 0
+    bandasGrafico.slice(0, -1).forEach(banda => {
+      const limite = parseFloat(banda.faixa[mes]) || 0
+      linha[banda.chave] = Math.max(0, limite - limiteAnterior)
+      limiteAnterior = limite
+    })
+    linha.faixa_0 = Math.max(0, 100 - limiteAnterior)
+    return linha
   })
   const metaZoom = useBoxZoom(data, 'mes')
 
@@ -1429,7 +1423,7 @@ function NiveisMeta({ faixas }) {
     return (
       <div style={{ background:'#fff', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
         <div style={{ fontWeight:700, marginBottom:6, color:'var(--text)' }}>{label}</div>
-        {faixasOrdenadas.map((f, i) => (
+        {faixasRestritas.map((f, i) => (
           <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
             <div style={{ width:7, height:7, borderRadius:'50%', background:cores[i] }}/>
             <span style={{ color:'var(--text-mid)' }}>{f.Faixa}:</span>
@@ -1457,16 +1451,15 @@ function NiveisMeta({ faixas }) {
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
               label={{value:'% Cap.',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
             <Tooltip content={<Tip/>}/>
-            <Area type="linear" dataKey="severa" stackId="meta" name="Seca Severa" stroke={corBandasMeta.severa} fill={corBandasMeta.severa} fillOpacity={0.55} dot={false} activeDot={false}/>
-            <Area type="linear" dataKey="seca" stackId="meta" name="Seca" stroke={corBandasMeta.seca} fill={corBandasMeta.seca} fillOpacity={0.5} dot={false} activeDot={false}/>
-            <Area type="linear" dataKey="alerta" stackId="meta" name="Alerta" stroke={corBandasMeta.alerta} fill={corBandasMeta.alerta} fillOpacity={0.48} dot={false} activeDot={false}/>
-            <Area type="linear" dataKey="normal" stackId="meta" name="Normal" stroke={corBandasMeta.normal} fill={corBandasMeta.normal} fillOpacity={0.45} dot={false} activeDot={false}/>
+            {bandasGrafico.map(banda => (
+              <Area key={banda.chave} type="linear" dataKey={banda.chave} stackId="meta" name={banda.nome} stroke={banda.cor} fill={banda.cor} fillOpacity={banda.chave === 'faixa_0' ? 0.45 : 0.52} dot={false} activeDot={false}/>
+            ))}
             {metaZoom.area}
           </AreaChart>
         </ResponsiveContainer>
       </div>
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-        {faixasOrdenadas.map((f, i) => {
+        {faixasRestritas.map((f, i) => {
           const cor = cores[i]
           const rac = parseFloat(f.Racionamento) || 0
           const racTexto = Number.isInteger(rac) ? String(rac) : rac.toFixed(2)
@@ -1479,7 +1472,7 @@ function NiveisMeta({ faixas }) {
         })}
         <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:10.5, borderRadius:20, padding:'3px 11px', fontWeight:600, background:'#e8e0d422', color:'var(--text-light)', border:'1.5px solid #e8e0d466' }}>
           <span style={{ width:8, height:8, borderRadius:'50%', background:'#c8b8a0', display:'inline-block', flexShrink:0 }}/>
-          Sem restrição
+          {nomeFaixaNormal} — Sem restrição
         </span>
       </div>
     </Card>
