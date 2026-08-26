@@ -61,7 +61,7 @@ def validar_faixas_payload(payload: SimularPayload) -> None:
     tamanhos = {
         "atendimento da demanda": len(payload.frac_durb),
         "atendimento suplementar": len(payload.frac_dsup),
-        "permanências requeridas": len(payload.garantia_req),
+        "garantias requeridas": len(payload.garantia_req),
     }
     invalidos = [nome for nome, tamanho in tamanhos.items() if tamanho != quantidade]
     if invalidos:

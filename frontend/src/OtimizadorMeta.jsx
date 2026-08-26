@@ -550,7 +550,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       result,
       scenario,
     })
-    setMsg({ type: 'success', text: 'Curvas enviadas para o simulador com reservatório e demandas preenchidos.' })
+    setMsg({ type: 'success', text: 'Curvas enviadas para o simulador com reservatório e demanda preenchidos automaticamente.' })
   }
 
   const labelsAtivos = scenario?.labels || result?.faixas_nomes || labelsForBands(scenario?.quantidadeFaixas)
@@ -559,10 +559,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     const vazaoTotal = (Number(scenario.durb || 0) * Number(scenario.fracDurb[i] || 0))
       + (Number(scenario.dsupl || 0) * Number(scenario.fracDsup[i] || 0))
     return {
-      'Nivel Operacional': label,
-      'Vazao Total (L/s)': Number((vazaoTotal * 1000).toFixed(3)),
-      'Permanencia Exigida': Number(((Number(scenario.garantiaReq[i] || 0)) * 100).toFixed(2)),
-      'Permanencia Obtida': Number(((Number(result?.garantias_obtidas?.[i] || 0)) * 100).toFixed(2)),
+      'Nível Operacional': label,
+      'Vazão Total (L/s)': Number((vazaoTotal * 1000).toFixed(3)),
+      'Garantia Requerida': Number(((Number(scenario.garantiaReq[i] || 0)) * 100).toFixed(2)),
+      'Garantia Obtida': Number(((Number(result?.garantias_obtidas?.[i] || 0)) * 100).toFixed(2)),
     }
   })
 
@@ -584,7 +584,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
   const exportCurvesCSV = () => {
     if (!result?.matriz_curvas) return
-    let csv = `Mes;${labelsAtivos.slice(1).join(';')}\n`
+    let csv = `Mês;${labelsAtivos.slice(1).join(';')}\n`
     MESES.forEach((mes, i) => {
       csv += `${mes};${result.matriz_curvas.map(curve => (Number(curve[i] || 0) * 100).toFixed(2)).join(';')}\n`
     })
@@ -593,7 +593,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
   const exportVolumesCSV = () => {
     if (!result?.volumes_historicos?.length) return
-    let csv = 'Data;Volume Absoluto (hm3);Volume Percentual (%)\n'
+    let csv = 'Data;Volume Absoluto (hm³);Volume Percentual (%)\n'
     const simMesIni = result.mes_inicio ?? mesIni
     const simAnoIni = result.ano_inicio ?? anoIni
     const cap = result.capacidade_hm3 || 1
@@ -609,7 +609,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     const rows = simulationRows()
     if (!rows.length) return
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulacao')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulação')
     XLSX.writeFile(wb, `simulacao_${safeName(reservatorio)}.xlsx`)
   }
 
@@ -624,7 +624,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       Estado: labelsAtivos[d.origEstado],
     }))), 'Volumes')
     const rows = simulationRows()
-    if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulacao')
+    if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulação')
     XLSX.writeFile(wb, `otimizacao_${safeName(reservatorio)}.xlsx`)
   }
 
@@ -640,10 +640,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       const curves = curvasParaFaixas(result, scenario)
       const performanceHtml = performance.map(row => `
         <tr>
-          <td>${escapeHtml(row['Nivel Operacional'])}</td>
-          <td>${escapeHtml(row['Vazao Total (L/s)'])}</td>
-          <td>${escapeHtml(row['Permanencia Exigida'])}%</td>
-          <td>${escapeHtml(row['Permanencia Obtida'])}%</td>
+          <td>${escapeHtml(row['Nível Operacional'])}</td>
+          <td>${escapeHtml(row['Vazão Total (L/s)'])}</td>
+          <td>${escapeHtml(row['Garantia Requerida'])}%</td>
+          <td>${escapeHtml(row['Garantia Obtida'])}%</td>
         </tr>`).join('')
       const curvesHtml = curves.map(row => `
         <tr>
@@ -676,7 +676,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   </div>
   ${levelsImage ? `<figure><figcaption>Curvas dos n&iacute;veis meta</figcaption><img src="${levelsImage}" alt="Curvas dos n&iacute;veis meta"></figure>` : ''}
   <h2>Desempenho por n&iacute;vel operacional</h2>
-  <table><thead><tr><th>N&iacute;vel</th><th>Vaz&atilde;o total (L/s)</th><th>Perman&ecirc;ncia exigida</th><th>Perman&ecirc;ncia obtida</th></tr></thead><tbody>${performanceHtml}</tbody></table>
+  <table><thead><tr><th>N&iacute;vel</th><th>Vaz&atilde;o total (L/s)</th><th>Garantia requerida</th><th>Garantia obtida</th></tr></thead><tbody>${performanceHtml}</tbody></table>
   ${volumeImage ? `<figure><figcaption>S&eacute;rie hist&oacute;rica de volumes</figcaption><img src="${volumeImage}" alt="S&eacute;rie hist&oacute;rica de volumes"></figure>` : ''}
   <h2>Valores mensais das curvas (% do volume)</h2>
   <table><thead><tr><th>N&iacute;vel</th>${MESES.map(month => `<th>${month}</th>`).join('')}</tr></thead><tbody>${curvesHtml}</tbody></table>
@@ -762,7 +762,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label">Prob. Afluência</label>
+              <label className="opt-label">Prob. de Afluência</label>
               <div className="opt-control-row">
                 <input type="range" min="0.05" max="0.95" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
                 <input className="opt-mini" type="number" min="0" max="1" step="0.05" value={prob} onChange={e => setProb(Number(e.target.value))} />
@@ -780,7 +780,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             <div>
               <label className="opt-label">Período de Simulação</label>
               <div className="opt-period-row">
-                <span className="opt-period-name">Inicio</span>
+                <span className="opt-period-name">Início</span>
                 <div className="opt-period-fields">
                   <select className="opt-month" value={mesIni} onChange={e => setMesIni(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
                   <input className="opt-year" type="number" min={bounds.anoMin} max={anoFim} value={anoIni} onChange={e => setAnoIni(Number(e.target.value))} />
@@ -796,7 +796,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label center">Mês Início Ano Hidrológico</label>
+              <label className="opt-label center">Mês Inicial do Ano Hidrológico</label>
               <select className="opt-month opt-hydro-select" value={ninicio} onChange={e => setNinicio(Number(e.target.value))}>
                 {MESES_NOMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
@@ -860,7 +860,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div className="opt-input-card">
-              <p className="opt-matrix-title">Permanências Requeridas (%)</p>
+              <p className="opt-matrix-title">Garantias Requeridas (%)</p>
               <div className="opt-matrix-labels" style={{ gridTemplateColumns: `repeat(${labelsAtivos.length}, minmax(0, 1fr))` }}>{labelsAtivos.map((label, i) => <span key={label} style={{ color: CURVE_COLORS[i] }}>{label}</span>)}</div>
               <div className="opt-matrix" style={{ gridTemplateColumns: `repeat(${labelsAtivos.length}, minmax(0, 1fr))` }}>
                 {scenario.garantiaReq.map((v, i) => (
@@ -884,7 +884,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
           <div className="opt-run-dock">
             <button className="opt-btn opt-run" onClick={handleRun} disabled={loading || !reservatorio} style={{ opacity: loading ? 0.7 : 1 }}>
               {loading ? <RefreshCw size={14} className="opt-spin" /> : <Play size={14} />}
-              {loading ? `Otimizando ${progress}%` : 'Simular Cenário'}
+              {loading ? `Otimizando ${progress}%` : 'Otimizar Cenário'}
             </button>
           </div>
         </aside>
@@ -894,7 +894,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             <Card style={{ padding: 48, textAlign: 'center' }}>
               <Database size={32} color="var(--orange)" style={{ opacity: 0.4, marginBottom: 10 }} />
               <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 5 }}>Pronto para otimizar</div>
-              <div style={{ fontSize: 12, color: 'var(--text-light)' }}>Escolha o reservatório e os estados operacionais para calcular curvas guia.</div>
+              <div style={{ fontSize: 12, color: 'var(--text-light)' }}>Escolha o reservatório e as faixas de operação para calcular as curvas-guia.</div>
             </Card>
           )}
 
@@ -941,10 +941,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                 <table className="opt-perm-table">
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left' }}>Nivel Operacional</th>
-                      <th>Vazao Total (L/s)</th>
-                      <th>Permanencia Exigida</th>
-                      <th>Permanencia Obtida</th>
+                      <th style={{ textAlign: 'left' }}>Nível Operacional</th>
+                      <th>Vazão Total (L/s)</th>
+                      <th>Garantia Requerida</th>
+                      <th>Garantia Obtida</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -974,7 +974,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                 <Card style={{ padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 900 }}>
-                      <Activity size={16} color="var(--orange)" /> Simulacao Historica de Volumes (%)
+                      <Activity size={16} color="var(--orange)" /> Simulação Histórica de Volumes (%)
                     </div>
                     {zoomDomain && (
                       <button className="opt-btn opt-ghost" onClick={() => setZoomDomain(null)} style={{ padding: '6px 10px', fontSize: 10 }}>
@@ -1006,7 +1006,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               )}
 
               <Card style={{ padding: 16, overflow: 'hidden' }}>
-                <div className="opt-section-title">Valores das Curvas (% Volume)</div>
+                <div className="opt-section-title">Valores das Curvas (% do Volume)</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)' }}>
