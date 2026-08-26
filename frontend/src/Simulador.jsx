@@ -460,24 +460,30 @@ function ZoomReset({ zoom }) {
   )
 }
 
-const META_LINE_COLORS = {
-  normal: '#2a9d8f',
-  alerta: '#d4a017',
-  seca: '#e07b2a',
-  severa: '#d94040',
+function normalizarNomeFaixa(nome) {
+  return String(nome || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
 }
 
-function estadoMetaLinha(d) {
-  const modo = String(d?.['Modo Operação'] || '').toLowerCase()
-  const rac = parseFloat(d?.['Racionamento (%)']) || 0
-  if (d?.Falha === 'Sim' || modo.includes('severa') || modo.includes('emerg') || rac >= 70) return 'severa'
-  if (modo.includes('seca') || rac >= 35) return 'seca'
-  if (modo.includes('alerta') || modo.includes('aten') || rac > 0) return 'alerta'
-  return 'normal'
+function nomeFaixaGrafico(d) {
+  if (d?.Falha === 'Sim') return 'Colapso'
+  return String(d?.['Modo Operação'] || '').trim() || 'Normal'
 }
 
-function nomeEstadoMeta(estado) {
-  return ({ normal: 'Normal', alerta: 'Alerta', seca: 'Seca', severa: 'Seca severa' })[estado] || estado
+function corFaixaGrafico(nome, racionamento = 0) {
+  const faixa = normalizarNomeFaixa(nome)
+  if (faixa.includes('colapso') || faixa.includes('falha')) return '#7f1d1d'
+  if (faixa.includes('normal') || faixa.includes('acima do teto')) return '#2a9d8f'
+  if (faixa.includes('alerta') || faixa.includes('atencao')) return '#d4a017'
+  if (faixa.includes('severa') || faixa.includes('emerg') || faixa.includes('critic')) return '#d94040'
+  if (faixa.includes('seca')) return '#e07b2a'
+  if (racionamento >= 70) return '#d94040'
+  if (racionamento >= 35) return '#e07b2a'
+  if (racionamento > 0) return '#d4a017'
+  return '#264fa3'
 }
 
 function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
@@ -492,6 +498,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
   const allD = [...new Set(resultados.flatMap(r => r.dados.map(d => d.Data)))].sort()
   const iv   = Math.max(0, Math.floor(allD.length/12)-1)
   const resSel = (sel) => sel==='todos' ? resultados : [resultados[sel]]
+  const volSeriesMeta = {}
 
   const mkVolData = (sel) => {
     const res = resSel(sel)
@@ -506,12 +513,17 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
           const vf = parseFloat(d['Armazenamento Final'])||0
           const volPct = cap>0 ? parseFloat(((vf/cap)*100).toFixed(1)) : 0
           if (usarNiveisMeta) {
-            const estado = estadoMetaLinha(d)
-            const base = `${estado} (${r.reservatorio})`
-            p[`Vol.${base}`] = volPct
+            const faixa = nomeFaixaGrafico(d)
+            const chave = `Vol.${faixa} (${r.reservatorio})`
+            const racionamento = parseFloat(d['Racionamento (%)']) || 0
+            p[chave] = volPct
+            volSeriesMeta[chave] = {
+              nome: `${faixa} (${r.reservatorio})`,
+              cor: corFaixaGrafico(faixa, racionamento),
+            }
             const anterior = prevByRes[r.reservatorio]
-            if (anterior && anterior !== estado) p[`Vol.${anterior} (${r.reservatorio})`] = volPct
-            prevByRes[r.reservatorio] = estado
+            if (anterior && anterior !== chave) p[anterior] = volPct
+            prevByRes[r.reservatorio] = chave
           } else {
             p[`Vol.% (${r.reservatorio})`] = volPct
           }
@@ -581,8 +593,8 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {usarNiveisMeta
                 ? volKeys.map((k)=>{
-                    const estado = k.slice(4, k.indexOf(' '))
-                    return <Line key={k} yAxisId="vol" type="linear" dataKey={k} name={k.replace(/^Vol\.([a-z]+) /, (_, e) => `${nomeEstadoMeta(e)} `)} stroke={META_LINE_COLORS[estado] || COLORS[0].stroke} strokeWidth={2.2} dot={false} connectNulls={false}/>
+                    const meta = volSeriesMeta[k] || { nome:k.replace(/^Vol\./, ''), cor:COLORS[0].stroke }
+                    return <Line key={k} yAxisId="vol" type="linear" dataKey={k} name={meta.nome} stroke={meta.cor} strokeWidth={2.2} dot={false} connectNulls={false}/>
                   })
                 : volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
               {volZoom.area}
