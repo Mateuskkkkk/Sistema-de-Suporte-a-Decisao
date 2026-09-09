@@ -38,7 +38,7 @@ export default function App() {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--text)' }}>Sistema de Suporte à Decisão</div>
             <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
-              Simulação de Série Histórica e Otimização de Níveis Meta.
+              Simulação, Otimização de Níveis Meta e Vazões Regularizadas.
             </div>
           </div>
         </div>
@@ -48,7 +48,6 @@ export default function App() {
               ['simulador', 'Simulador'],
               ['otimizador', 'Otimizador'],
               ['vazoes', 'Vazões'],
-              ['previsao', 'Previsão'],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -91,10 +90,8 @@ export default function App() {
             setView('simulador')
           }}
         />
-      ) : view === 'vazoes' ? (
-        <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="qxx" />
       ) : (
-        <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="knn" />
+        <PrevisaoVazoes apiUrl={apiUrl} darkMode={darkMode} mode="qxx" />
       )}
       <ChartExportMenu />
     </div>
