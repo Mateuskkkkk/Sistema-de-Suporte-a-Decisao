@@ -1,109 +1,145 @@
 # Sistema de Suporte à Decisão
 
-Sistema web para simulação de balanço hídrico e otimização de níveis meta de reservatórios. A aplicação reúne, em uma única interface, o simulador histórico e o otimizador por séries históricas, permitindo calcular curvas de operação e aplicá-las diretamente no simulador.
+Sistema web para análise da operação de reservatórios, desenvolvido como artefato computacional do TCC **Desenvolvimento e avaliação de um sistema de suporte à decisão para operação de reservatórios no Ceará**.
+
+## Escopo do TCC
+
+A versão acadêmica integra três módulos:
+
+- **Simulador de balanço hídrico mensal**;
+- **Otimizador de níveis meta por PSO**;
+- **Calculadora de vazões regularizadas por garantia de atendimento**.
+
+O simulador representa operações **Individual**, **Série** e **Paralelo**, com afluência, evaporação, demanda, armazenamento, vertimento, transferências, falhas e regras de níveis meta.
+
+O módulo de previsão de afluências permanece preservado no histórico do projeto para continuidade futura, mas não integra a navegação principal da branch `tcc-roteiro-verificacao-validacao` e está fora do escopo metodológico do TCC.
 
 ## Funcionalidades
 
-- Simulação mensal de reservatórios com afluência, evaporação, demanda, vertimento e falhas.
-- Carregamento de hidrossistemas pré-configurados.
-- Operação individual, em série ou em paralelo.
-- Otimização de níveis meta com curvas de Alerta, Seca e Seca Severa.
-- Aplicação das curvas otimizadas diretamente no simulador.
-- Gráficos com faixas de criticidade hídrica.
-- Tabelas de permanência, volumes históricos e resultados mensais.
-- Exportação dos resultados da otimização em CSV e planilha Excel.
-- Modo claro e modo escuro no topo da aplicação.
+- simulação mensal de reservatórios;
+- carregamento de reservatórios e hidrossistemas cadastrados;
+- operações Individual, Série e Paralelo;
+- níveis meta com estados Normal, Alerta, Seca e Seca Severa;
+- racionamento por estado operacional;
+- otimização de níveis meta por Particle Swarm Optimization (PSO);
+- aplicação das curvas otimizadas diretamente no simulador;
+- cálculo de vazões regularizadas para diferentes garantias;
+- gráficos, indicadores e tabelas mensais;
+- exportação de resultados.
 
-## Estrutura do Projeto
+## Arquitetura
 
 ```text
-Sistema-Hidrico-Unificado/
+Sistema-de-Suporte-a-Decisao/
 ├── backend/
 │   ├── main.py
 │   ├── optimizer_engine.py
+│   ├── forecast_engine.py        # preservado, fora do escopo do TCC
+│   ├── test_simulator_engine.py
+│   ├── test_optimizer_engine.py
+│   ├── test_tcc_protocol.py
 │   ├── banco_site.db
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html
-│   ├── public/
-│   │   └── favicon.svg
 │   ├── src/
 │   └── package.json
+├── docs/
+│   └── PROTOCOLO_TCC.md
 ├── LICENSE
 └── README.md
 ```
 
-## Como Usar
+A camada de apresentação utiliza React/Vite, a API utiliza FastAPI, as rotinas de cálculo são implementadas em Python e os dados são armazenados em SQLite. A comunicação entre interface e servidor utiliza HTTP/JSON.
+
+## Protocolo de verificação e avaliação
+
+O TCC distingue **verificação da implementação** e **validação hidrológica**.
+
+Sem volumes observados e entradas históricas operacionais completas, os resultados devem ser apresentados como:
+
+- verificação numérica;
+- verificação funcional;
+- testes de integração;
+- avaliação computacional do PSO;
+- análise de sensibilidade.
+
+A validação hidrológica somente deve ser utilizada quando o modelo for confrontado com volumes observados usando as entradas efetivamente praticadas no período.
+
+O protocolo completo está em [`docs/PROTOCOLO_TCC.md`](docs/PROTOCOLO_TCC.md).
+
+## Testes do protocolo
+
+A branch do TCC inclui casos controlados para:
+
+- volume constante;
+- retirada isolada;
+- vertimento;
+- falha por indisponibilidade;
+- racionamento;
+- resíduo do balanço;
+- monotonicidade da garantia com a demanda;
+- monotonicidade da vazão regularizada;
+- verificação de vazões imediatamente abaixo e acima de `Q*`.
+
+A partir da pasta `backend/`:
+
+```bash
+python -m unittest test_tcc_protocol.py
+```
+
+Para executar a suíte principal do escopo:
+
+```bash
+python -m unittest test_simulator_engine.py test_optimizer_engine.py test_tcc_protocol.py
+```
+
+## Como usar
 
 ### Simulador
 
 1. Abra a aplicação no navegador.
-2. Entre na aba **Simulador**.
-3. Escolha um hidrossistema pré-configurado ou selecione reservatórios manualmente.
+2. Entre em **Simulador**.
+3. Escolha o reservatório ou hidrossistema.
 4. Ajuste volume inicial, demanda, período e modo de operação.
-5. Clique em **Gerar Simulação**.
-6. Analise os gráficos, tabelas e indicadores de atendimento.
+5. Configure níveis meta e transferências quando aplicável.
+6. Execute a simulação.
+7. Analise gráficos, tabelas e indicadores.
 
 ### Otimizador
 
-1. Entre na aba **Otimizador**.
-2. Escolha o reservatório ou hidrossistema.
-3. Configure período histórico, mês inicial, demandas e permanências desejadas.
+1. Entre em **Otimizador**.
+2. Escolha o reservatório.
+3. Configure período histórico, demanda, frequências e parâmetros do PSO.
 4. Execute a otimização.
-5. Analise as curvas de Alerta, Seca e Seca Severa.
-6. Use as opções de exportação para salvar os resultados.
+5. Analise curvas, frequências e função objetivo.
+6. Use **Aplicar no Simulador** para testar a política encontrada.
 
-### Aplicar Curvas no Simulador
+### Vazões regularizadas
 
-1. Rode uma otimização.
-2. Clique em **Aplicar no Simulador**.
-3. A aplicação volta para o simulador com as curvas carregadas.
-4. Execute a simulação para avaliar o comportamento do sistema com os níveis meta otimizados.
+1. Entre em **Vazões**.
+2. Selecione reservatório e período.
+3. Informe o volume inicial.
+4. Execute o cálculo.
+5. Analise a relação entre garantia requerida e maior demanda constante atendida.
 
-## Como Rodar Localmente
+## Como rodar localmente
 
 ### Pré-requisitos
 
-- Python 3.10 ou superior.
-- Node.js 18 ou superior.
+- Python 3.10 ou superior;
+- Node.js 18 ou superior;
 - npm.
 
-### 1. Clonar o Repositório
-
-```bash
-git clone https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao.git
-cd Sistema-de-Suporte-a-Decisao
-```
-
-Se o repositório local estiver com o nome `Sistema-Hidrico-Unificado`, entre nessa pasta normalmente:
-
-```bash
-cd Sistema-Hidrico-Unificado
-```
-
-### 2. Criar e Preparar o Ambiente Python
-
-No Windows:
+### Backend
 
 ```bash
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r backend\requirements.txt
-```
-
-### 3. Rodar o Backend
-
-```bash
 cd backend
 ..\.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-A API ficará disponível em:
-
-```text
-http://127.0.0.1:8000
-```
-
-### 4. Rodar o Frontend
+### Frontend
 
 Em outro terminal:
 
@@ -113,34 +149,33 @@ npm install
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-A interface ficará disponível em:
-
-```text
-http://127.0.0.1:5173
-```
-
-## Configuração da API no Frontend
-
-O frontend lê a variável `VITE_API_URL`. Para desenvolvimento local, use:
+Para desenvolvimento local, crie `frontend/.env` com:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
 ```
 
-Você pode criar um arquivo `frontend/.env` com esse conteúdo. Em produção, substitua pelo endereço público da API, por exemplo:
+## Evidências ainda necessárias para o fechamento do TCC
 
-```env
-VITE_API_URL=https://sua-api.onrender.com
-```
+Antes da versão final do trabalho, o protocolo prevê consolidar:
+
+- memória de cálculo independente de aproximadamente 12 meses;
+- 20 a 30 execuções do PSO com sementes diferentes;
+- estatísticas da função objetivo;
+- gráfico de convergência e distribuição das execuções;
+- busca exaustiva em problema reduzido;
+- tabela de integração entre otimizador e simulador;
+- verificação completa das vazões vizinhas de `Q*`;
+- análise de sensibilidade;
+- tabela de testes da interface e da API.
 
 ## Licença
 
-Este projeto está licenciado sob a **Apache License 2.0**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está licenciado sob a **Apache License 2.0**. Consulte [LICENSE](LICENSE).
 
-## Citação Acadêmica
-
-Caso este sistema seja utilizado em trabalhos, artigos, relatórios ou pesquisas, recomenda-se citar o repositório e o autor do projeto. Uma forma simples de citação é:
+## Citação acadêmica
 
 ```text
-MARTINS, F. M. B. . Sistema de Suporte à Decisão: simulador de balanço hídrico e otimizador de níveis meta. GitHub, 2026. Disponível em: https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao. Acesso em: x xxx. xxxx.
+MARTINS, F. M. B. Sistema de Suporte à Decisão: simulação da operação de reservatórios,
+otimização de níveis meta e cálculo de vazões regularizadas. GitHub, 2026.
 ```
