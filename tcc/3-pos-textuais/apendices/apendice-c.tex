@@ -1,0 +1,115 @@
+\apendice{MEMÓRIA DE CÁLCULO INDEPENDENTE}
+\label{ap:memoria-calculo}
+
+\section{Estrutura da planilha de verificação}
+
+A planilha independente foi construída em formato compatível com o LibreOffice Calc, sem funções de matrizes dinâmicas, e é composta pelas abas descritas na Tabela \ref{tab:abas-planilha}. O usuário cola a série de vazões, seleciona o reservatório e informa a demanda e o volume inicial; o balanço é iniciado automaticamente no primeiro mês com vazão.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Abas da planilha de verificação}
+    \label{tab:abas-planilha}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{3.2cm}p{11.0cm}}
+        \toprule
+        Aba & Conteúdo \\
+        \midrule
+        \texttt{Verificacao} & parâmetros, indicadores de controle e cálculo mês a mês (uma linha por mês) \\
+        \texttt{Vazoes\_COLAR} & área de colagem da série de vazões, um ano por linha (1910--2021) \\
+        \texttt{Amostra\_12\_meses} & extrato de um ano escolhido, com colunas opcionais para colar as saídas do simulador e calcular diferenças \\
+        \texttt{Dados\_Acudes} & cadastro dos reservatórios: código, capacidade e estação de evaporação \\
+        \texttt{Dados\_Evap} & lâminas médias mensais de evaporação por estação \\
+        \texttt{Dados\_CAV} & curvas cota-área-volume de todos os reservatórios \\
+        \texttt{Aux\_CAV} & curva cota-área-volume do reservatório selecionado, em hm$^3$ e km$^2$ \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Na aba \texttt{Verificacao}, cada mês é calculado pelas colunas da Tabela \ref{tab:colunas-planilha}. A área é obtida por interpolação linear entre os pontos da aba \texttt{Aux\_CAV}, localizados por busca do intervalo que contém o volume.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Colunas de cálculo mensal da planilha}
+    \label{tab:colunas-planilha}
+    \centering
+    \scriptsize
+    \begin{tabular}{p{3.6cm}p{10.6cm}}
+        \toprule
+        Coluna & Fórmula \\
+        \midrule
+        Afluência (hm$^3$) & $I_t = 2{,}592\,Q_t$ \\
+        Evaporação (m) & $e_t$ = lâmina mensal (mm) / 1000 \\
+        Armazenamento inicial & $V_t$ = volume final do mês anterior, ou volume inicial informado no primeiro mês \\
+        Área inicial & $A_t$ = interpolação de $V_t$ na curva \\
+        Demanda (hm$^3$) & $D_t = 2{,}592 \times$ demanda (m$^3$/s) \\
+        Saldo interno 1 & $V^{*}_{t+1} = V_t + I_t - D_t - e_t A_t$ \\
+        Área preliminar & $A^{*}_{t+1}$ = interpolação de $V^{*}_{t+1}$ na curva \\
+        Área média & $(A_t + A^{*}_{t+1})/2$ \\
+        Evaporação (hm$^3$) & $E_t = e_t \times$ área média \\
+        Saldo interno 2 & $P_t = V_t + I_t - D_t - E_t$ \\
+        Retirada efetiva & $R_t = D_t$ se $P_t \geq 0$; senão $\max(0, D_t + P_t)$ \\
+        Déficit (m$^3$/s) & $\max(0, D_t - R_t)/2{,}592$ \\
+        Estado auxiliar & $\max(0, P_t)$ se $P_t \geq 0$; senão $0$ se $D_t + P_t \geq 0$; senão $\max(0, P_t + D_t)$ \\
+        Vertimento & $S_t = \max(0,\ \text{estado auxiliar} - V_{\max})$ \\
+        Armazenamento final & $V_{t+1} = \max[0, \min(V_{\max},\ \text{estado auxiliar})]$ \\
+        Falha & ``Sim'' se o déficit for maior que $10^{-7}$ m$^3$/s \\
+        Resíduo & $\varepsilon_t = V_{t+1} - (V_t + I_t - R_t - E_t - S_t)$ \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Os indicadores de controle da aba reúnem o número de meses válidos, as falhas, o atendimento global, o vertimento e a evaporação totais, o resíduo máximo, os volumes mínimo e máximo e a contagem de volumes negativos, com a sinalização ``OK'' quando o resíduo máximo é inferior à tolerância de $10^{-8}$ hm$^3$ e não há volumes negativos. Nas duas execuções de Mundaú, ambos os controles retornaram ``OK''.
+
+\section{Cálculo manual de meses selecionados}
+
+Para ilustrar o procedimento, apresenta-se o cálculo de junho e julho de 1915 para Mundaú, com demanda de 500 L/s ($D_t = 1{,}296$ hm$^3$), extraído da execução de 500 L/s. Os valores são arredondados a seis casas decimais.
+
+\textbf{Junho de 1915.} $V_t = 2{,}063886$ hm$^3$; $Q_t = 0{,}045897$ m$^3$/s, logo $I_t = 0{,}118965$ hm$^3$; $e_t = 0{,}1047$ m; $A_t = 0{,}463294$ km$^2$.
+\begin{alineas}
+    \item $V^{*}_{t+1} = 2{,}063886 + 0{,}118965 - 1{,}296 - 0{,}1047 \times 0{,}463294 = 0{,}838344$ hm$^3$;
+    \item $A^{*}_{t+1} = 0{,}289434$ km$^2$; área média $= 0{,}376364$ km$^2$; $E_t = 0{,}1047 \times 0{,}376364 = 0{,}039405$ hm$^3$;
+    \item $P_t = 2{,}063886 + 0{,}118965 - 1{,}296 - 0{,}039405 = 0{,}847446$ hm$^3 \geq 0$, logo $R_t = 1{,}296$ hm$^3$ e não há falha;
+    \item $V_{t+1} = 0{,}847446$ hm$^3$; $S_t = 0$; $\varepsilon_t = 0$.
+\end{alineas}
+
+\textbf{Julho de 1915.} $V_t = 0{,}847446$ hm$^3$; $I_t = 0{,}024742$ hm$^3$; $e_t = 0{,}1452$ m; $A_t = 0{,}291054$ km$^2$.
+\begin{alineas}
+    \item $V^{*}_{t+1} = 0{,}847446 + 0{,}024742 - 1{,}296 - 0{,}1452 \times 0{,}291054 = -0{,}466074$ hm$^3$;
+    \item como o volume é negativo, adota-se a área do volume nulo, $A^{*}_{t+1} = 0$; área média $= 0{,}145527$ km$^2$; $E_t = 0{,}1452 \times 0{,}145527 = 0{,}021131$ hm$^3$;
+    \item $P_t = 0{,}847446 + 0{,}024742 - 1{,}296 - 0{,}021131 = -0{,}444943$ hm$^3 < 0$, logo $R_t = 1{,}296 - 0{,}444943 = 0{,}851057$ hm$^3$, isto é, 0,328340 m$^3$/s;
+    \item déficit de $0{,}5 - 0{,}328340 = 0{,}171660$ m$^3$/s, com falha registrada;
+    \item $V_{t+1} = 0$; $S_t = 0$; $\varepsilon_t = 0 - (0{,}847446 + 0{,}024742 - 0{,}851057 - 0{,}021131) = 0$.
+\end{alineas}
+
+Os mesmos valores foram produzidos pelo simulador. O ano de 1915 completo é apresentado na Tabela \ref{tab:amostra-1915}.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Amostra de 12 meses da planilha: Mundaú, 1915, demanda de 500 L/s}
+    \label{tab:amostra-1915}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lrrrrrrrrrc}
+        \toprule
+        Mês & $Q$ (m$^3$/s) & $I$ (hm$^3$) & $V_t$ (hm$^3$) & $e$ (mm) & Área média (km$^2$) & $E$ (hm$^3$) & Atendida (m$^3$/s) & Déficit (m$^3$/s) & $V_{t+1}$ (hm$^3$) & Falha \\
+        \midrule
+        JAN & 0,0290 & 0,0753 & 7,4848 & 165,6 & 0,8162 & 0,1352 & 0,5000 & 0,0000 & 6,1289 & Não \\
+        FEV & 0,0381 & 0,0986 & 6,1289 & 124,9 & 0,7489 & 0,0935 & 0,5000 & 0,0000 & 4,8380 & Não \\
+        MAR & 0,0577 & 0,1497 & 4,8380 & 88,2 & 0,6761 & 0,0596 & 0,5000 & 0,0000 & 3,6321 & Não \\
+        ABR & 0,2427 & 0,6291 & 3,6321 & 88,2 & 0,6120 & 0,0540 & 0,5000 & 0,0000 & 2,9112 & Não \\
+        MAI & 0,1900 & 0,4925 & 2,9112 & 83,9 & 0,5229 & 0,0439 & 0,5000 & 0,0000 & 2,0639 & Não \\
+        JUN & 0,0459 & 0,1190 & 2,0639 & 104,7 & 0,3764 & 0,0394 & 0,5000 & 0,0000 & 0,8474 & Não \\
+        JUL & 0,0095 & 0,0247 & 0,8474 & 145,2 & 0,1455 & 0,0211 & 0,3283 & 0,1717 & 0,0000 & Sim \\
+        AGO & 0,0152 & 0,0393 & 0,0000 & 180,9 & 0,0000 & 0,0000 & 0,0152 & 0,4848 & 0,0000 & Sim \\
+        SET & 0,0067 & 0,0173 & 0,0000 & 208,9 & 0,0000 & 0,0000 & 0,0067 & 0,4933 & 0,0000 & Sim \\
+        OUT & 0,0034 & 0,0088 & 0,0000 & 235,9 & 0,0000 & 0,0000 & 0,0034 & 0,4966 & 0,0000 & Sim \\
+        NOV & 0,0017 & 0,0045 & 0,0000 & 225,9 & 0,0000 & 0,0000 & 0,0017 & 0,4983 & 0,0000 & Sim \\
+        DEZ & 0,0126 & 0,0327 & 0,0000 & 206,0 & 0,0000 & 0,0000 & 0,0126 & 0,4874 & 0,0000 & Sim \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{elaborada pelo autor a partir da planilha de verificação.}
+\end{table}

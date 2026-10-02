@@ -1,0 +1,54 @@
+\chapter{Introdução}
+\label{cap:introducao}
+
+\section{Contextualização}
+\label{sec:contextualizacao}
+
+O Semiárido brasileiro é marcado por elevada variabilidade temporal e espacial das precipitações, altas taxas de evaporação e ocorrência recorrente de secas. A concentração das chuvas em poucos meses do ano, associada às desigualdades socioeconômicas, amplia a vulnerabilidade dos sistemas de abastecimento e das atividades produtivas. Para \citeonline{marengo2022}, a variabilidade das chuvas, a degradação ambiental e a pobreza rural contribuem conjuntamente para que os efeitos das secas sejam particularmente severos no Nordeste brasileiro.
+
+A seca não deve ser entendida como sinônimo de aridez ou de escassez hídrica. A aridez é uma característica permanente do clima, enquanto a seca corresponde a um desvio temporário das condições hidrológicas ou meteorológicas em relação ao comportamento de longo prazo; a escassez, por sua vez, também pode decorrer do uso da água em quantidade superior à disponibilidade \cite{deNys2016}. Essa distinção indica que os impactos de uma seca dependem tanto da intensidade do fenômeno natural quanto da infraestrutura, das demandas e da capacidade de resposta das instituições.
+
+No Ceará, a construção de reservatórios constituiu uma das principais estratégias para reduzir os efeitos da irregularidade das chuvas. Essas estruturas armazenam água durante períodos favoráveis e permitem sua utilização nos meses ou anos de menor disponibilidade. A existência da infraestrutura, contudo, não elimina o risco de desabastecimento. A seca ocorrida entre 2012 e 2018 provocou impactos expressivos sobre o armazenamento, a agricultura, a pecuária e a indústria e levou diversos reservatórios cearenses a condições críticas \cite{pontesFilho2020}. Esse evento reforçou a necessidade de substituir respostas predominantemente emergenciais por medidas de preparação e gestão proativa \cite{campos2015}.
+
+Nesse contexto, a operação dos reservatórios assume papel central, pois decisões sobre retiradas, transferências e restrições de uso afetam diretamente a duração dos estoques e o atendimento das demandas. Como afluências, evaporação, armazenamento, vertimentos e retiradas variam ao longo do tempo e interagem entre si, a definição de uma regra de operação não é trivial e exige instrumentos capazes de examinar as consequências de diferentes alternativas sobre longas sequências hidrológicas \cite{camposStudart2003}.
+
+\section{Problema de pesquisa}
+\label{sec:problema}
+
+Diante desse contexto, o problema investigado neste trabalho é expresso pela seguinte pergunta: como um sistema computacional baseado na simulação mensal do balanço hídrico pode apoiar a análise de diferentes configurações de operação de reservatórios no Ceará?
+
+A pergunta envolve duas dimensões. A primeira é técnica: as rotinas implementadas devem reproduzir corretamente as equações do balanço hídrico e as regras operacionais declaradas. A segunda é aplicada: o sistema deve permitir que o usuário configure reservatórios individuais e hidrossistemas, altere demandas, volumes iniciais, transferências e regras de racionamento e interprete as consequências dessas escolhas por meio de indicadores e séries mensais.
+
+\section{Justificativa}
+\label{sec:justificativa}
+
+Em muitos estudos de operação, séries históricas, curvas cota-área-volume, dados de evaporação e regras operacionais encontram-se dispersos em planilhas e relatórios, e cada nova hipótese exige montagem manual do cálculo. Reunir esses elementos em uma ferramenta acessível reduz o esforço necessário para examinar alternativas, diminui o risco de erros de transcrição e torna explícitas as hipóteses de cada execução.
+
+Um \gls{SSD} desse tipo não substitui o responsável pela decisão, mas permite testar hipóteses e observar as consequências de diferentes escolhas \cite{sprague1980}. Aplicado à operação de reservatórios, ele possibilita examinar, por exemplo, como o volume inicial, a magnitude da demanda, a intensidade da evaporação, o gatilho e a vazão das transferências ou a adoção de curvas-guia com racionamento alteram o atendimento, as falhas e a trajetória do armazenamento.
+
+Para que essa análise seja útil, entretanto, é necessário demonstrar que o programa calcula aquilo que se propõe a calcular. Por essa razão, além do desenvolvimento e da aplicação do sistema, este trabalho dedica atenção explícita à sua verificação numérica, a testes funcionais em condições controladas e à análise de sensibilidade das saídas.
+
+\section{Objetivo geral}
+\label{sec:objetivo-geral}
+
+Desenvolver e avaliar um sistema web de suporte à decisão baseado na simulação mensal do balanço hídrico para análise da operação de reservatórios individuais e de hidrossistemas no Ceará.
+
+\section{Objetivos específicos}
+\label{sec:objetivos-especificos}
+
+\begin{alineas}
+    \item implementar o balanço hídrico mensal de reservatórios;
+    \item representar evaporação, afluência, retirada, vertimento e transferências;
+    \item implementar as operações Individual, Série e Paralelo;
+    \item permitir a utilização de curvas-guia e regras de racionamento;
+    \item desenvolver uma interface para configuração e visualização dos resultados;
+    \item verificar numericamente as rotinas implementadas;
+    \item executar testes funcionais em condições controladas;
+    \item avaliar a sensibilidade das saídas aos parâmetros de entrada; e
+    \item aplicar as funcionalidades a reservatórios e hidrossistemas do Ceará.
+\end{alineas}
+
+\section{Estrutura do trabalho}
+\label{sec:estrutura-trabalho}
+
+Além desta introdução, o trabalho está organizado em quatro capítulos. O Capítulo \ref{cap:fundamentacao-teorica} apresenta os conceitos relacionados às secas no Semiárido, à gestão e operação de reservatórios, à simulação hidrológica, ao balanço hídrico, às regras de operação, aos sistemas com múltiplos reservatórios, aos sistemas de suporte à decisão e à verificação de modelos computacionais. O Capítulo \ref{cap:metodologia} descreve a base de dados, os reservatórios selecionados, a arquitetura do sistema, o modelo de simulação, os modos de operação, as regras de racionamento e os procedimentos de verificação, testes controlados, análise de sensibilidade e aplicação. O Capítulo \ref{chap:resultados} apresenta o sistema desenvolvido, os resultados da verificação, dos casos controlados e da sensibilidade e as aplicações a Mundaú, Carnaubal--Barragem do Batalhão e Fogareiro--Quixeramobim, além das limitações identificadas. O Capítulo \ref{chap:conclusoes} reúne as conclusões e as recomendações para trabalhos futuros.

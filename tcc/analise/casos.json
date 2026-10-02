@@ -1,0 +1,68 @@
+{
+ "casos": [
+  {
+   "teste": "Volume constante",
+   "entrada": "V0 = 5 hm³; I = 0; e = 0; D = 0; 12 meses",
+   "esperado": "V(t) = 5,000 hm³ em todos os meses",
+   "obtido": "máx |V − 5| = 0.0e+00 hm³",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Aplicação isolada da demanda",
+   "entrada": "V0 = 5 hm³; I = 0; e = 0; D = 0,1 m³/s",
+   "esperado": "redução de 0,2592 hm³/mês; V(12) = 1,8896 hm³",
+   "obtido": "V(12) = 1.8896 hm³; máx. desvio 1.3e-15",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Evaporação com área constante",
+   "entrada": "V0 = 5 hm³; A = 1 km²; e = 200 mm; I = D = 0",
+   "esperado": "E = 0,2000 hm³; V = 4,8000 hm³",
+   "obtido": "E = 0.2000 hm³; V = 4.8000 hm³",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Ocorrência de vertimento",
+   "entrada": "V0 = Vmáx = 10 hm³; Q = 1 m³/s; e = D = 0",
+   "esperado": "S = 2,592 hm³/mês; V = 10 hm³",
+   "obtido": "S = 2.592 hm³/mês; V = 10.000 hm³",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Falha por falta de volume",
+   "entrada": "V0 = 0,5 hm³; I = e = 0; D = 0,1 m³/s (0,2592 hm³/mês)",
+   "esperado": "R = 0,2592; 0,2408; 0 hm³; falhas nos meses 2 e 3; V ≥ 0",
+   "obtido": "R = 0.2592; 0.2408; 0.0000 hm³; falhas = ['Não', 'Sim', 'Sim']",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Aplicação de racionamento",
+   "entrada": "V0 = 70, 50, 30 e 10% de 10 hm³; limites 60/40/20%; r = 20/50/80%; D = 100 L/s",
+   "esperado": "Normal 100; Alerta 80; Seca 50; Seca Severa 20 L/s",
+   "obtido": "Normal: 100 L/s; Alerta: 80 L/s; Seca: 50 L/s; Seca Severa: 20 L/s",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Fronteira de nível meta",
+   "entrada": "V0 = 60% − ε, 60% e 60% + ε (ε = 10⁻⁶ p.p.)",
+   "esperado": "Alerta; Alerta; Normal",
+   "obtido": "Alerta; Alerta; Normal",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Ativação de transferência (Série)",
+   "entrada": "Receptor: 10 hm³, V0 = 35%, D = 200 L/s, gatilho 30%; fornecedor: 40 hm³; T = 100 L/s",
+   "esperado": "sem transferência no mês 1; transferência de 100 L/s a partir do mês 2",
+   "obtido": "T recebida (L/s) = 0, 100, 100, 100",
+   "situacao": "Aprovado"
+  },
+  {
+   "teste": "Redistribuição da demanda conjunta (Paralelo)",
+   "entrada": "R1: 10 hm³, V0 = 25%, gatilho 20%; R2: 10 hm³, V0 = 80%; Dconj = 100 L/s",
+   "esperado": "R1 atende nos meses 1–2; R2 assume no mês 3",
+   "obtido": "responsável: R1, R1, R2, R2, R2",
+   "situacao": "Aprovado"
+  }
+ ],
+ "eps_serie": 0.0
+}

@@ -1,0 +1,32 @@
+\apendice{CONFIGURAÇÃO DOS TESTES CONTROLADOS}
+\label{ap:testes-controlados}
+
+Os casos controlados foram executados diretamente sobre a função \texttt{simular\_sistema\_n} do arquivo \texttt{backend/main.py}, na versão indicada no Apêndice \ref{ap:codigo-fonte}. Em todos os casos, a curva cota-área-volume fictícia possui dois pontos, (0 hm$^3$; $A$) e ($2V_{\max}$; $A$), de modo que a área é constante e igual a $A$; a afluência e a evaporação são constantes ao longo dos meses; e o volume mínimo é nulo. A Tabela \ref{tab:entradas-casos} apresenta as entradas completas.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Entradas completas dos casos controlados}
+    \label{tab:entradas-casos}
+    \centering
+    \scriptsize
+    \begin{tabular}{p{2.6cm}cp{1.3cm}p{2.0cm}ccp{1.6cm}p{3.0cm}}
+        \toprule
+        Caso & Meses & Modo & $V_{\max}$ e $V_0$ (hm$^3$) & $Q$ (m$^3$/s) & $e$ (mm) & Demanda (m$^3$/s) & Outros parâmetros \\
+        \midrule
+        Volume constante & 12 & Individual & 10; 5 & 0 & 0 & 0 & $A$ = 1 km$^2$ \\
+        Demanda isolada & 12 & Individual & 10; 5 & 0 & 0 & 0,1 & $A$ = 1 km$^2$ \\
+        Evaporação & 1 & Individual & 10; 5 & 0 & 200 & 0 & $A$ = 1 km$^2$ \\
+        Vertimento & 3 & Individual & 10; 10 & 1,0 & 0 & 0 & $A$ = 1 km$^2$ \\
+        Falha & 3 & Individual & 10; 0,5 & 0 & 0 & 0,1 & $A$ = 1 km$^2$ \\
+        Racionamento & 1 (×4) & Individual & 10; 7, 5, 3 e 1 & 0 & 0 & 0,1 & faixas: Alerta $\leq$ 60\% (20\%); Seca $\leq$ 40\% (50\%); Seca Severa $\leq$ 20\% (80\%) \\
+        Fronteira & 1 (×3) & Individual & 10; 6 $\pm$ $10^{-7}$ e 6 & 0 & 0 & 0 & mesmas faixas do caso anterior \\
+        Transferência & 4 & Série & receptor 10; 3,5. Fornecedor 50; 40 & 0 & 0 & receptor 0,2; fornecedor 0 & gatilho do receptor 30\%; vazão de transferência 0,1 m$^3$/s; atendimento 100\% \\
+        Demanda conjunta & 5 & Paralelo & R1 10; 2,5. R2 10; 8 & 0 & 0 & específicas 0; conjunta 0,1 & gatilho de R1 20\% \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Os valores esperados foram obtidos manualmente. No caso de demanda isolada, $V_{12} = 5 - 12 \times 0{,}1 \times 2{,}592 = 1{,}8896$ hm$^3$. No caso de evaporação, $E = 0{,}200 \text{ m} \times 1 \text{ km}^2 = 0{,}200$ hm$^3$. No caso de vertimento, como o reservatório inicia cheio, toda a afluência mensal, $1{,}0 \times 2{,}592 = 2{,}592$ hm$^3$, deve ser vertida. No caso de falha, o primeiro mês atende 0,2592 hm$^3$ e deixa 0,2408 hm$^3$; o segundo mês fornece apenas esse volume e falha; o terceiro não fornece água e falha. No caso de transferência, o volume do receptor após afluência e evaporação no primeiro mês é 3,5 hm$^3$, acima do gatilho de 3,0 hm$^3$; após a retirada de 0,5184 hm$^3$, passa a 2,9816 hm$^3$, abaixo do gatilho, ativando a transferência no segundo mês. No caso da demanda conjunta, R1 passa de 2,5 para 2,2408 e 1,9816 hm$^3$; no início do terceiro mês, está abaixo do gatilho de 2,0 hm$^3$, e R2, com 8 hm$^3$, assume a demanda.
+
+Os scripts empregados nos casos controlados, na verificação, na análise de sensibilidade e nas aplicações acompanham os arquivos-fonte deste trabalho, no diretório \texttt{analise}.

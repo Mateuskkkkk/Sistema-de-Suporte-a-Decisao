@@ -1,0 +1,30 @@
+\chapter{Conclusões}
+\label{chap:conclusoes}
+
+O objetivo geral deste trabalho, desenvolver e avaliar um sistema web de suporte à decisão baseado na simulação mensal do balanço hídrico para a análise da operação de reservatórios individuais e de hidrossistemas no Ceará, foi alcançado. O sistema reúne, em uma mesma aplicação, a base de dados de 155 reservatórios, o motor de simulação e uma interface que permite configurar as análises, visualizar indicadores, gráficos e tabelas mensais e exportar os resultados.
+
+O balanço hídrico foi implementado em intervalo mensal, com afluência, evaporação calculada pela área média do espelho d'água, retirada limitada pela disponibilidade, vertimento do excedente e transferências entre reservatórios. Os modos Individual, Série e Paralelo foram implementados e exercitados nas aplicações: o modo Individual, com curvas-guia e racionamento, em Mundaú; o modo Paralelo, com redistribuição de uma demanda conjunta, em Carnaubal--Barragem do Batalhão; e o modo Série, com transferência acionada por gatilho e estado definido por um reservatório controlador, em Fogareiro--Quixeramobim.
+
+Na verificação numérica, o cálculo independente em planilha e o simulador produziram, para Mundaú, os mesmos resultados em 1.332 meses e em dois níveis de demanda, com diferenças máximas da ordem de $10^{-16}$ hm$^3$ e coincidência integral na indicação de falhas. A verificação ampliada de 23 exportações, com 30.540 balanços mensais, não encontrou violação de conservação de massa, de continuidade, de limites físicos, de classificação de estado, de racionamento ou de indicação de falha, e a versão de referência do código reproduziu todas as exportações. Os nove casos controlados, que abrangem volume constante, demanda isolada, evaporação, vertimento, falha, racionamento, fronteira de nível meta, transferência e redistribuição da demanda conjunta, foram aprovados.
+
+Os testes realizados demonstraram consistência entre as equações implementadas e as saídas produzidas nos casos controlados.
+
+Na análise de sensibilidade, os indicadores responderam aos parâmetros na direção esperada. A demanda foi o parâmetro de maior influência sobre as falhas de Mundaú, com resposta não linear; a evaporação teve efeito moderado e monótono; e o volume inicial teve efeito desprezível sobre o atendimento ao longo da série histórica. Em Fogareiro--Quixeramobim, o gatilho e a vazão transferida apresentaram limiares abaixo dos quais o receptor falha, e acima dos quais o aumento da transferência eleva o volume mínimo do receptor com efeito pequeno sobre o fornecedor.
+
+As aplicações mostraram a utilidade do sistema para examinar consequências de diferentes configurações. Em Mundaú, a adoção das curvas-guia eliminou as 142 falhas que ocorreriam sem racionamento, à custa de 332 meses com retirada reduzida. Em Carnaubal--Barragem do Batalhão, a tabulação mensal permitiu identificar que todas as falhas ocorreram em meses nos quais a Barragem do Batalhão não tinha volume para assumir a demanda conjunta. Em Fogareiro--Quixeramobim, os registros mensais revelaram a alternância da transferência em meses consecutivos, decorrente da ausência de histerese na regra de gatilho.
+
+O sistema é, portanto, um instrumento para explorar hipóteses de operação sobre a série histórica, de forma transparente e reprodutível. Seus limites, contudo, devem ser respeitados: o mês convencional de 30 dias, a dependência das séries cadastradas, a evaporação representada por médias mensais, a simplificação das transferências e a ausência de representação hidráulica condicionam os resultados. Sobretudo, os testes realizados verificam a implementação, mas não constituem validação com dados observados, de modo que os resultados não demonstram que o modelo representa a operação real dos reservatórios e não substituem a análise técnica e institucional da decisão.
+
+\section{Trabalhos futuros}
+\label{sec:trabalhos-futuros}
+
+Recomenda-se, em trabalhos futuros:
+
+\begin{alineas}
+    \item considerar o número real de dias de cada mês na conversão entre vazão e volume;
+    \item ampliar a validação das séries de entrada, com rotinas de detecção e tratamento de lacunas e registros inconsistentes, e utilizar séries de evaporação mensais em vez de médias;
+    \item representar separadamente os volumes liberados pelo fornecedor, as perdas em trânsito e os volumes recebidos, e incluir histerese nos gatilhos de transferência;
+    \item implementar tempos de percurso e restrições de capacidade nas ligações entre reservatórios;
+    \item comparar futuramente as saídas com volumes observados nos reservatórios, em períodos não utilizados na configuração das regras, de modo a avaliar a validade do modelo; e
+    \item ampliar a documentação e os testes automatizados, incorporando os casos controlados e a comparação com a planilha independente ao repositório, para que sejam executados a cada alteração do código.
+\end{alineas}

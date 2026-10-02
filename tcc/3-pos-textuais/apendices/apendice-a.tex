@@ -1,0 +1,72 @@
+\apendice{DISPONIBILIDADE DO CÓDIGO-FONTE}
+\label{ap:codigo-fonte}
+
+O sistema desenvolvido neste trabalho está disponível em repositório público. O corpo do trabalho apresenta as equações, as regras e os trechos de código necessários à interpretação dos resultados; este apêndice registra a localização, a versão, as dependências e as instruções básicas de execução.
+
+\section{Identificação da versão}
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \Caption{\label{tab:identificacao-codigo} Identificação do código-fonte do sistema}
+    \IBGEtab{}{
+        \begin{tabular}{p{4.2cm}p{10.0cm}}
+            \toprule
+            Elemento & Registro \\
+            \midrule \midrule
+            Autor & Francisco Mateus Bezerra Martins \\
+            Repositório & \url{https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao} \\
+            Versão de referência & commit \texttt{447b33b528541ba5b1edaa3c0b7c61149449c73f} (26 ago. 2026) \\
+            Licença & Apache License 2.0 \\
+            \bottomrule
+        \end{tabular}
+    }{
+        \Fonte{elaborada pelo autor.}
+    }
+\end{table}
+
+Todos os resultados do Capítulo \ref{chap:resultados} foram obtidos com a versão indicada na Tabela \ref{tab:identificacao-codigo} e com a base de dados \texttt{banco\_site.db} distribuída nessa versão. Recomenda-se preservar essa versão por meio de uma etiqueta de lançamento, por exemplo \texttt{v1.0-tcc}, antes do depósito definitivo do trabalho.
+
+\section{Organização do repositório}
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \Caption{\label{tab:organizacao-repositorio} Componentes principais do repositório}
+    \IBGEtab{}{
+        \begin{tabular}{p{5.0cm}p{9.2cm}}
+            \toprule
+            Componente & Função no sistema \\
+            \midrule \midrule
+            \texttt{backend/main.py} & API, leitura dos dados, motor de simulação (\texttt{simular\_sistema\_n}) e montagem dos registros mensais \\
+            \texttt{backend/optimizer\_engine.py} & rotinas numéricas compartilhadas, entre elas \texttt{interpola} e \texttt{dinamica\_mensal\_fast} \\
+            \texttt{backend/banco\_site.db} & base SQLite com reservatórios, vazões, evaporação, curvas cota-área-volume, níveis meta e hidrossistemas \\
+            \texttt{backend/test\_simulator\_engine.py} & testes automatizados do motor de simulação \\
+            \texttt{frontend/src/} & interface em React para configuração, execução, visualização e exportação \\
+            \texttt{README.md} & requisitos e instruções de instalação \\
+            \bottomrule
+        \end{tabular}
+    }{
+        \Fonte{elaborada pelo autor.}
+    }
+\end{table}
+
+\section{Dependências e execução}
+
+O serviço de processamento requer Python 3 e as bibliotecas listadas no arquivo \path{backend/requirements.txt}, entre elas FastAPI, Uvicorn, pandas, NumPy e Numba. A interface requer Node.js e as dependências declaradas no arquivo \path{frontend/package.json}, entre elas React, Recharts e Vite. Em síntese, a execução local compreende:
+
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize,columns=fullflexible,caption={Instruções básicas de execução},label={cod:execucao}]
+git clone https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao.git
+cd Sistema-de-Suporte-a-Decisao
+git checkout 447b33b528541ba5b1edaa3c0b7c61149449c73f
+
+# servico de processamento (porta 8000)
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --port 8000
+
+# interface (em outro terminal)
+cd frontend
+npm install
+npx vite
+\end{lstlisting}
+
+Com os dois componentes em execução, a interface fica acessível no endereço informado pelo Vite e consome a API em \texttt{http://127.0.0.1:8000}, endereço que pode ser alterado pela variável de ambiente \texttt{VITE\_API\_URL}.

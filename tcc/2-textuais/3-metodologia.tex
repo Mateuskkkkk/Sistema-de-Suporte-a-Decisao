@@ -1,0 +1,454 @@
+\chapter{Metodologia}
+\label{cap:metodologia}
+
+Este capítulo descreve os dados, as hipóteses e os procedimentos empregados no desenvolvimento, na avaliação e na aplicação do sistema de suporte à decisão. O núcleo do método é o simulador mensal do balanço hídrico; em torno dele são organizados a interface de configuração e visualização, a verificação numérica, os testes em casos controlados, a análise de sensibilidade e os estudos de aplicação.
+
+\section{Caracterização da pesquisa}
+\label{sec:caracterizacao-pesquisa}
+
+O trabalho possui natureza aplicada e abordagem quantitativa e baseia-se em desenvolvimento computacional seguido de estudos de aplicação. A investigação utiliza modelagem e simulação para analisar o comportamento de reservatórios ao longo das séries históricas de afluência, considerando diferentes demandas e regras de operação. Cada configuração representa uma hipótese de operação cujos efeitos são descritos por indicadores.
+
+A avaliação do sistema é feita no sentido de verificação, conforme discutido na Seção \ref{sec:verificacao-modelos}: busca-se demonstrar que as rotinas implementadas reproduzem as equações e as regras declaradas. Como não foram utilizadas observações de volumes dos reservatórios para confronto, os resultados das aplicações não são tratados como validação hidrológica do modelo. O procedimento foi dividido nas seguintes etapas:
+
+\begin{alineas}
+    \item organização da base de dados hidrológicos e físicos;
+    \item implementação do balanço hídrico mensal e dos modos de operação;
+    \item incorporação das curvas-guia e das regras de racionamento;
+    \item desenvolvimento da interface web;
+    \item verificação numérica por cálculo independente em planilha;
+    \item execução de casos controlados com resposta conhecida;
+    \item análise de sensibilidade a parâmetros de entrada; e
+    \item aplicação a um reservatório isolado e a dois hidrossistemas do Ceará.
+\end{alineas}
+
+\section{Base de dados}
+\label{sec:base-dados}
+
+A base utilizada pelo sistema é um banco relacional SQLite organizado em seis tabelas: cadastro dos reservatórios, séries mensais de vazão afluente, evaporação mensal, relações cota-área-volume, regras de níveis meta e composição dos hidrossistemas. A versão empregada neste trabalho contém 155 reservatórios cadastrados, 206.961 registros mensais de vazão, 3.668 pontos de curvas cota-área-volume referentes a 189 códigos, 14 estações de evaporação e 22 hidrossistemas pré-configurados.
+
+Para cada reservatório, são registrados o código de identificação, a capacidade máxima, em metros cúbicos, e a estação de evaporação associada. As séries de vazão são médias mensais, em m$^3$/s, e abrangem, em geral, de outubro de 1910 a dezembro de 2021, totalizando 1.335 meses por reservatório. A evaporação é representada por lâminas médias mensais, em milímetros, para cada estação; portanto, o mesmo valor de cada mês do ano é repetido em todos os anos da simulação. As curvas cota-área-volume fornecem os pares de volume e área superficial usados no cálculo das perdas por evaporação. As demandas são informadas pelo usuário, em L/s, para cada execução.
+
+As séries são filtradas pelo período escolhido e ordenadas cronologicamente. Registros sem identificação válida de mês, ano ou vazão são desconsiderados. Não é realizada imputação automática de lacunas. Nas simulações com múltiplos reservatórios, todas as séries devem abranger exatamente os mesmos meses; caso contrário, a execução é interrompida com mensagem de erro. Para os cinco reservatórios selecionados, as séries foram conferidas e não apresentam valores ausentes ou negativos no período empregado.
+
+\section{Reservatórios selecionados}
+\label{sec:reservatorios-selecionados}
+
+Foram definidos três estudos de aplicação, cada um destinado a um modo de operação do simulador, conforme a Tabela \ref{tab:reservatorios-selecionados}. A escolha de unidades distintas não tem a finalidade de comparar o desempenho dos reservatórios entre si, pois eles possuem capacidades, séries e arranjos diferentes; cada aplicação é analisada dentro de sua própria configuração.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Reservatórios selecionados para os estudos de aplicação}
+    \label{tab:reservatorios-selecionados}
+    \centering
+    \small
+    \begin{tabular}{p{4.2cm}p{3.6cm}rrp{2.0cm}}
+        \toprule
+        Aplicação & Reservatório & Código & Capacidade (hm$^3$) & Modo \\
+        \midrule
+        Operação individual & Mundaú & 61 & 21,300 & Individual \\
+        Hidrossistema paralelo & Carnaubal & 53 & 46,621 & Paralelo \\
+         & Barragem do Batalhão & 202 & 1,639 & Paralelo \\
+        Hidrossistema em série & Fogareiro & 119 & 118,000 & Série \\
+         & Quixeramobim & 16 & 7,880 & Série \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor com base no cadastro do sistema.}
+\end{table}
+
+\section{Arquitetura do sistema}
+\label{sec:arquitetura}
+
+A estrutura do sistema segue os componentes de dados, modelos e interação discutidos por \citeonline{sprague1980} e foi organizada em duas camadas, ilustradas na Figura \ref{fig:arquitetura-ssd}. A camada de apresentação foi desenvolvida em React e estruturada com Vite; nela, os estados dos componentes controlam os parâmetros informados pelo usuário, o envio das simulações e a exibição dos resultados. A camada de processamento foi implementada em Python e exposta por uma interface de programação de aplicações construída com FastAPI. As rotinas numéricas utilizam NumPy e Numba.
+
+A comunicação entre as camadas ocorre por requisições HTTP com corpo em formato JSON. A interface envia a configuração da simulação, isto é, reservatórios, volumes iniciais, demandas, gatilhos, modo de operação, período e, quando houver, níveis meta. A API consulta as séries e os parâmetros físicos no banco SQLite, executa o simulador e devolve os registros mensais de cada reservatório, que são transformados pela interface em indicadores, gráficos e tabelas e podem ser exportados em planilha ou JSON. Essa organização separa a apresentação das regras de cálculo e permite que as mesmas rotinas sejam utilizadas por diferentes telas \cite{martins2026software}.
+
+\begin{figure}[!ht]
+    \centering
+    \Caption{\label{fig:arquitetura-ssd}Arquitetura do sistema de suporte à decisão desenvolvido.}
+    \UFCfig{}{
+    \parbox{\textwidth}{\centering
+    \begingroup
+    \setlength{\fboxsep}{6pt}
+    \small
+    \fbox{\parbox{0.84\textwidth}{\centering
+        \textbf{Interface web (React/Vite)}\par
+        Configuração \enspace $\vert$ \enspace indicadores \enspace $\vert$ \enspace gráficos \enspace $\vert$ \enspace tabelas \enspace $\vert$ \enspace exportação}}\par
+    \vspace{0.10cm}
+    $\updownarrow$ \enspace HTTP/JSON\par
+    \vspace{0.10cm}
+    \fbox{\parbox{0.84\textwidth}{\centering
+        \textbf{API (FastAPI)}\par
+        Validação das entradas \enspace $\vert$ \enspace leitura dos dados \enspace $\vert$ \enspace montagem dos registros mensais}}\par
+    \vspace{0.10cm}
+    $\updownarrow$\par
+    \vspace{0.10cm}
+    \fbox{\parbox{0.40\textwidth}{\centering\textbf{Simulador (Python/NumPy/Numba)}\par Balanço hídrico, modos de operação e racionamento}}
+    \hspace{0.3cm}$\longleftrightarrow$\hspace{0.3cm}
+    \fbox{\parbox{0.33\textwidth}{\centering\textbf{Banco de dados (SQLite)}\par Reservatórios, vazões, evaporação, CAV, níveis meta}}
+    \endgroup}
+    }{
+        \Fonte{elaborada pelo autor.}
+    }
+\end{figure}
+
+\section{Interface e fluxo de utilização}
+\label{sec:interface-fluxo}
+
+A interface do simulador organiza a análise em cinco etapas, sintetizadas na Figura \ref{fig:fluxo-interface}. Na seleção, o usuário escolhe um hidrossistema pré-configurado ou monta manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Na configuração, informa volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, modo de operação, cenário hidrológico e período; na aba de níveis meta, pode editar os limites mensais e os percentuais de racionamento de cada faixa e aplicá-los à sessão. Após a execução, a análise é apoiada por indicadores agregados, gráficos de volume, demanda solicitada e atendida, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Por fim, os registros podem ser exportados em planilha eletrônica ou JSON.
+
+\begin{figure}[!ht]
+    \centering
+    \Caption{\label{fig:fluxo-interface}Fluxo de utilização da interface do simulador.}
+    \UFCfig{}{
+    \small
+    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Seleção dos\\reservatórios}}
+    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
+    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Configuração\\operacional}}
+    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
+    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Execução da\\simulação}}
+    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
+    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Análise dos\\resultados}}
+    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
+    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Exportação\\dos dados}}
+    }{
+        \Fonte{elaborada pelo autor.}
+    }
+\end{figure}
+
+\section{Modelo de simulação hidrológica}
+\label{sec:modelo-simulacao}
+
+O simulador opera em intervalo mensal e aplica o princípio da conservação de massa a cada reservatório. Adotam-se as seguintes hipóteses: (i) todas as grandezas de volume são expressas em hm$^3$; (ii) o mês tem duração convencional de 30 dias; (iii) a afluência, a retirada e as transferências são tratadas como volumes mensais concentrados, sem distribuição intramensal; (iv) o volume mínimo operacional é nulo e o máximo é a capacidade; e (v) a evaporação é calculada com a área média do espelho d'água.
+
+As vazões médias mensais, em m$^3$/s, são convertidas para hm$^3$/mês pela Equação \ref{eq:conversao-vazao}. A mesma conversão é aplicada às demandas e às transferências.
+
+\begin{equation}
+    I_t = Q_t \times \frac{30 \times 24 \times 3600}{10^6}
+        = 2{,}592\,Q_t
+    \label{eq:conversao-vazao}
+\end{equation}
+
+em que $Q_t$ é a vazão média do mês, em m$^3$/s, e $I_t$ é o volume afluente, em hm$^3$. A sequência de cálculo de cada mês, para cada reservatório, é a seguinte:
+
+\begin{alineas}
+    \item determinar o estado operacional e o racionamento a partir do volume inicial $V_t$ e dos limites do mês (Seção \ref{sec:regras-racionamento});
+    \item calcular a demanda aplicada e, nos modos Série e Paralelo, as transferências ou a unidade responsável pela demanda conjunta (Seção \ref{sec:modos-operacao});
+    \item calcular a evaporação pela área média (Seção \ref{subsec:evaporacao});
+    \item calcular o volume preliminar e limitar a retirada à disponibilidade;
+    \item limitar o volume final à capacidade, registrando o excedente como vertimento; e
+    \item registrar a falha quando a retirada efetiva for inferior à demanda aplicada.
+\end{alineas}
+
+O volume preliminar, antes da aplicação dos limites físicos, é dado pela Equação \ref{eq:balanco-metodologia}.
+
+\begin{equation}
+    P_t = V_t + I_t + T_t - D^{a}_t - E_t
+    \label{eq:balanco-metodologia}
+\end{equation}
+
+em que $T_t$ é o saldo entre transferências recebidas e enviadas e $D^{a}_t$ é a demanda aplicada, já considerado o racionamento.
+
+\subsection{Cálculo da evaporação}
+\label{subsec:evaporacao}
+
+A área inicial $A_t$ é obtida por interpolação linear na curva cota-área-volume a partir de $V_t$. Em seguida, calcula-se uma primeira estimativa do volume final com a área inicial, $V^{*}_{t+1} = V_t + I_t + T_t - D^{a}_t - e_t A_t$, e a área correspondente $A^{*}_{t+1}$. A evaporação adotada é calculada com a área média, conforme a Equação \ref{eq:evaporacao}.
+
+\begin{equation}
+    E_t = e_t \times \frac{A_t + A^{*}_{t+1}}{2}
+    \label{eq:evaporacao}
+\end{equation}
+
+em que $e_t$ é a lâmina de evaporação do mês, em metros, e as áreas são expressas em km$^2$, de modo que $E_t$ resulta em hm$^3$. Quando o volume a interpolar está fora do intervalo da curva, adota-se a área do extremo correspondente; assim, uma estimativa preliminar negativa resulta na área associada ao volume nulo.
+
+\subsection{Atendimento, falhas e vertimentos}
+\label{subsec:atendimento-falhas}
+
+A demanda solicitada $D_t$ é a vazão informada pelo usuário; a demanda aplicada $D^{a}_t$ é a solicitada após o racionamento. A retirada efetiva $R_t$ é a parcela da demanda aplicada efetivamente fornecida e é determinada pela Equação \ref{eq:retirada}.
+
+\begin{equation}
+    R_t =
+    \begin{cases}
+        D^{a}_t, & \text{se } P_t \geq 0\\
+        \max\left(0,\; D^{a}_t + P_t\right), & \text{se } P_t < 0
+    \end{cases}
+    \label{eq:retirada}
+\end{equation}
+
+O volume final e o vertimento são obtidos pelas Equações \ref{eq:limite-volume} e \ref{eq:vertimento}, com $V_{\max}$ igual à capacidade.
+
+\begin{equation}
+    V_{t+1} = \min\left[V_{\max},\;\max\left(0,\;P_t + D^{a}_t - R_t\right)\right]
+    \label{eq:limite-volume}
+\end{equation}
+
+\begin{equation}
+    S_t = \max\left(0,\;P_t - V_{\max}\right)
+    \label{eq:vertimento}
+\end{equation}
+
+O déficit do mês é $\Delta_t = D^{a}_t - R_t$. Considera-se falha de atendimento todo mês em que $\Delta_t > 0$, isto é, em que a retirada efetiva é inferior à demanda aplicada. Assim, um mês com racionamento em que a demanda reduzida é integralmente atendida não é contabilizado como falha; a redução imposta pela regra é registrada separadamente pelo percentual de racionamento.
+
+O Código-fonte \ref{cod:dinamica-mensal} apresenta a rotina do repositório responsável pelo balanço mensal. As variáveis \texttt{vol\_min} e \texttt{vol\_max} correspondem a zero e à capacidade. Somente as quebras de linha foram ajustadas para adequação tipográfica.
+
+\begin{lstlisting}[
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Implementação do balanço hídrico mensal},
+    label={cod:dinamica-mensal}
+]
+@njit
+def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3,
+                         vol_min, vol_max, cav_vol, cav_area):
+    area_ini = interpola(cav_vol, cav_area, vol_ini)
+    vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_ini)
+    area_fin = interpola(cav_vol, cav_area, vol)
+    area_med = (area_ini + area_fin) / 2.0
+    vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_med)
+
+    retirada_efetiva = ret_hm3
+    if vol < vol_min:
+        retirada_orig = retirada_efetiva
+        retirada_efetiva = retirada_efetiva - (vol_min - vol)
+        if retirada_efetiva >= 0:
+            vol = vol_min
+        else:
+            vol = vol + retirada_orig
+            retirada_efetiva = 0.0
+            if vol < 0:
+                vol = 0.0
+
+    vertimento = 0.0
+    if vol > vol_max:
+        vertimento = vol - vol_max
+        vol = vol_max
+
+    return vol, retirada_efetiva, vertimento, evap_m * area_med
+\end{lstlisting}
+
+Para cada reservatório e mês, o simulador registra data, vazão afluente, afluência em volume, armazenamento inicial e final, demanda solicitada e atendida, retirada total, percentual de racionamento, transferências recebidas e enviadas, evaporação, vertimento, estado operacional e ocorrência de falha. Esses registros permitem conferir individualmente cada componente do balanço.
+
+\section{Modos de operação}
+\label{sec:modos-operacao}
+
+O sistema representa três modos de operação. Nos modos Série e Paralelo, a ordem dos reservatórios selecionados estabelece a prioridade de atendimento e o sentido das transferências ou redistribuições. Em ambos, quando todas as unidades falham no mesmo mês, o mês é marcado como falha sistêmica.
+
+\subsection{Operação Individual}
+\label{subsec:operacao-individual}
+
+Na operação individual, cada reservatório é simulado de forma independente, com uma demanda própria atendida exclusivamente pelas afluências e pelo armazenamento da unidade. Não há transferências nem redistribuição de responsabilidade. Esse modo é a referência para a análise de uma unidade isolada.
+
+\subsection{Operação em Série}
+\label{subsec:operacao-serie}
+
+Na configuração em série, cada reservatório possui uma demanda própria. O primeiro reservatório da lista é o receptor e o seguinte é o fornecedor. Em cada mês, calcula-se o volume do receptor após afluência e evaporação, sem a retirada; se esse volume for inferior ao gatilho, expresso como percentual da capacidade do receptor, o fornecedor transfere o volume correspondente à vazão de transferência informada, limitado à sua própria disponibilidade. O volume transferido é somado ao balanço do receptor e subtraído do balanço do fornecedor no mesmo mês, de modo que a massa é conservada no conjunto. Um percentual de atendimento da transferência pode ser aplicado para representar, de forma agregada, perdas ou restrições de condução.
+
+O sistema também dispõe de uma configuração específica para o hidrossistema Fogareiro--Quixeramobim, utilizada na aplicação da Seção \ref{sec:estudos-aplicacao}. Nela, Fogareiro é o reservatório controlador: seu volume, comparado às curvas-guia mensais, define o estado do sistema; esse estado determina as demandas de ambos os reservatórios e a vazão transferida, e a transferência é acionada quando Quixeramobim fica abaixo de 30\% da capacidade. Os valores dessa configuração foram extraídos do plano de gestão proativa de secas do hidrossistema \cite{pgpsFogareiroQuixeramobim2023} e são usados apenas como dados de entrada.
+
+\subsection{Operação em Paralelo}
+\label{subsec:operacao-paralelo}
+
+Na configuração em paralelo, os reservatórios possuem demandas específicas e compartilham uma demanda conjunta. Inicialmente, a responsabilidade pela demanda conjunta é atribuída à primeira unidade. No início de cada mês, se o volume dessa unidade for inferior ao seu gatilho, a responsabilidade é deslocada para a unidade seguinte, desde que esta disponha, após afluência e evaporação, de volume suficiente para atender à sua demanda própria e à parcela conjunta no mês. Caso contrário, a responsabilidade permanece com a primeira unidade. O procedimento é repetido conforme a ordem definida.
+
+Nesse modo, não há transferência física de volume entre reservatórios: o que muda é a unidade responsável pelo fornecimento. A demanda efetivamente aplicada em cada unidade também é condicionada às regras de racionamento vigentes no mês.
+
+\section{Regras de racionamento}
+\label{sec:regras-racionamento}
+
+As regras são representadas por faixas mensais. Cada faixa contém um limite superior de armazenamento para cada mês, em percentual da capacidade, e um percentual de racionamento. No início de cada mês, calcula-se o volume relativo $p_t = 100\,V_t/V_{\max}$, e as faixas são percorridas em ordem crescente de limite; o estado do mês é o da primeira faixa cujo limite seja maior ou igual a $p_t$. Se nenhum limite for alcançado, o estado é Normal. A demanda aplicada é dada pela Equação \ref{eq:demanda-racionada}.
+
+\begin{equation}
+    D^{a}_t = D_t \left(1-\frac{r_k}{100}\right)
+    \label{eq:demanda-racionada}
+\end{equation}
+
+em que $r_k$ é o percentual de racionamento do estado $k$. A comparação $p_t \leq$ limite implica que um volume exatamente igual ao limite pertence à faixa mais restritiva. O Código-fonte \ref{cod:racionamento} reproduz o trecho correspondente.
+
+\begin{lstlisting}[
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Seleção da faixa operacional e aplicação do racionamento},
+    label={cod:racionamento}
+]
+pct_vol = (vol_ini / capacidade) * 100.0 if capacidade > 0 else 0.0
+rac = 0.0
+nome_faixa = "Normal"
+regras = p["regras_secas"].get(mes_atual, []) if p["regras_secas"] else []
+if regras and not cenario_fq_ativo:
+    nome_faixa = p.get("nome_faixa_normal", "Acima do Teto")
+    for limite, rac_regra, faixa in regras:   # ordenadas pelo limite
+        if pct_vol <= limite:
+            rac = float(rac_regra)
+            nome_faixa = faixa
+            break
+...
+demandas_finais[i] = demandas_iniciais[i] * (1.0 - racionamentos[i] / 100.0)
+\end{lstlisting}
+
+Os limites e percentuais podem ser carregados do banco de dados ou editados na interface e aplicados apenas à sessão corrente, sem alterar a base.
+
+\section{Verificação numérica}
+\label{sec:metodo-verificacao}
+
+A verificação numérica consistiu em comparar as saídas do simulador com um cálculo independente realizado em planilha eletrônica. A planilha, elaborada sem reutilizar o código do sistema, reproduz por fórmulas a lógica descrita na Seção \ref{sec:modelo-simulacao}: conversão de vazão por 2,592, interpolação linear na curva cota-área-volume, evaporação com área média, limitação da retirada à disponibilidade e vertimento do excedente. Ela contém abas para colagem da série de vazões, para os dados de reservatórios, evaporação e cotas-áreas-volumes e uma aba de cálculo mês a mês com o resíduo de conservação de massa, definido pela Equação \ref{eq:residuo}.
+
+\begin{equation}
+    \varepsilon_t = V_{t+1} - \left(V_t + I_t + T_t - R_t - E_t - S_t\right)
+    \label{eq:residuo}
+\end{equation}
+
+O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
+
+Como verificação ampliada, foram examinadas 25 exportações mensais do simulador referentes a reservatórios individuais com níveis meta e racionamento. Em cada arquivo, recalcularam-se independentemente o resíduo da Equação \ref{eq:residuo}, a continuidade entre o volume final de um mês e o inicial do seguinte, o respeito aos limites físicos, o estado operacional esperado a partir das curvas mensais, o percentual de racionamento, a coerência entre demanda aplicada e atendida e a indicação de falha. As mesmas configurações também foram executadas novamente com a versão do código indicada no Apêndice \ref{ap:codigo-fonte}, para confirmar a reprodutibilidade das exportações.
+
+\section{Casos controlados}
+\label{sec:metodo-casos}
+
+Os casos controlados são testes funcionais com entradas sintéticas para as quais a resposta correta pode ser calculada manualmente. Eles foram executados diretamente sobre a função de simulação do repositório, com reservatórios fictícios de capacidade e curva cota-área-volume conhecidas. Os casos e as entradas resumidas são apresentados na Tabela \ref{tab:casos-controlados-config}; as entradas completas constam no Apêndice \ref{ap:testes-controlados}.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Casos controlados e comportamento verificado}
+    \label{tab:casos-controlados-config}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{4.4cm}p{9.6cm}}
+        \toprule
+        Caso & Comportamento verificado \\
+        \midrule
+        Volume constante & ausência de variação sem afluência, evaporação e demanda \\
+        Aplicação isolada da demanda & redução linear do volume pela retirada mensal \\
+        Evaporação com área constante & cálculo de $E_t$ como produto entre lâmina e área \\
+        Ocorrência de vertimento & registro do excedente e limitação do volume à capacidade \\
+        Falha por falta de volume & atendimento parcial, falha registrada e volume não negativo \\
+        Aplicação de racionamento & classificação do estado e redução da demanda \\
+        Fronteira de nível meta & mudança de estado exatamente no limite \\
+        Ativação de transferência & início da transferência no mês em que o gatilho é atingido \\
+        Redistribuição da demanda conjunta & mudança da unidade responsável no modo Paralelo \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Para facilitar o cálculo manual, adotaram-se, conforme o caso, afluência nula, evaporação nula e curva cota-área-volume com área constante de 1 km$^2$. Um caso é considerado aprovado quando o resultado obtido coincide com o esperado dentro da precisão de ponto flutuante.
+
+\section{Análise de sensibilidade}
+\label{sec:metodo-sensibilidade}
+
+A análise de sensibilidade foi realizada pela variação de um parâmetro por vez em torno de configurações de referência, mantendo os demais constantes. Para os parâmetros de um reservatório isolado, utilizou-se Mundaú no modo Individual, sem racionamento, com volume inicial de 50\%, demanda de 250 L/s e período de 1911 a 2021. Para os parâmetros de transferência, utilizou-se a configuração de Fogareiro--Quixeramobim descrita na Seção \ref{sec:estudos-aplicacao}. As faixas de variação constam na Tabela \ref{tab:sensibilidade-config}. O fator de evaporação multiplica todas as lâminas mensais da estação associada.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Parâmetros variados na análise de sensibilidade}
+    \label{tab:sensibilidade-config}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{4.0cm}p{3.6cm}p{2.0cm}p{4.0cm}}
+        \toprule
+        Parâmetro & Valores & Referência & Sistema \\
+        \midrule
+        Volume inicial & 0; 25; 50; 75; 100\% & 50\% & Mundaú (Individual) \\
+        Demanda & 150 a 400 L/s, passo 50 & 250 L/s & Mundaú (Individual) \\
+        Evaporação & fator 0,8 a 1,2, passo 0,1 & 1,0 & Mundaú (Individual) \\
+        Gatilho de transferência & 10 a 50\%, passo 10 & 30\% & Fogareiro--Quixeramobim \\
+        Vazão transferida (estado Normal) & 0 a 700 L/s, passo 100 & 500 L/s & Fogareiro--Quixeramobim \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Na variação da vazão transferida, os valores dos demais estados foram ajustados proporcionalmente, preservando as razões da configuração de referência. Na variação do gatilho, as demais regras permaneceram inalteradas.
+
+\section{Estudos de aplicação}
+\label{sec:estudos-aplicacao}
+
+As configurações dos três estudos de aplicação são resumidas na Tabela \ref{tab:config-aplicacoes}. Em todas foi utilizado o cenário hidrológico histórico, sem fatores de redução ou acréscimo das afluências.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Configurações dos estudos de aplicação}
+    \label{tab:config-aplicacoes}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{3.0cm}p{3.6cm}p{3.6cm}p{3.8cm}}
+        \toprule
+        Parâmetro & Mundaú & Carnaubal--Batalhão & Fogareiro--Quixeramobim \\
+        \midrule
+        Modo & Individual & Paralelo & Série (configuração específica) \\
+        Período & jan./1911--dez./2021 & jan./1911--dez./2021 & jan./1911--dez./2019 \\
+        Meses & 1.332 & 1.332 & 1.308 \\
+        Volume inicial & 50\% & 50\% em cada unidade & 100\% em cada unidade \\
+        Demandas & 250 L/s & locais nulas; conjunta de 160 L/s & Fogareiro 272 L/s; Quixeramobim 342 L/s (estado Normal) \\
+        Ordem/gatilho & --- & Carnaubal, gatilho 10\%; Batalhão & gatilho de Quixeramobim 30\% \\
+        Transferência & --- & --- & 500 L/s no estado Normal \\
+        Regras & curvas-guia com racionamento 0/0/50/70\% & sem racionamento & estado definido por Fogareiro \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor.}
+\end{table}
+
+Em Mundaú, foram empregadas as curvas-guia mensais publicadas no plano de gestão proativa de secas do hidrossistema \cite{pgpsMundau2026}, reproduzidas na Tabela \ref{tab:curvas-mundau}, com atendimento integral nos estados Normal e Alerta e racionamentos de 50\% e 70\% nos estados Seca e Seca Severa, o que corresponde a retiradas de 250, 250, 125 e 75 L/s. As curvas foram utilizadas como dado de entrada para demonstrar a funcionalidade de racionamento; os resultados não são comparados com os do plano.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Curvas-guia adotadas na aplicação de Mundaú (\% da capacidade)}
+    \label{tab:curvas-mundau}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lrrrrrrrrrrrr}
+        \toprule
+        Limite superior da faixa & JAN & FEV & MAR & ABR & MAI & JUN & JUL & AGO & SET & OUT & NOV & DEZ \\
+        \midrule
+        Alerta (racionamento 0\%) & 55 & 52 & 50 & 51 & 54 & 79 & 78 & 75 & 71 & 67 & 63 & 59 \\
+        Seca (racionamento 50\%) & 35 & 32 & 30 & 31 & 35 & 58 & 57 & 54 & 50 & 47 & 43 & 39 \\
+        Seca Severa (racionamento 70\%) & 21 & 18 & 16 & 17 & 21 & 43 & 42 & 39 & 36 & 32 & 28 & 25 \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{elaborada pelo autor com base em \citeonline{pgpsMundau2026}.}
+\end{table}
+
+Em Carnaubal--Barragem do Batalhão, a configuração foi definida para demonstrar o modo Paralelo: a demanda conjunta de 160 L/s é inicialmente atribuída a Carnaubal e pode ser deslocada para a Barragem do Batalhão quando Carnaubal fica abaixo de 10\% da capacidade.
+
+Em Fogareiro--Quixeramobim, empregou-se a configuração específica descrita na Seção \ref{subsec:operacao-serie}. As retiradas e transferências por estado são apresentadas na Tabela \ref{tab:fq-regras}; as curvas-guia de Fogareiro, convertidas para percentual da capacidade de 118 hm$^3$, aparecem na Figura \ref{fig:sim-config-fq} do Capítulo \ref{chap:resultados}.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Retiradas e transferências por estado na configuração de Fogareiro--Quixeramobim}
+    \label{tab:fq-regras}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrrr}
+        \toprule
+        Estado do sistema & Fogareiro (L/s) & Quixeramobim (L/s) & Transferência (L/s) \\
+        \midrule
+        Normal & 272,0 & 342,0 & 500 \\
+        Alerta & 220,0 & 301,8 & 400 \\
+        Seca & 139,6 & 213,3 & 300 \\
+        Seca Severa & 6,0 & 70,5 & 85 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{elaborada pelo autor com base na configuração do sistema e em \citeonline{pgpsFogareiroQuixeramobim2023}.}
+\end{table}
+
+\section{Critérios de avaliação}
+\label{sec:criterios-avaliacao}
+
+Os resultados das aplicações e da sensibilidade são descritos pelos indicadores a seguir, calculados a partir dos registros mensais:
+
+\begin{alineas}
+    \item \textbf{atendimento da demanda}: razão percentual entre o volume total efetivamente retirado e o volume total da demanda aplicada; quando há racionamento, informa-se também a razão em relação à demanda solicitada, sem racionamento;
+    \item \textbf{meses com falha}: número de meses em que a retirada efetiva foi inferior à demanda aplicada;
+    \item \textbf{déficit acumulado}: soma dos déficits mensais $\Delta_t$, em hm$^3$;
+    \item \textbf{volume mínimo}: menor volume final ao longo da simulação, em hm$^3$ e em percentual da capacidade;
+    \item \textbf{vertimento}: soma dos volumes vertidos, em hm$^3$;
+    \item \textbf{permanência operacional}: número e percentual de meses em cada estado (Normal, Alerta, Seca e Seca Severa); e
+    \item \textbf{meses com transferência}: número de meses em que houve transferência no modo Série ou deslocamento da demanda conjunta no modo Paralelo.
+\end{alineas}
+
+Esses indicadores descrevem o comportamento de cada configuração sob as hipóteses adotadas e são interpretados em conjunto. Um único indicador pode ser enganoso: uma regra com racionamento pode eliminar as falhas à custa de restrições frequentes, enquanto outra pode reduzir as restrições e produzir déficits concentrados.
