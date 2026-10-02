@@ -66,26 +66,7 @@ A comunicação entre as camadas ocorre por requisições HTTP com corpo em form
     \centering
     \Caption{\label{fig:arquitetura-ssd}Arquitetura do sistema de suporte à decisão desenvolvido.}
     \UFCfig{}{
-    \parbox{\textwidth}{\centering
-    \begingroup
-    \setlength{\fboxsep}{6pt}
-    \small
-    \fbox{\parbox{0.84\textwidth}{\centering
-        \textbf{Interface web (React/Vite)}\par
-        Configuração \enspace $\vert$ \enspace indicadores \enspace $\vert$ \enspace gráficos \enspace $\vert$ \enspace tabelas \enspace $\vert$ \enspace exportação}}\par
-    \vspace{0.10cm}
-    $\updownarrow$ \enspace HTTP/JSON\par
-    \vspace{0.10cm}
-    \fbox{\parbox{0.84\textwidth}{\centering
-        \textbf{API (FastAPI)}\par
-        Validação das entradas \enspace $\vert$ \enspace leitura dos dados \enspace $\vert$ \enspace montagem dos registros mensais}}\par
-    \vspace{0.10cm}
-    $\updownarrow$\par
-    \vspace{0.10cm}
-    \fbox{\parbox{0.40\textwidth}{\centering\textbf{Simulador (Python/NumPy/Numba)}\par Balanço hídrico, modos de operação e racionamento}}
-    \hspace{0.3cm}$\longleftrightarrow$\hspace{0.3cm}
-    \fbox{\parbox{0.33\textwidth}{\centering\textbf{Banco de dados (SQLite)}\par Reservatórios, vazões, evaporação, CAV, níveis meta}}
-    \endgroup}
+        \input{2-textuais/arquitetura}
     }{
         \Fonte{elaborada pelo autor.}
     }
