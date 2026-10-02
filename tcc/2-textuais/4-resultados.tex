@@ -225,7 +225,7 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
     \UFCfig{}{
         \includegraphics[width=\textwidth]{figuras/sensibilidade.png}
     }{
-        \Fonte{elaborada pelo autor.}
+        \Fonte{elaborada pelo autor a partir de 29 execuções do simulador (motor de cálculo do repositório).}
     }
 \end{figure}
 
@@ -287,11 +287,18 @@ A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-co
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:mundau-volume}Evolução do volume de Mundaú, estado operacional e vazão atendida (1911--2021).}
+    \Caption{\label{fig:mundau-volume}Resultados de Mundaú exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado.}
     \UFCfig{}{
-        \includegraphics[width=\textwidth]{figuras/mundau-volume-estados.png}
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-volume.png}\par\medskip
+        \textbf{(b) Demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-demanda.png}\par\medskip
+        \textbf{(c) Racionamento mensal (\%)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-racionamento.png}\par\medskip
+        }
     }{
-        \Fonte{elaborada pelo autor a partir das saídas do simulador.}
+        \Fonte{gráficos exportados pelo simulador.}
     }
 \end{figure}
 
@@ -323,24 +330,34 @@ A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-co
 
 Com as curvas-guia, o reservatório não apresentou nenhuma falha no período: em todos os meses, a demanda aplicada foi integralmente atendida. Esse resultado foi obtido à custa de 332 meses com racionamento, nos quais a retirada foi reduzida para 125 L/s (199 meses em Seca) ou 75 L/s (133 meses em Seca Severa). No total, 124,80 hm$^3$ deixaram de ser fornecidos por decisão operacional, e o atendimento em relação à demanda solicitada foi de 85,54\%. Na mesma série, sem racionamento, ocorreriam 142 meses de falha e o reservatório se esvaziaria; com a regra, o volume mínimo foi de 1,57 hm$^3$ (7,4\% da capacidade), em dezembro de 1932. A comparação ilustra o compromisso discutido na Seção \ref{sec:regras-operacao}: a regra troca falhas imprevistas, concentradas no fim das secas, por reduções antecipadas e previsíveis da retirada. Ela também mostra por que o número de falhas, isoladamente, não descreve a política, pois a ausência de falhas convive com 25\% dos meses sob restrição.
 
-As permanências operacionais foram de 734 meses em Normal (55,1\%), 266 em Alerta (20,0\%), 199 em Seca (14,9\%) e 133 em Seca Severa (10,0\%). A Figura \ref{fig:mundau-estados-mes} mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 13,5\% a 20,7\% dos meses de junho a outubro, quando os limites das curvas são mais altos e não há recarga, e em apenas 1,8\% a 4,5\% dos meses de fevereiro a maio, período da estação chuvosa em que os limites diminuem e as afluências elevam o armazenamento. A frequência do estado Normal, por sua vez, é máxima em abril e maio, ao final da estação chuvosa.
+As permanências operacionais foram de 734 meses em Normal (55,1\%), 266 em Alerta (20,0\%), 199 em Seca (14,9\%) e 133 em Seca Severa (10,0\%). A Tabela \ref{tab:mundau-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 13,5\% a 20,7\% dos meses de junho a outubro, quando os limites das curvas são mais altos e não há recarga, e em apenas 1,8\% a 4,5\% dos meses de fevereiro a maio, período da estação chuvosa em que os limites diminuem e as afluências elevam o armazenamento. A frequência do estado Normal, por sua vez, é máxima em abril e maio, ao final da estação chuvosa.
 
-\begin{figure}[!ht]
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Distribuição dos estados operacionais de Mundaú por mês do ano (\% dos meses)}
+    \label{tab:mundau-estados-mes}
     \centering
-    \Caption{\label{fig:mundau-estados-mes}Distribuição dos estados operacionais de Mundaú por mês do ano.}
-    \UFCfig{}{
-        \includegraphics[width=0.85\textwidth]{figuras/mundau-estados-mes.png}
-    }{
-        \Fonte{elaborada pelo autor a partir das saídas do simulador.}
-    }
-\end{figure}
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lrrrrrrrrrrrr}
+        \toprule
+        Estado & JAN & FEV & MAR & ABR & MAI & JUN & JUL & AGO & SET & OUT & NOV & DEZ \\
+        \midrule
+        Normal & 52,3 & 55,9 & 56,8 & 62,2 & 64,9 & 51,4 & 52,3 & 53,2 & 53,2 & 53,2 & 53,2 & 53,2 \\
+        Alerta & 26,1 & 21,6 & 25,2 & 20,7 & 20,7 & 13,5 & 17,1 & 18,0 & 18,0 & 18,9 & 18,9 & 20,7 \\
+        Seca & 13,5 & 18,0 & 16,2 & 14,4 & 12,6 & 14,4 & 13,5 & 12,6 & 15,3 & 14,4 & 17,1 & 17,1 \\
+        Seca Severa & 8,1 & 4,5 & 1,8 & 2,7 & 1,8 & 20,7 & 17,1 & 16,2 & 13,5 & 13,5 & 10,8 & 9,0 \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{elaborada pelo autor a partir da tabela mensal exportada pelo simulador.}
+\end{table}
 
 A interpretação hidrológica da Figura \ref{fig:mundau-volume} evidencia três padrões. O primeiro é a alternância entre anos de enchimento, nos quais o reservatório verte (120 meses com vertimento), e esvaziamentos plurianuais. O segundo é a concentração das restrições em longos períodos secos: entre 1930 e 1961, a série apresenta sequências de afluências reduzidas em que o reservatório permanece predominantemente em Seca e Seca Severa; o episódio mais longo de Seca Severa ocorreu de abril de 1932 a abril de 1933 (13 meses), seguido de maio de 1954 a abril de 1955 (12 meses). O terceiro é a resposta aos eventos mais recentes, como os de 1981--1984 e 2012--2018, em que o estado chegou a Seca Severa por períodos mais curtos, de até oito meses consecutivos. Em todos esses eventos, a redução antecipada da retirada desacelerou o esvaziamento e permitiu que o reservatório atravessasse as secas sem colapso.
 
 \section{Aplicação em Carnaubal--Barragem do Batalhão}
 \label{sec:aplicacao-carnaubal}
 
-A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-carnaubal}: Carnaubal (46,62 hm$^3$) é o reservatório prioritário, com gatilho de 10\%, e a Barragem do Batalhão (1,64 hm$^3$) é a segunda unidade; a demanda conjunta é de 160 L/s (0,4147 hm$^3$/mês), sem demandas locais. A Figura \ref{fig:sim-resultados-carnaubal} mostra o painel de resultados da interface, e a Figura \ref{fig:carnaubal-batalhao}, os volumes dos dois reservatórios e os períodos de mudança da unidade responsável.
+A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-carnaubal}: Carnaubal (46,62 hm$^3$) é o reservatório prioritário, com gatilho de 10\%, e a Barragem do Batalhão (1,64 hm$^3$) é a segunda unidade; a demanda conjunta é de 160 L/s (0,4147 hm$^3$/mês), sem demandas locais. A Figura \ref{fig:sim-resultados-carnaubal} mostra o painel de resultados da interface, e a Figura \ref{fig:carnaubal-batalhao}, os gráficos exportados pelo simulador com os volumes dos dois reservatórios e a demanda conjunta assumida por cada unidade; os períodos em que a Barragem do Batalhão é responsável aparecem como pulsos no painel (c), e as falhas, como quedas da demanda atendida no painel (b).
 
 \begin{figure}[!ht]
     \centering
@@ -364,11 +381,18 @@ A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-c
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:carnaubal-batalhao}Volumes de Carnaubal e da Barragem do Batalhão, meses em que o Batalhão assumiu a demanda conjunta e meses com falha (1911--2021).}
+    \Caption{\label{fig:carnaubal-batalhao}Resultados de Carnaubal--Barragem do Batalhão exportados pelo simulador (1911--2021): volumes e demanda conjunta solicitada e atendida em cada unidade.}
     \UFCfig{}{
-        \includegraphics[width=\textwidth]{figuras/carnaubal-batalhao.png}
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-volume.png}\par\medskip
+        \textbf{(b) Carnaubal: demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-demanda-carnaubal.png}\par\medskip
+        \textbf{(c) Barragem do Batalhão: demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-demanda-batalhao.png}\par\medskip
+        }
     }{
-        \Fonte{elaborada pelo autor a partir das saídas do simulador.}
+        \Fonte{gráficos exportados pelo simulador.}
     }
 \end{figure}
 
@@ -432,11 +456,18 @@ A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:fogareiro-quixeramobim}Volumes de Fogareiro e Quixeramobim e vazão transferida (1911--2019).}
+    \Caption{\label{fig:fogareiro-quixeramobim}Resultados de Fogareiro--Quixeramobim exportados pelo simulador (1911--2019): volumes coloridos pelo estado do sistema e vazão transferida.}
     \UFCfig{}{
-        \includegraphics[width=\textwidth]{figuras/fogareiro-quixeramobim.png}
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Fogareiro: volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-volume-fogareiro.png}\par\medskip
+        \textbf{(b) Quixeramobim: volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-volume-quixeramobim.png}\par\medskip
+        \textbf{(c) Transferência enviada por Fogareiro (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-transferencias.png}\par\medskip
+        }
     }{
-        \Fonte{elaborada pelo autor a partir das saídas do simulador.}
+        \Fonte{gráficos exportados pelo simulador.}
     }
 \end{figure}
 

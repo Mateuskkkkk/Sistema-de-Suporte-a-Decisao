@@ -94,22 +94,15 @@ A comunicação entre as camadas ocorre por requisições HTTP com corpo em form
 \section{Interface e fluxo de utilização}
 \label{sec:interface-fluxo}
 
-A interface do simulador organiza a análise em cinco etapas, sintetizadas na Figura \ref{fig:fluxo-interface}. Na seleção, o usuário escolhe um hidrossistema pré-configurado ou monta manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Na configuração, informa volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, modo de operação, cenário hidrológico e período; na aba de níveis meta, pode editar os limites mensais e os percentuais de racionamento de cada faixa e aplicá-los à sessão. Após a execução, a análise é apoiada por indicadores agregados, gráficos de volume, demanda solicitada e atendida, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Por fim, os registros podem ser exportados em planilha eletrônica ou JSON.
+O funcionamento do sistema é sintetizado no fluxograma da Figura \ref{fig:fluxo-interface}, que separa as ações do usuário, realizadas na interface web, das etapas executadas pelo sistema. Do lado do usuário, a análise segue seis passos. Primeiro, escolhe-se um hidrossistema pré-configurado ou monta-se manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Em seguida, escolhe-se o modo de operação e informam-se volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, cenário hidrológico e período. Opcionalmente, na aba de níveis meta, os limites mensais e os percentuais de racionamento de cada faixa podem ser editados e aplicados à sessão, sem alterar o banco de dados. Ao acionar ``Gerar Simulação'', a configuração é enviada ao sistema.
+
+Do lado do sistema, a API valida a configuração, lê no banco as séries de vazão, a evaporação, as curvas cota-área-volume e as regras e executa o simulador. Para cada mês, o simulador determina o estado operacional e o racionamento, aplica a regra do modo de operação, calcula o balanço hídrico e registra o resultado, repetindo o ciclo até o último mês do período. Os registros mensais retornam à interface, onde são apresentados como indicadores agregados, gráficos de volume, demanda, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Se a configuração não for satisfatória, o usuário altera os dados e executa nova simulação; caso contrário, exporta os registros em planilha eletrônica ou JSON e os gráficos em PNG ou SVG.
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:fluxo-interface}Fluxo de utilização da interface do simulador.}
+    \Caption{\label{fig:fluxo-interface}Fluxograma de funcionamento do sistema de suporte à decisão.}
     \UFCfig{}{
-    \small
-    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Seleção dos\\reservatórios}}
-    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
-    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Configuração\\operacional}}
-    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
-    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Execução da\\simulação}}
-    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
-    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Análise dos\\resultados}}
-    \hspace{0.05cm}$\rightarrow$\hspace{0.05cm}
-    \fbox{\parbox[c][1.05cm][c]{2.15cm}{\centering Exportação\\dos dados}}
+        \input{2-textuais/fluxograma}
     }{
         \Fonte{elaborada pelo autor.}
     }

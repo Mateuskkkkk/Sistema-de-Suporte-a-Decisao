@@ -1,0 +1,73 @@
+% Fluxograma do funcionamento do sistema
+\begin{tikzpicture}[
+    font=\scriptsize,
+    node distance=4.2mm and 6mm,
+    >={Stealth[length=2.2mm]},
+    seta/.style={->, thick, draw=black!70},
+    usuario/.style={rectangle, rounded corners=3pt, draw=orange!70!black, fill=orange!12, thick, text width=4.3cm, align=center, minimum height=8mm},
+    sistema/.style={rectangle, draw=blue!60!black, fill=blue!8, thick, text width=4.3cm, align=center, minimum height=8mm},
+    calculo/.style={rectangle, draw=teal!70!black, fill=teal!10, thick, text width=4.3cm, align=center, minimum height=8mm},
+    decisao/.style={diamond, aspect=2.4, draw=black!70, fill=yellow!20, thick, text width=2.6cm, align=center, inner sep=1pt},
+    terminal/.style={rectangle, rounded corners=9pt, draw=black!80, fill=black!6, thick, text width=3.0cm, align=center, minimum height=7mm},
+    nota/.style={font=\tiny\itshape, text=black!65, align=left},
+    lane/.style={rectangle, rounded corners=4pt, draw=black!25, dashed, inner sep=3mm},
+    lanetitle/.style={font=\scriptsize\bfseries, text=black!70}
+]
+% ---------------- coluna do usuário (interface)
+\node[terminal] (ini) {Início: o usuário abre o simulador};
+\node[usuario, below=of ini] (sel) {\textbf{1. Escolher os reservatórios}\\ hidrossistema pronto ou lista manual (a ordem define a prioridade)};
+\node[usuario, below=of sel] (modo) {\textbf{2. Escolher o modo}\\ Individual, Série ou Paralelo};
+\node[usuario, below=of modo] (cfg) {\textbf{3. Informar os dados}\\ volume inicial, demandas, gatilho, vazão conjunta ou de transferência e período};
+\node[decisao, below=of cfg] (dnm) {Usar níveis meta?};
+\node[usuario, dashed, below=of dnm] (nm) {Editar limites mensais e racionamento e aplicar à sessão};
+\node[usuario, below=of nm] (ger) {\textbf{4. Gerar simulação}};
+
+% ---------------- coluna do sistema (API + motor)
+\node[sistema, right=22mm of sel] (api) {\textbf{API recebe a configuração}\\ e valida as entradas};
+\node[sistema, below=of api] (bd) {\textbf{Leitura no banco SQLite}\\ vazões, evaporação, curva cota-área-volume e regras};
+\node[calculo, below=of bd] (mes) {\textbf{Para cada mês $t$}\\ estado operacional e racionamento a partir de $V_t$};
+\node[calculo, below=of mes] (op) {\textbf{Regra do modo}\\ Série: transferência se o receptor está abaixo do gatilho\\ Paralelo: troca do responsável pela demanda conjunta};
+\node[calculo, below=of op] (bal) {\textbf{Balanço hídrico}\\ evaporação (área média), retirada limitada ao volume, vertimento do excedente};
+\node[calculo, below=of bal] (reg) {Registrar o mês: volumes, demandas, falha, estado};
+\node[decisao, below=of reg] (ult) {Último mês?};
+\node[sistema, below=6mm of ult] (out) {\textbf{Devolver resultados}\\ registros mensais em JSON};
+
+% ---------------- análise (volta ao usuário)
+\node[usuario, below=10mm of ger] (ana) {\textbf{5. Analisar}\\ indicadores, gráficos, falhas e tabela mensal};
+\node[decisao, below=of ana] (ok) {Configuração satisfatória?};
+\node[usuario, below=6mm of ok] (exp) {\textbf{6. Exportar}\\ planilha, JSON e gráficos (PNG/SVG)};
+\node[terminal, below=of exp] (fim) {Fim};
+
+% ---------------- setas
+\draw[seta] (ini) -- (sel);
+\draw[seta] (sel) -- (modo);
+\draw[seta] (modo) -- (cfg);
+\draw[seta] (cfg) -- (dnm);
+\draw[seta] (dnm) -- node[right]{sim} (nm);
+\draw[seta] (nm) -- (ger);
+\draw[seta] (dnm.west) -- node[above, pos=0.4]{não} ++(-4mm,0) |- (ger.west);
+\draw[seta] (ger.east) -- ++(4mm,0) |- (api.west);
+\draw[seta] (api) -- (bd);
+\draw[seta] (bd) -- (mes);
+\draw[seta] (mes) -- (op);
+\draw[seta] (op) -- (bal);
+\draw[seta] (bal) -- (reg);
+\draw[seta] (reg) -- (ult);
+\draw[seta] (ult.east) -- node[above, pos=0.3]{não} ++(5mm,0) |- node[right, pos=0.25]{$t+1$} (mes.east);
+\draw[seta] (ult) -- node[right]{sim} (out);
+\draw[seta] (out.west) -- ++(-6mm,0) |- (ana.east);
+\draw[seta] (ana) -- (ok);
+\draw[seta] (ok.west) -- node[above, pos=0.3]{não} ++(-9mm,0) |- (cfg.west);
+\draw[seta] (ok) -- node[right]{sim} (exp);
+\draw[seta] (exp) -- (fim);
+
+% ---------------- faixas
+\begin{scope}[on background layer]
+  \coordinate (Lesq) at ($(ok.west)+(-11mm,0)$);
+  \node[lane, fit=(ini)(sel)(modo)(cfg)(dnm)(nm)(ger)(ana)(ok)(exp)(fim)(Lesq)] (L1) {};
+  \coordinate (Ldir) at ($(ult.east)+(7mm,0)$);
+  \node[lane, fit=(api)(bd)(mes)(op)(bal)(reg)(ult)(out)(Ldir)] (L2) {};
+\end{scope}
+\node[lanetitle, above=0.5mm of L1.north] {Usuário (interface web)};
+\node[lanetitle, above=0.5mm of L2.north] {Sistema (API, banco e simulador)};
+\end{tikzpicture}
