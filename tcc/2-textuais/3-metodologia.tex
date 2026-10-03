@@ -269,6 +269,11 @@ Os limites e percentuais podem ser carregados do banco de dados ou editados na i
 \section{Verificação numérica}
 \label{sec:metodo-verificacao}
 
+A verificação numérica foi organizada em duas partes complementares. A primeira confere o cálculo do balanço hídrico, comparando o simulador com um cálculo independente em planilha. A segunda confere a aplicação das regras de níveis meta e de racionamento, que a planilha não representa, por meio de conferências independentes sobre as saídas mensais do simulador. A primeira responde se a conta está correta; a segunda, se a regra é aplicada como especificada.
+
+\subsection{Verificação do balanço hídrico por cálculo independente}
+\label{subsec:metodo-verif-balanco}
+
 A verificação numérica consistiu em comparar as saídas do simulador com um cálculo independente realizado em planilha eletrônica. A planilha, elaborada sem reutilizar o código do sistema, reproduz por fórmulas a lógica descrita na Seção \ref{sec:modelo-simulacao}: conversão de vazão por 2,592, interpolação linear na curva cota-área-volume, evaporação com área média, limitação da retirada à disponibilidade e vertimento do excedente. Ela contém abas para colagem da série de vazões, para os dados de reservatórios, evaporação e cotas-áreas-volumes e uma aba de cálculo mês a mês com o resíduo de conservação de massa, definido pela Equação \ref{eq:residuo}.
 
 \begin{equation}
@@ -276,11 +281,57 @@ A verificação numérica consistiu em comparar as saídas do simulador com um c
     \label{eq:residuo}
 \end{equation}
 
-O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
+O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. O procedimento de comparação é sintetizado no Algoritmo \ref{alg:verif-planilha}. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
 
 O mesmo procedimento foi então estendido aos 25 hidrossistemas da matriz de verificação utilizada neste trabalho, que reúne reservatórios contemplados por planos de gestão proativa de secas no Ceará. Para cada um, a planilha e o simulador foram executados no modo Individual, sem racionamento, com volume inicial de 50\% da capacidade, demanda constante igual à vazão do estado Normal indicada na matriz e o período nela definido. Para os dois hidrossistemas sem período definido na matriz, Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, adotou-se o período de janeiro de 1911 a dezembro de 2017. Em todos os casos, os dados de reservatório, evaporação e curva cota-área-volume foram lidos pela própria planilha em suas abas de dados, que reproduzem o cadastro do banco do sistema.
 
-Como verificação ampliada das regras de racionamento, os mesmos 25 hidrossistemas foram simulados com níveis meta e racionamento, com as curvas-guia, os percentuais de racionamento, a vazão do estado Normal e os períodos da matriz de verificação, adotando-se novamente 1911 a 2017 quando o período não estava definido, e suas saídas mensais foram exportadas. Em cada uma, recalcularam-se independentemente o resíduo da Equação \ref{eq:residuo}, a continuidade entre o volume final de um mês e o inicial do seguinte, o respeito aos limites físicos, o estado operacional esperado a partir das curvas mensais, o percentual de racionamento, a coerência entre demanda aplicada e atendida e a indicação de falha. Todas as simulações foram executadas com a versão do código indicada no Apêndice \ref{ap:codigo-fonte}.
+\begin{algorithm}[!ht]
+\caption{Comparação mês a mês entre a planilha independente e o simulador}
+\label{alg:verif-planilha}
+\DontPrintSemicolon
+\KwIn{hidrossistemas $\mathcal{H}$; para cada um, série de vazões, capacidade, curva cota-área-volume, evaporação, demanda $Q$ e período; tolerância $\tau = 10^{-9}$ hm$^3$}
+\KwOut{número de meses divergentes e indicadores de cada hidrossistema}
+\ForEach{$h \in \mathcal{H}$}{
+  $\mathbf{P} \leftarrow$ cálculo da planilha para $h$ (Individual, sem racionamento, $V_0 = 50\%$)\;
+  $\mathbf{S} \leftarrow$ execução do simulador com os mesmos dados\;
+  $n_{div} \leftarrow 0$\;
+  \For{$t \leftarrow 1$ \KwTo $N$}{
+    $d_t \leftarrow \max_{x \in \{V_t,\, I_t,\, E_t,\, R_t,\, S_t,\, V_{t+1}\}} \left| P_x(t) - S_x(t) \right|$\;
+    \If{$d_t > \tau$ \textbf{ou} $\mathrm{falha}_P(t) \neq \mathrm{falha}_S(t)$}{
+      $n_{div} \leftarrow n_{div} + 1$\;
+    }
+  }
+  registrar $n_{div}$, meses com falha e atendimento em $\mathbf{P}$ e em $\mathbf{S}$\;
+}
+\end{algorithm}
+
+
+\subsection{Verificação das regras de níveis meta e racionamento}
+\label{subsec:metodo-verif-regras}
+
+Como a planilha não representa o racionamento, as regras de níveis meta foram verificadas separadamente. Para isso, os mesmos 25 hidrossistemas foram simulados com níveis meta e racionamento, com as curvas-guia, os percentuais de racionamento, a vazão do estado Normal e os períodos da matriz de verificação, adotando-se novamente 1911 a 2017 quando o período não estava definido, e suas saídas mensais foram exportadas. Em cada uma, recalcularam-se independentemente o resíduo da Equação \ref{eq:residuo}, a continuidade entre o volume final de um mês e o inicial do seguinte, o respeito aos limites físicos, o estado operacional esperado a partir das curvas mensais, o percentual de racionamento, a coerência entre demanda aplicada e atendida e a indicação de falha. Essas conferências foram programadas em um script próprio, que não reutiliza o código do simulador e lê apenas a tabela exportada, conforme o Algoritmo \ref{alg:verif-regras}. Todas as simulações foram executadas com a versão do código indicada no Apêndice \ref{ap:codigo-fonte}, e os scripts de verificação acompanham o repositório no diretório \texttt{tcc/analise}.
+
+\begin{algorithm}[!ht]
+\caption{Conferência independente das regras de níveis meta e racionamento}
+\label{alg:verif-regras}
+\DontPrintSemicolon
+\KwIn{tabela mensal exportada pelo simulador; capacidade $V_{\max}$; curvas mensais e racionamentos das faixas; tolerância $\tau$}
+\KwOut{número de violações em cada conferência}
+\For{$t \leftarrow 1$ \KwTo $N$}{
+  $p \leftarrow 100\,V_t/V_{\max}$;\quad $m \leftarrow$ mês de $t$\;
+  $(k^{*}, r^{*}) \leftarrow (\text{Normal}, 0)$\;
+  \ForEach{faixa $(L_k, r_k, k)$ em ordem crescente de $L_k(m)$}{
+    \If{$p \leq L_k(m)$}{$(k^{*}, r^{*}) \leftarrow (k, r_k)$; \textbf{interromper}\;}
+  }
+  conferir estado registrado $= k^{*}$ e racionamento registrado $= r^{*}$\;
+  $D^{a}_t \leftarrow D_t\,(1 - r^{*}/100)$\;
+  conferir $R_t \leq D^{a}_t + \tau$ e falha registrada $\Leftrightarrow R_t < D^{a}_t - \tau$\;
+  $\varepsilon_t \leftarrow V_{t+1} - (V_t + I_t - R_t - E_t - S_t)$; conferir $|\varepsilon_t| \leq \tau$\;
+  conferir $0 \leq V_{t+1} \leq V_{\max}$\;
+  \lIf{$t > 1$}{conferir $V_t = V_t^{\text{(final de } t-1)}$}
+}
+\end{algorithm}
+
 
 \section{Casos controlados}
 \label{sec:metodo-casos}

@@ -63,8 +63,13 @@ A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, ev
 
 \FloatBarrier
 
-\section{Verificação numérica do balanço hídrico}
+\section{Verificação numérica}
 \label{sec:resultado-verificacao}
+
+Os resultados são apresentados nas duas partes definidas na Seção \ref{sec:metodo-verificacao}: a comparação do balanço hídrico com a planilha independente e a conferência das regras de níveis meta e racionamento.
+
+\subsection{Verificação do balanço hídrico por cálculo independente}
+\label{subsec:resultado-verif-balanco}
 
 A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simulador para Mundaú nos dois casos de demanda. Os indicadores agregados coincidiram em todas as casas decimais apresentadas, e o número de meses com falha foi idêntico: 142 meses com 250 L/s e 594 meses com 500 L/s. Na comparação mês a mês, nenhum dos 1.332 meses apresentou divergência na indicação de falha.
 
@@ -174,11 +179,14 @@ A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{
 
 \FloatBarrier
 
-A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidrossistemas simulados com níveis meta, totalizando 33.108 balanços mensais. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
+\subsection{Verificação das regras de níveis meta e racionamento}
+\label{subsec:resultado-verif-regras}
+
+A conferência das regras de níveis meta e racionamento abrangeu os mesmos 25 hidrossistemas, agora simulados com as curvas-guia e os racionamentos da matriz, totalizando 33.108 meses. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
-    \caption{Hidrossistemas utilizados na verificação ampliada (com níveis meta e racionamento)}
+    \caption{Hidrossistemas utilizados na verificação das regras de níveis meta e racionamento}
     \label{tab:verificacao-25}
     \centering
     \scriptsize
@@ -219,7 +227,7 @@ A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidros
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
-    \caption{Resumo das conferências independentes nos 25 hidrossistemas (33.108 meses)}
+    \caption{Resumo das conferências das regras de níveis meta e racionamento nos 25 hidrossistemas (33.108 meses)}
     \label{tab:verificacao-25-resumo}
     \centering
     \footnotesize
