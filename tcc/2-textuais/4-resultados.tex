@@ -174,7 +174,7 @@ A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{
 
 \FloatBarrier
 
-A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidrossistemas simulados com níveis meta. Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, que não possuíam exportação por falta de período definido, foram simulados de 1911 a 2017; somados às 23 exportações, totalizam 33.108 balanços mensais. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
+A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidrossistemas simulados com níveis meta, totalizando 33.108 balanços mensais. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
@@ -234,13 +234,12 @@ A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidros
         Percentual de racionamento & igual ao do estado & 0 divergências \\
         Demanda atendida & $\leq$ demanda aplicada & 0 violações \\
         Indicação de falha & coerente com atendida e aplicada & 0 divergências \\
-        Reexecução das 23 exportações & mesmos volumes e estados & 0 divergências \\
         \bottomrule
     \end{tabular}
     \Fonte{elaborada pelo autor.}
 \end{table}
 
-Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu abaixo da tolerância de $10^{-9}$ hm$^3$; nas exportações, os maiores valores brutos, da ordem de $10^{-10}$ hm$^3$, decorrem apenas do arredondamento dos valores exportados para dez casas decimais. A reexecução reproduziu as 23 exportações sem nenhuma diferença de volume acima da tolerância e sem nenhum estado divergente. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
+Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu abaixo da tolerância de $10^{-9}$ hm$^3$, e nenhuma das demais conferências apontou divergência. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
 
 \section{Resultados dos casos controlados}
 \label{sec:resultado-casos}
