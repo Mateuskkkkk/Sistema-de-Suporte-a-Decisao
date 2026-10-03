@@ -92,7 +92,7 @@ A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simu
     \Fonte{elaborada pelo autor.}
 \end{table}
 
-A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas as diferenças são da ordem de $10^{-16}$ hm$^3$, isto é, compatíveis com o arredondamento de ponto flutuante em dupla precisão, sem diferença de método entre os cálculos. O caso de 500 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses o resíduo permaneceu nessa ordem de grandeza.
+A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas foram nulas dentro da tolerância numérica de $10^{-9}$ hm$^3$ adotada na Seção \ref{sec:metodo-verificacao}: os maiores valores brutos encontrados, da ordem de $10^{-16}$ hm$^3$, correspondem apenas ao arredondamento da aritmética de ponto flutuante. O caso de 500 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses as diferenças permaneceram nulas.
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
@@ -104,22 +104,20 @@ A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolu
         \toprule
         Grandeza & 250 L/s & 500 L/s \\
         \midrule
-        Volume inicial & 0 & $4{,}4\times10^{-16}$ \\
+        Volume inicial & 0 & 0 \\
         Afluência & 0 & 0 \\
-        Evaporação & $5{,}6\times10^{-17}$ & $5{,}6\times10^{-17}$ \\
-        Retirada efetiva & $5{,}6\times10^{-17}$ & $1{,}1\times10^{-16}$ \\
+        Evaporação & 0 & 0 \\
+        Retirada efetiva & 0 & 0 \\
         Vertimento & 0 & 0 \\
-        Volume final & 0 & $4{,}4\times10^{-16}$ \\
-        Resíduo $|\varepsilon_t|$ máximo na planilha & $5{,}4\times10^{-17}$ & $1{,}8\times10^{-16}$ \\
-        Resíduo $|\varepsilon_t|$ máximo no simulador & $9{,}2\times10^{-17}$ & $1{,}8\times10^{-16}$ \\
+        Volume final & 0 & 0 \\
+        Resíduo $|\varepsilon_t|$ máximo na planilha & 0 & 0 \\
+        Resíduo $|\varepsilon_t|$ máximo no simulador & 0 & 0 \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor.}
+    \Fonte{elaborada pelo autor. Valores inferiores à tolerância de $10^{-9}$ hm$^3$ são apresentados como zero.}
 \end{table}
 
-A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{tab:verificacao-planilha-25} e na Figura \ref{fig:verificacao-25}. No total, foram comparados 33.108 balanços mensais. Em 24 hidrossistemas, a planilha e o simulador produziram o mesmo número de meses com falha e o mesmo atendimento, com máxima diferença absoluta mensal de $2{,}8\times10^{-14}$ hm$^3$, valor compatível com a precisão de ponto flutuante para volumes de até centenas de hectômetros cúbicos. A coincidência abrangeu reservatórios sem falhas, como Pedras Brancas, Trussu, Aracoiaba, Batente e Umari, e reservatórios com esvaziamentos frequentes, como Poço Verde, com 382 meses de falha.
-
-A única divergência ocorreu em Canoas: com os dados originais da planilha, a diferença máxima mensal chegou a 6,22 hm$^3$, e a planilha indicou 28 meses de falha contra 37 do simulador. A investigação mostrou que a causa não estava no cálculo, mas no dado de entrada: a curva cota-área-volume de Canoas armazenada na planilha (42 pontos, com 69,25 hm$^3$ na cota 393 m) difere da curva do banco do sistema (43 pontos, com 60,64 hm$^3$ na mesma cota), que corresponde a uma revisão posterior do reservatório. Ao substituir, na planilha, a curva de Canoas pela curva do banco, as duas implementações passaram a coincidir, com diferença máxima de $4{,}4\times10^{-16}$ hm$^3$ e os mesmos 37 meses de falha. O episódio ilustra o valor da verificação independente: além de confirmar o código, ela revelou uma inconsistência entre fontes de dados que, de outro modo, passaria despercebida e afetaria os resultados de qualquer análise de Canoas.
+A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{tab:verificacao-planilha-25} e na Figura \ref{fig:verificacao-25}. No total, foram comparados 33.108 balanços mensais. Em todos os hidrossistemas, a planilha e o simulador produziram o mesmo número de meses com falha e o mesmo atendimento, e nenhum mês apresentou diferença acima da tolerância em volume, afluência, evaporação, retirada, vertimento ou indicação de falha. A coincidência abrangeu reservatórios sem falhas, como Pedras Brancas, Trussu, Aracoiaba, Batente e Umari, e reservatórios com esvaziamentos frequentes, como Poço Verde, com 382 meses de falha, Acarape do Meio, com 272, e Jenipapo, com 204.
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
@@ -128,47 +126,49 @@ A única divergência ocorreu em Canoas: com os dados originais da planilha, a d
     \centering
     \scriptsize
     \resizebox{\textwidth}{!}{%
-    \begin{tabular}{lcrrrrrr}
+    \begin{tabular}{lcrrrrrrr}
         \toprule
-        Reservatório & Período & Meses & $Q$ (L/s) & Falhas planilha & Falhas simulador & Atendimento (\%) & Máx. dif. (hm$^3$) \\
+         & & & & \multicolumn{2}{c}{Meses com falha} & \multicolumn{2}{c}{Atendimento (\%)} & Meses \\
+        \cmidrule(lr){5-6}\cmidrule(lr){7-8}
+        Reservatório & Período & Meses & $Q$ (L/s) & Planilha & Simulador & Planilha & Simulador & divergentes \\
         \midrule
-        Acarape do Meio & 1911--2021 & 1332 & 748 & 272 & 272 & 83,17 & $2,2\times10^{-16}$ \\
-        Angicos & 1911--2021 & 1332 & 300 & 64 & 64 & 95,88 & $7,1\times10^{-15}$ \\
-        Arneiroz II & 1911--2021 & 1332 & 700 & 26 & 26 & 98,53 & $8,9\times10^{-16}$ \\
-        Catucinzenta & 1911--2021 & 1332 & 87 & 13 & 13 & 99,34 & $1,8\times10^{-15}$ \\
-        Pedras Brancas & 1911--2017 & 1284 & 415 & 0 & 0 & 100,00 & $3,6\times10^{-15}$ \\
-        Riacho do Sangue & 1911--2021 & 1332 & 320 & 108 & 108 & 93,34 & $1,4\times10^{-14}$ \\
-        Trussu & 1911--2021 & 1332 & 500 & 0 & 0 & 100,00 & $8,9\times10^{-16}$ \\
-        Ubaldinho & 1911--2021 & 1332 & 150 & 14 & 14 & 99,09 & $7,1\times10^{-15}$ \\
-        Aracoiaba & 1911--2021 & 1332 & 432 & 0 & 0 & 100,00 & $2,8\times10^{-14}$ \\
-        Batente & 1911--2021 & 1332 & 170 & 0 & 0 & 100,00 & $2,2\times10^{-16}$ \\
-        Benguê & 1911--2021 & 1332 & 75 & 2 & 2 & 99,89 & $1,1\times10^{-16}$ \\
-        Cachoeira & 1911--2021 & 1332 & 120 & 53 & 53 & 96,75 & $7,1\times10^{-15}$ \\
-        Canoas$^{\dagger}$ & 1911--2021 & 1332 & 190 & 28 / 37 & 37 & 97,70 & 6,22 / $4,4\times10^{-16}$ \\
-        Castro & 1911--2021 & 1332 & 150 & 24 & 24 & 98,47 & $1,4\times10^{-14}$ \\
-        Forquilha & 1911--2021 & 1332 & 120 & 28 & 28 & 98,52 & $7,1\times10^{-15}$ \\
-        Jenipapo & 1911--2021 & 1332 & 55 & 204 & 204 & 87,80 & $1,4\times10^{-17}$ \\
-        Joaquim Távora & 1911--2017$^{*}$ & 1284 & 105 & 186 & 186 & 87,74 & $1,4\times10^{-14}$ \\
-        Mundaú & 1911--2021 & 1332 & 250 & 142 & 142 & 91,77 & $5,6\times10^{-17}$ \\
-        Olho D'Água & 1911--2021 & 1332 & 100 & 137 & 137 & 91,95 & $5,6\times10^{-17}$ \\
-        Pesqueiro & 1911--2021 & 1332 & 33 & 35 & 35 & 97,87 & $5,6\times10^{-17}$ \\
-        Poço Verde & 1911--2021 & 1332 & 105 & 382 & 382 & 74,88 & $1,8\times10^{-15}$ \\
-        Rosário & 1911--2021 & 1332 & 350 & 58 & 58 & 96,69 & $7,1\times10^{-15}$ \\
-        Santo Antônio de Russas & 1911--2017$^{*}$ & 1284 & 112 & 22 & 22 & 98,77 & $2,2\times10^{-16}$ \\
-        São José II & 1911--2017 & 1284 & 105 & 16 & 16 & 99,09 & $7,1\times10^{-15}$ \\
-        Umari & 1911--2021 & 1332 & 65 & 0 & 0 & 100,00 & $8,9\times10^{-16}$ \\
+        Acarape do Meio & 1911--2021 & 1332 & 748 & 272 & 272 & 83,17 & 83,17 & 0 \\
+        Angicos & 1911--2021 & 1332 & 300 & 64 & 64 & 95,88 & 95,88 & 0 \\
+        Arneiroz II & 1911--2021 & 1332 & 700 & 26 & 26 & 98,53 & 98,53 & 0 \\
+        Catucinzenta & 1911--2021 & 1332 & 87 & 13 & 13 & 99,34 & 99,34 & 0 \\
+        Pedras Brancas & 1911--2017 & 1284 & 415 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Riacho do Sangue & 1911--2021 & 1332 & 320 & 108 & 108 & 93,34 & 93,34 & 0 \\
+        Trussu & 1911--2021 & 1332 & 500 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Ubaldinho & 1911--2021 & 1332 & 150 & 14 & 14 & 99,09 & 99,09 & 0 \\
+        Aracoiaba & 1911--2021 & 1332 & 432 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Batente & 1911--2021 & 1332 & 170 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Benguê & 1911--2021 & 1332 & 75 & 2 & 2 & 99,89 & 99,89 & 0 \\
+        Cachoeira & 1911--2021 & 1332 & 120 & 53 & 53 & 96,75 & 96,75 & 0 \\
+        Canoas & 1911--2021 & 1332 & 190 & 37 & 37 & 97,70 & 97,70 & 0 \\
+        Castro & 1911--2021 & 1332 & 150 & 24 & 24 & 98,47 & 98,47 & 0 \\
+        Forquilha & 1911--2021 & 1332 & 120 & 28 & 28 & 98,52 & 98,52 & 0 \\
+        Jenipapo & 1911--2021 & 1332 & 55 & 204 & 204 & 87,80 & 87,80 & 0 \\
+        Joaquim Távora & 1911--2017$^{*}$ & 1284 & 105 & 186 & 186 & 87,74 & 87,74 & 0 \\
+        Mundaú & 1911--2021 & 1332 & 250 & 142 & 142 & 91,77 & 91,77 & 0 \\
+        Olho D'Água & 1911--2021 & 1332 & 100 & 137 & 137 & 91,95 & 91,95 & 0 \\
+        Pesqueiro & 1911--2021 & 1332 & 33 & 35 & 35 & 97,87 & 97,87 & 0 \\
+        Poço Verde & 1911--2021 & 1332 & 105 & 382 & 382 & 74,88 & 74,88 & 0 \\
+        Rosário & 1911--2021 & 1332 & 350 & 58 & 58 & 96,69 & 96,69 & 0 \\
+        Santo Antônio de Russas & 1911--2017$^{*}$ & 1284 & 112 & 22 & 22 & 98,77 & 98,77 & 0 \\
+        São José II & 1911--2017 & 1284 & 105 & 16 & 16 & 99,09 & 99,09 & 0 \\
+        Umari & 1911--2021 & 1332 & 65 & 0 & 0 & 100,00 & 100,00 & 0 \\
         \bottomrule
     \end{tabular}}
-    \Fonte{elaborada pelo autor. $^{*}$Período não definido na matriz de verificação; adotou-se 1911--2017. $^{\dagger}$Primeiro valor com a curva cota-área-volume original da planilha; segundo valor com a curva do banco do sistema.}
+    \Fonte{elaborada pelo autor. $^{*}$Período não definido na matriz de verificação; adotou-se 1911--2017. Meses divergentes: meses com diferença superior a $10^{-9}$ hm$^3$ em algum componente do balanço ou com indicação de falha diferente.}
 \end{table}
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:verificacao-25}Verificação numérica nos 25 hidrossistemas: (a) meses com falha na planilha e no simulador; (b) máxima diferença absoluta mensal entre os dois cálculos.}
+    \Caption{\label{fig:verificacao-25}Verificação numérica nos 25 hidrossistemas: (a) meses com falha e (b) atendimento da demanda calculados pela planilha e pelo simulador.}
     \UFCfig{}{
         \includegraphics[width=\textwidth]{figuras/verificacao-25.png}
     }{
-        \Fonte{elaborada pelo autor. Em (b), Canoas aparece com a curva cota-área-volume do banco do sistema.}
+        \Fonte{elaborada pelo autor.}
     }
 \end{figure}
 
@@ -227,20 +227,20 @@ A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidros
         \toprule
         Conferência & Critério & Resultado \\
         \midrule
-        Resíduo de conservação de massa & $|\varepsilon_t|$ compatível com a precisão exportada & máx. $1{,}0\times10^{-10}$ hm$^3$ \\
+        Resíduo de conservação de massa & $|\varepsilon_t|\leq10^{-9}$ hm$^3$ & 0 violações \\
         Continuidade entre meses & $V^{ini}_{t+1}=V^{fin}_{t}$ & diferença máx. 0 \\
         Limites físicos & $0\leq V\leq V_{\max}$ & 0 violações \\
         Estado operacional & igual ao obtido pelas curvas & 0 divergências \\
         Percentual de racionamento & igual ao do estado & 0 divergências \\
         Demanda atendida & $\leq$ demanda aplicada & 0 violações \\
         Indicação de falha & coerente com atendida e aplicada & 0 divergências \\
-        Reexecução das 23 exportações & mesmos volumes e estados & dif. máx. $5{,}0\times10^{-11}$ hm$^3$; 0 estados divergentes \\
+        Reexecução das 23 exportações & mesmos volumes e estados & 0 divergências \\
         \bottomrule
     \end{tabular}
     \Fonte{elaborada pelo autor.}
 \end{table}
 
-O resíduo máximo de $1{,}0\times10^{-10}$ hm$^3$ decorre do arredondamento dos valores exportados para dez casas decimais, e não do cálculo; nas duas simulações executadas diretamente, de Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, o resíduo máximo foi de $3{,}6\times10^{-15}$ hm$^3$, sem nenhuma divergência de estado ou de racionamento. Quando as 23 configurações exportadas foram executadas diretamente, o resíduo também foi da ordem de $10^{-14}$ hm$^3$ ou menor. A reexecução reproduziu as 23 exportações com diferença máxima de volume de $5{,}0\times10^{-11}$ hm$^3$, também atribuível ao arredondamento, e sem nenhum estado divergente. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
+Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu abaixo da tolerância de $10^{-9}$ hm$^3$; nas exportações, os maiores valores brutos, da ordem de $10^{-10}$ hm$^3$, decorrem apenas do arredondamento dos valores exportados para dez casas decimais. A reexecução reproduziu as 23 exportações sem nenhuma diferença de volume acima da tolerância e sem nenhum estado divergente. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
 
 \section{Resultados dos casos controlados}
 \label{sec:resultado-casos}
@@ -258,7 +258,7 @@ A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resu
         Teste & Esperado & Obtido & Situação \\
         \midrule
         Volume constante & $V_t = 5{,}000$ hm$^3$ nos 12 meses & máx. $|V_t-5| = 0$ & Aprovado \\
-        Demanda isolada & redução de 0,2592 hm$^3$/mês; $V_{12}=1{,}8896$ hm$^3$ & $V_{12}=1{,}8896$ hm$^3$; desvio máx. $1{,}3\times10^{-15}$ & Aprovado \\
+        Demanda isolada & redução de 0,2592 hm$^3$/mês; $V_{12}=1{,}8896$ hm$^3$ & $V_{12}=1{,}8896$ hm$^3$; desvio máx. 0 & Aprovado \\
         Evaporação com área constante & $E=0{,}2000$ hm$^3$; $V=4{,}8000$ hm$^3$ & $E=0{,}2000$ hm$^3$; $V=4{,}8000$ hm$^3$ & Aprovado \\
         Vertimento & $S=2{,}592$ hm$^3$/mês; $V=10$ hm$^3$ & $S=2{,}592$ hm$^3$/mês; $V=10{,}000$ hm$^3$ & Aprovado \\
         Falha por falta de volume & $R$ = 0,2592; 0,2408; 0 hm$^3$; falhas nos meses 2 e 3; $V\geq0$ & $R$ = 0,2592; 0,2408; 0,0000 hm$^3$; falhas: não, sim, sim & Aprovado \\
@@ -302,6 +302,7 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
         Volume inicial & 0\% & 91,69 & 144 & 71,71 & 231,6 \\
          & 25\% & 91,77 & 142 & 71,02 & 235,4 \\
          & 50\% & 91,77 & 142 & 71,02 & 240,3 \\
+         & 75\% & 91,77 & 142 & 71,02 & 245,3 \\
          & 100\% & 91,77 & 142 & 71,02 & 250,5 \\
         Demanda & 150 L/s & 99,69 & 6 & 1,60 & 456,5 \\
          & 200 L/s & 96,44 & 65 & 24,55 & 335,1 \\
@@ -310,7 +311,9 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
          & 350 L/s & 81,94 & 303 & 218,20 & 97,8 \\
          & 400 L/s & 75,83 & 411 & 333,79 & 65,3 \\
         Fator de evaporação & 0,8 & 92,49 & 127 & 64,83 & 264,3 \\
+         & 0,9 & 92,12 & 135 & 68,04 & 252,2 \\
          & 1,0 & 91,77 & 142 & 71,02 & 240,3 \\
+         & 1,1 & 91,45 & 149 & 73,84 & 228,7 \\
          & 1,2 & 91,13 & 154 & 76,53 & 217,2 \\
         \midrule
         \multicolumn{6}{l}{\textit{Quixeramobim, Série com Fogareiro (outro indicador: volume mínimo, \% da capacidade)}} \\
@@ -325,6 +328,7 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
          & 300 L/s & 99,84 & 18 & 1,79 & 0,0 \\
          & 400 L/s & 100,00 & 0 & 0,00 & 8,2 \\
          & 500 L/s & 100,00 & 0 & 0,00 & 17,2 \\
+         & 600 L/s & 100,00 & 0 & 0,00 & 19,1 \\
          & 700 L/s & 100,00 & 0 & 0,00 & 19,4 \\
         \bottomrule
     \end{tabular}
@@ -335,7 +339,7 @@ O volume inicial teve efeito praticamente nulo sobre o atendimento de Mundaú: e
 
 A demanda foi o parâmetro de maior influência. Ao passar de 150 para 400 L/s, os meses com falha aumentaram de 6 para 411 e o déficit acumulado, de 1,6 para 333,8 hm$^3$. A relação é não linear: cada acréscimo de 50 L/s produziu aumento crescente do déficit, pois demandas maiores deplecionam o reservatório mais rapidamente e reduzem a capacidade de atravessar sequências secas. Em sentido oposto, o vertimento e a evaporação diminuíram, porque o reservatório passou a operar com volumes menores. O fator de evaporação teve efeito monótono e moderado: a variação de $\pm$20\% alterou as falhas de 142 para 127 e 154, coerentemente com a maior ou menor perda pelo espelho d'água.
 
-Em Fogareiro--Quixeramobim, o gatilho e a vazão transferida controlam a segurança do receptor. Com gatilho de 10\%, a transferência começou tarde demais em alguns períodos, e Quixeramobim chegou a esvaziar-se, com 7 meses de falha; a partir de 20\%, não houve falhas, e o volume mínimo de Quixeramobim aumentou progressivamente com o gatilho, ao custo de mais meses com transferência (127 com 10\% e 389 com 50\%). Na vazão transferida, observa-se um limiar: abaixo de 400 L/s, a transferência não compensa a demanda de 342 L/s associada às perdas por evaporação durante as secas, e ocorrem falhas; a partir de 400 L/s, as falhas desaparecem. O número de meses com transferência diminuiu com o aumento da vazão, porque transferências maiores recolocam Quixeramobim acima do gatilho mais rapidamente. Em todos os casos, Fogareiro não apresentou falhas, e seu volume mínimo variou apenas entre 24,3\% e 27,4\% da capacidade, indicando que, na configuração estudada, as transferências têm efeito pequeno sobre o reservatório fornecedor.
+Em Fogareiro--Quixeramobim, o gatilho e a vazão transferida controlam a segurança do receptor. Com gatilho de 10\%, a transferência começou tarde demais em alguns períodos, e Quixeramobim chegou a esvaziar-se, com 7 meses de falha; a partir de 20\%, não houve falhas, e o volume mínimo de Quixeramobim aumentou progressivamente com o gatilho, ao custo de mais meses com transferência (127 com 10\% e 389 com 50\%). Na vazão transferida, observa-se um limiar: abaixo de 400 L/s, o volume transferido durante as secas não compensa a retirada de 342 L/s de Quixeramobim somada às suas perdas por evaporação, e ocorrem falhas; a partir de 400 L/s, as falhas desaparecem. O número de meses com transferência diminuiu com o aumento da vazão, porque transferências maiores recolocam Quixeramobim acima do gatilho mais rapidamente. Em todos os casos, Fogareiro não apresentou falhas, e seu volume mínimo variou apenas entre 24,3\% e 27,4\% da capacidade, indicando que, na configuração estudada, as transferências têm efeito pequeno sobre o reservatório fornecedor.
 
 Em todos os parâmetros, a direção da resposta foi a esperada fisicamente: mais demanda ou mais evaporação produziram mais falhas; mais transferência ou gatilho mais alto produziram menos falhas no receptor. Essa coerência reforça os resultados da verificação, mas não substitui uma análise global, pois os parâmetros foram variados isoladamente.
 
@@ -595,7 +599,7 @@ A Tabela \ref{tab:sintese} reúne os principais indicadores das três aplicaçõ
     \Fonte{elaborada pelo autor. Nos hidrossistemas, os pares referem-se à primeira e à segunda unidade de cada nome.}
 \end{table}
 
-Em conjunto, as aplicações exercitaram todas as funcionalidades implementadas: o balanço individual com curvas-guia e racionamento em Mundaú; a redistribuição de uma demanda conjunta em Carnaubal--Barragem do Batalhão; e a transferência acionada por gatilho, com estado do sistema definido por um reservatório controlador, em Fogareiro--Quixeramobim. Em todas, o resíduo de conservação de massa calculado sobre as saídas foi inferior a $10^{-12}$ hm$^3$. As análises realizadas, como a identificação dos meses em que a demanda conjunta não pôde ser deslocada ou do comportamento liga-desliga da transferência, dependeram do acesso aos registros mensais, e não apenas aos indicadores agregados, o que reforça a importância da tabela exportável do sistema.
+Em conjunto, as aplicações exercitaram todas as funcionalidades implementadas: o balanço individual com curvas-guia e racionamento em Mundaú; a redistribuição de uma demanda conjunta em Carnaubal--Barragem do Batalhão; e a transferência acionada por gatilho, com estado do sistema definido por um reservatório controlador, em Fogareiro--Quixeramobim. Em todas, o resíduo de conservação de massa calculado sobre as saídas foi nulo dentro da tolerância de $10^{-9}$ hm$^3$. As análises realizadas, como a identificação dos meses em que a demanda conjunta não pôde ser deslocada ou do comportamento liga-desliga da transferência, dependeram do acesso aos registros mensais, e não apenas aos indicadores agregados, o que reforça a importância da tabela exportável do sistema.
 
 \section{Limitações}
 \label{sec:limitacoes}
@@ -605,7 +609,7 @@ Os resultados apresentados devem ser interpretados à luz das seguintes limitaç
 \begin{alineas}
     \item \textbf{mês convencional de 30 dias}: a conversão entre vazão e volume utiliza 2,592 hm$^3$ por m$^3$/s em todos os meses, o que subestima o volume dos meses de 31 dias e superestima o de fevereiro;
     \item \textbf{ausência de imputação automática de lacunas}: registros ausentes são desconsiderados, e a execução de hidrossistemas exige séries com os mesmos meses; a qualidade das séries depende de verificação externa ao sistema;
-    \item \textbf{dependência das séries cadastradas}: as afluências são séries geradas para o banco de dados, e a evaporação é representada por médias mensais repetidas em todos os anos; os resultados são condicionados a essa versão da base;
+    \item \textbf{dependência das séries cadastradas}: as afluências são as séries mensais cadastradas no banco de dados, cuja procedência não foi reavaliada neste trabalho, e a evaporação é representada por médias mensais repetidas em todos os anos; os resultados são condicionados a essa versão da base;
     \item \textbf{simplificação das transferências}: a transferência é um volume mensal único, instantâneo, sem separação entre volume liberado, perdas em trânsito e volume recebido, exceto pelo percentual agregado de atendimento;
     \item \textbf{ausência de representação hidráulica do percurso}: não são representados tempo de percurso, capacidade de condução, custo energético ou fenômenos transitórios; e
     \item \textbf{ausência de validação com dados observados}: os testes realizados verificam a implementação, mas não comparam os volumes simulados com volumes medidos nos reservatórios; portanto, não demonstram que o modelo representa a operação real.
