@@ -281,56 +281,132 @@ A verificação numérica consistiu em comparar as saídas do simulador com um c
     \label{eq:residuo}
 \end{equation}
 
-O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. O procedimento de comparação é sintetizado no Algoritmo \ref{alg:verif-planilha}. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
+A planilha foi construída para refazer, sem programação, o mesmo cálculo mensal do simulador, e funciona em quatro etapas. Na primeira, a série de vazões médias mensais do reservatório é colada na aba \texttt{Vazoes\_COLAR}, com um ano por linha e um mês por coluna. Na segunda, o reservatório é escolhido pelo nome na célula \texttt{B6} da aba \texttt{Verificacao}; a partir dele, funções de busca (\texttt{INDEX} e \texttt{MATCH}) recuperam, na aba \texttt{Dados\_Acudes}, o código, a capacidade, a estação de evaporação e a posição da curva cota-área-volume na aba \texttt{Dados\_CAV}, e a aba \texttt{Aux\_CAV} copia somente a curva do reservatório escolhido, em hm$^3$ e km$^2$. Na terceira, o usuário informa o volume inicial, em percentual da capacidade (\texttt{B10}), e a demanda constante, em m$^3$/s (\texttt{B12}).
+
+Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade; o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). As fórmulas de uma linha típica são apresentadas no Código-fonte \ref{cod:formulas-planilha}; a coluna M repete a fórmula de I aplicada ao volume preliminar L.
+
+\begin{lstlisting}[
+    language={},
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Fórmulas de uma linha mensal da planilha de verificação (linha 25)},
+    label={cod:formulas-planilha}
+]
+E25 =IF(D25="","",D25*$B$15)
+F25 =IF(D25="","",IFERROR(INDEX(Dados_Evap!$C$2:$N$15,
+       MATCH($B$9,Dados_Evap!$A$2:$A$15,0),C25),0))
+G25 =IF(F25="","",F25/1000)
+H25 =IF(D25="","",MAX(0,MIN($B$8,IFERROR(LOOKUP(2,1/($U$24:U24<>""),
+       $U$24:U24),$B$11))))
+I25 =IF(D25="","",IF(H25<=$B$16,INDEX(Aux_CAV!$B$2:$B$121,1),
+       IF(H25>=$B$17,INDEX(Aux_CAV!$B$2:$B$121,$B$21),
+       INDEX(Aux_CAV!$B$2:$B$121,AA25)+(H25-INDEX(Aux_CAV!$A$2:$A$121,AA25))
+       *(INDEX(Aux_CAV!$B$2:$B$121,AA25+1)-INDEX(Aux_CAV!$B$2:$B$121,AA25))
+       /(INDEX(Aux_CAV!$A$2:$A$121,AA25+1)-INDEX(Aux_CAV!$A$2:$A$121,AA25)))))
+K25 =IF(J25="","",J25*$B$15)
+L25 =IF(D25="","",H25+E25-K25-G25*I25)
+N25 =IF(D25="","",(I25+M25)/2)
+O25 =IF(D25="","",G25*N25)
+P25 =IF(D25="","",H25+E25-K25-O25)
+Q25 =IF(D25="","",IF(P25>=0,K25,MAX(0,K25+P25)))
+Z25 =IF(D25="","",MAX(0,IF(P25>=0,P25,IF(K25+P25>=0,0,P25+K25))))
+T25 =IF(D25="","",MAX(0,Z25-$B$8))
+U25 =IF(D25="","",MAX(0,MIN($B$8,Z25)))
+V25 =IF(D25="","",IF(S25>0.0000001,"Sim","Não"))
+W25 =IF(D25="","",U25-(H25+E25-Q25-O25-T25))
+\end{lstlisting}
+
+No topo da aba, um quadro de controle resume a execução: número de meses calculados, meses com falha, atendimento global, vertimento e evaporação totais, resíduo máximo, volumes mínimo e máximo e contagem de volumes negativos. O quadro indica ``OK'' quando o resíduo máximo é inferior a $10^{-8}$ hm$^3$ e não há volumes negativos. A descrição completa das abas e das colunas e um exemplo de cálculo manual constam no Apêndice \ref{ap:memoria-calculo}.
+
+O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. A comparação foi automatizada em Python, conforme o Código-fonte \ref{cod:verif-planilha}: a função \texttt{ler\_planilha} lê as linhas mensais calculadas pela planilha, e a função \texttt{comparar} conta os meses em que algum componente difere em mais que a tolerância ou em que a indicação de falha não coincide. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
 
 O mesmo procedimento foi então estendido aos 25 hidrossistemas da matriz de verificação utilizada neste trabalho, que reúne reservatórios contemplados por planos de gestão proativa de secas no Ceará. Para cada um, a planilha e o simulador foram executados no modo Individual, sem racionamento, com volume inicial de 50\% da capacidade, demanda constante igual à vazão do estado Normal indicada na matriz e o período nela definido. Para os dois hidrossistemas sem período definido na matriz, Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, adotou-se o período de janeiro de 1911 a dezembro de 2017. Em todos os casos, os dados de reservatório, evaporação e curva cota-área-volume foram lidos pela própria planilha em suas abas de dados, que reproduzem o cadastro do banco do sistema.
 
-\begin{algorithm}[!ht]
-\caption{Comparação mês a mês entre a planilha independente e o simulador}
-\label{alg:verif-planilha}
-\DontPrintSemicolon
-\KwIn{hidrossistemas $\mathcal{H}$; para cada um, série de vazões, capacidade, curva cota-área-volume, evaporação, demanda $Q$ e período; tolerância $\tau = 10^{-9}$ hm$^3$}
-\KwOut{número de meses divergentes e indicadores de cada hidrossistema}
-\ForEach{$h \in \mathcal{H}$}{
-  $\mathbf{P} \leftarrow$ cálculo da planilha para $h$ (Individual, sem racionamento, $V_0 = 50\%$)\;
-  $\mathbf{S} \leftarrow$ execução do simulador com os mesmos dados\;
-  $n_{div} \leftarrow 0$\;
-  \For{$t \leftarrow 1$ \KwTo $N$}{
-    $d_t \leftarrow \max_{x \in \{V_t,\, I_t,\, E_t,\, R_t,\, S_t,\, V_{t+1}\}} \left| P_x(t) - S_x(t) \right|$\;
-    \If{$d_t > \tau$ \textbf{ou} $\mathrm{falha}_P(t) \neq \mathrm{falha}_S(t)$}{
-      $n_{div} \leftarrow n_{div} + 1$\;
-    }
-  }
-  registrar $n_{div}$, meses com falha e atendimento em $\mathbf{P}$ e em $\mathbf{S}$\;
-}
-\end{algorithm}
+\begin{lstlisting}[
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Comparação mês a mês entre a planilha e o simulador},
+    label={cod:verif-planilha}
+]
+TOL = 1e-9          # tolerância numérica (hm³)
+K = 2.592           # conversão de m³/s para hm³/mês (mês de 30 dias)
+COMPONENTES = ["Vi", "I", "E", "R", "S", "Vf"]
+
+def ler_planilha(arquivo):
+    """Lê, da aba Verificacao, as linhas mensais calculadas pela planilha."""
+    aba = openpyxl.load_workbook(arquivo, data_only=True)["Verificacao"]
+    meses = []
+    for lin in aba.iter_rows(min_row=24, max_row=1367, values_only=True):
+        if lin[21] not in ("Sim", "Não"):          # coluna V: falha
+            continue
+        meses.append({"Vi": lin[7], "I": lin[4], "E": lin[14], "R": lin[16],
+                      "S": lin[19], "Vf": lin[20], "falha": lin[21]})
+    return meses
+
+def comparar(planilha, simulador):
+    """Conta os meses em que planilha e simulador divergem."""
+    assert len(planilha) == len(simulador)
+    divergentes = 0
+    for p, s in zip(planilha, simulador):
+        dif = max(abs(p[c] - s[c]) for c in COMPONENTES)
+        if dif > TOL or p["falha"] != s["falha"]:
+            divergentes += 1
+    return divergentes
+\end{lstlisting}
+
 
 
 \subsection{Verificação das regras de níveis meta e racionamento}
 \label{subsec:metodo-verif-regras}
 
-Como a planilha não representa o racionamento, as regras de níveis meta foram verificadas separadamente. Para isso, os mesmos 25 hidrossistemas foram simulados com níveis meta e racionamento, com as curvas-guia, os percentuais de racionamento, a vazão do estado Normal e os períodos da matriz de verificação, adotando-se novamente 1911 a 2017 quando o período não estava definido, e suas saídas mensais foram exportadas. Em cada uma, recalcularam-se independentemente o resíduo da Equação \ref{eq:residuo}, a continuidade entre o volume final de um mês e o inicial do seguinte, o respeito aos limites físicos, o estado operacional esperado a partir das curvas mensais, o percentual de racionamento, a coerência entre demanda aplicada e atendida e a indicação de falha. Essas conferências foram programadas em um script próprio, que não reutiliza o código do simulador e lê apenas a tabela exportada, conforme o Algoritmo \ref{alg:verif-regras}. Todas as simulações foram executadas com a versão do código indicada no Apêndice \ref{ap:codigo-fonte}, e os scripts de verificação acompanham o repositório no diretório \texttt{tcc/analise}.
+Como a planilha não representa o racionamento, as regras de níveis meta foram verificadas separadamente. Para isso, os mesmos 25 hidrossistemas foram simulados com níveis meta e racionamento, com as curvas-guia, os percentuais de racionamento, a vazão do estado Normal e os períodos da matriz de verificação, adotando-se novamente 1911 a 2017 quando o período não estava definido, e suas saídas mensais foram exportadas. Em cada uma, recalcularam-se independentemente o resíduo da Equação \ref{eq:residuo}, a continuidade entre o volume final de um mês e o inicial do seguinte, o respeito aos limites físicos, o estado operacional esperado a partir das curvas mensais, o percentual de racionamento, a coerência entre demanda aplicada e atendida e a indicação de falha. Essas conferências foram programadas em um script próprio, que não reutiliza o código do simulador e lê apenas a tabela exportada, conforme o Código-fonte \ref{cod:verif-regras}. A função \texttt{estado\_esperado} reaplica as curvas mensais ao volume inicial de cada mês, e a função \texttt{conferir\_regras} conta, para cada critério, os meses em que a saída do simulador viola a regra. Todas as simulações foram executadas com a versão do código indicada no Apêndice \ref{ap:codigo-fonte}, e os scripts de verificação acompanham o repositório no diretório \texttt{tcc/analise}.
 
-\begin{algorithm}[!ht]
-\caption{Conferência independente das regras de níveis meta e racionamento}
-\label{alg:verif-regras}
-\DontPrintSemicolon
-\KwIn{tabela mensal exportada pelo simulador; capacidade $V_{\max}$; curvas mensais e racionamentos das faixas; tolerância $\tau$}
-\KwOut{número de violações em cada conferência}
-\For{$t \leftarrow 1$ \KwTo $N$}{
-  $p \leftarrow 100\,V_t/V_{\max}$;\quad $m \leftarrow$ mês de $t$\;
-  $(k^{*}, r^{*}) \leftarrow (\text{Normal}, 0)$\;
-  \ForEach{faixa $(L_k, r_k, k)$ em ordem crescente de $L_k(m)$}{
-    \If{$p \leq L_k(m)$}{$(k^{*}, r^{*}) \leftarrow (k, r_k)$; \textbf{interromper}\;}
-  }
-  conferir estado registrado $= k^{*}$ e racionamento registrado $= r^{*}$\;
-  $D^{a}_t \leftarrow D_t\,(1 - r^{*}/100)$\;
-  conferir $R_t \leq D^{a}_t + \tau$ e falha registrada $\Leftrightarrow R_t < D^{a}_t - \tau$\;
-  $\varepsilon_t \leftarrow V_{t+1} - (V_t + I_t - R_t - E_t - S_t)$; conferir $|\varepsilon_t| \leq \tau$\;
-  conferir $0 \leq V_{t+1} \leq V_{\max}$\;
-  \lIf{$t > 1$}{conferir $V_t = V_t^{\text{(final de } t-1)}$}
-}
-\end{algorithm}
+\begin{lstlisting}[
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Conferência independente das regras de níveis meta e racionamento},
+    label={cod:verif-regras}
+]
+def estado_esperado(pct, faixas, mes):
+    """Estado e racionamento definidos pelas curvas mensais (faixas)."""
+    for limite, rac, estado in sorted((f["limites"][mes], f["rac"], f["estado"])
+                                      for f in faixas):
+        if pct <= limite:
+            return estado, rac
+    return "Normal", 0.0
+
+def conferir_regras(df, faixas, cap):
+    """Confere, mês a mês, a tabela exportada pelo simulador."""
+    v = Counter()
+    vf_anterior = None
+    for _, m in df.iterrows():
+        vi, vf = m["Armazenamento Inicial"], m["Armazenamento Final"]
+        estado, rac = estado_esperado(100 * vi / cap, faixas, m["Ordem_Mês"] - 1)
+        v["estado"] += estado != m["Modo Operação"]
+        v["racionamento"] += abs(rac - m["Racionamento (%)"]) > 1e-9
+        d_apl = m["Demanda Solicitada (m³/s)"] * (1 - m["Racionamento (%)"] / 100) * K
+        r = m["Demanda Atendida (m³/s)"] * K
+        v["atendida"] += r > d_apl + TOL
+        v["falha"] += (round(r, 6) < round(d_apl, 6)) != (m["Falha"] == "Sim")
+        eps = vf - (vi + m["Afluências (hm³/mês)"] - r
+                    - m["Evaporação (hm³)"] - m["Vertimento (hm³)"])
+        v["massa"] += abs(eps) > TOL
+        v["limites"] += not (-TOL <= vf <= cap + TOL)
+        if vf_anterior is not None:
+            v["continuidade"] += abs(vi - vf_anterior) > TOL
+        vf_anterior = vf
+    return v
+\end{lstlisting}
+
+
 
 
 \section{Casos controlados}
