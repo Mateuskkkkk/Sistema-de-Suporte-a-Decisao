@@ -1,0 +1,23 @@
+MATERIAL COMPLEMENTAR DO TCC
+"Desenvolvimento e avaliação de um sistema de suporte à decisão baseado em simulação
+para operação de reservatórios no Ceará" — Francisco Mateus Bezerra Martins (UFC, 2026)
+
+Código-fonte do sistema: https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao
+Versão de referência: commit 447b33b528541ba5b1edaa3c0b7c61149449c73f
+
+01_planilha_verificacao/
+   Planilha_Verificacao_Simulador_em_branco.xlsx  planilha independente (Seção 3.9.1, Apêndice C)
+   Verificacao_Mundau_250Ls.xlsx / _500Ls.xlsx    planilhas preenchidas para Mundaú (Tabelas 7 e 8)
+   preenchidas_25_hidrossistemas/                 planilhas preenchidas dos 25 hidrossistemas (Tabela 9)
+02_matriz_verificacao/
+   Matriz_Verificacao_25_Hidrossistemas.xlsx      curvas, racionamentos, vazões e períodos usados
+03_simulacoes_niveis_meta/                        tabelas mensais exportadas com níveis meta (Tabelas 10 e 11)
+04_aplicacoes/
+   *_tabela_mensal.xlsx                           tabelas mensais de Mundaú, Carnaubal–Batalhão e Fogareiro–Quixeramobim
+   graficos_exportados_simulador/                 gráficos exportados pela interface (Figuras das aplicações)
+05_casos_controlados_e_sensibilidade/             resultados das Tabelas de casos controlados e de sensibilidade
+06_scripts/                                       scripts Python das análises (verificacao.py = Códigos-fonte 4 e 5)
+
+As planilhas abrem no LibreOffice Calc ou no Microsoft Excel. Os scripts usam o motor do
+repositório (backend/main.py); os caminhos de arquivos no início de cada script devem ser
+ajustados ao computador em que forem executados.
