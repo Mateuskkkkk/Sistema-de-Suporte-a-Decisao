@@ -117,11 +117,68 @@ A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolu
     \Fonte{elaborada pelo autor.}
 \end{table}
 
-A verificação ampliada abrangeu 25 exportações de reservatórios individuais com níveis meta. Duas delas, Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, não haviam sido executadas porque o período de simulação não estava definido nos dados de configuração; as 23 restantes somam 30.540 balanços mensais. As configurações e os resultados de cada uma são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
+A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{tab:verificacao-planilha-25} e na Figura \ref{fig:verificacao-25}. No total, foram comparados 33.108 balanços mensais. Em 24 hidrossistemas, a planilha e o simulador produziram o mesmo número de meses com falha e o mesmo atendimento, com máxima diferença absoluta mensal de $2{,}8\times10^{-14}$ hm$^3$, valor compatível com a precisão de ponto flutuante para volumes de até centenas de hectômetros cúbicos. A coincidência abrangeu reservatórios sem falhas, como Pedras Brancas, Trussu, Aracoiaba, Batente e Umari, e reservatórios com esvaziamentos frequentes, como Poço Verde, com 382 meses de falha.
+
+A única divergência ocorreu em Canoas: com os dados originais da planilha, a diferença máxima mensal chegou a 6,22 hm$^3$, e a planilha indicou 28 meses de falha contra 37 do simulador. A investigação mostrou que a causa não estava no cálculo, mas no dado de entrada: a curva cota-área-volume de Canoas armazenada na planilha (42 pontos, com 69,25 hm$^3$ na cota 393 m) difere da curva do banco do sistema (43 pontos, com 60,64 hm$^3$ na mesma cota), que corresponde a uma revisão posterior do reservatório. Ao substituir, na planilha, a curva de Canoas pela curva do banco, as duas implementações passaram a coincidir, com diferença máxima de $4{,}4\times10^{-16}$ hm$^3$ e os mesmos 37 meses de falha. O episódio ilustra o valor da verificação independente: além de confirmar o código, ela revelou uma inconsistência entre fontes de dados que, de outro modo, passaria despercebida e afetaria os resultados de qualquer análise de Canoas.
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
-    \caption{Exportações utilizadas na verificação ampliada}
+    \caption{Cálculo independente em planilha versus simulador nos 25 hidrossistemas (modo Individual, sem racionamento, volume inicial de 50\%)}
+    \label{tab:verificacao-planilha-25}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lcrrrrrr}
+        \toprule
+        Reservatório & Período & Meses & $Q$ (L/s) & Falhas planilha & Falhas simulador & Atendimento (\%) & Máx. dif. (hm$^3$) \\
+        \midrule
+        Acarape do Meio & 1911--2021 & 1332 & 748 & 272 & 272 & 83,17 & $2,2\times10^{-16}$ \\
+        Angicos & 1911--2021 & 1332 & 300 & 64 & 64 & 95,88 & $7,1\times10^{-15}$ \\
+        Arneiroz II & 1911--2021 & 1332 & 700 & 26 & 26 & 98,53 & $8,9\times10^{-16}$ \\
+        Catucinzenta & 1911--2021 & 1332 & 87 & 13 & 13 & 99,34 & $1,8\times10^{-15}$ \\
+        Pedras Brancas & 1911--2017 & 1284 & 415 & 0 & 0 & 100,00 & $3,6\times10^{-15}$ \\
+        Riacho do Sangue & 1911--2021 & 1332 & 320 & 108 & 108 & 93,34 & $1,4\times10^{-14}$ \\
+        Trussu & 1911--2021 & 1332 & 500 & 0 & 0 & 100,00 & $8,9\times10^{-16}$ \\
+        Ubaldinho & 1911--2021 & 1332 & 150 & 14 & 14 & 99,09 & $7,1\times10^{-15}$ \\
+        Aracoiaba & 1911--2021 & 1332 & 432 & 0 & 0 & 100,00 & $2,8\times10^{-14}$ \\
+        Batente & 1911--2021 & 1332 & 170 & 0 & 0 & 100,00 & $2,2\times10^{-16}$ \\
+        Benguê & 1911--2021 & 1332 & 75 & 2 & 2 & 99,89 & $1,1\times10^{-16}$ \\
+        Cachoeira & 1911--2021 & 1332 & 120 & 53 & 53 & 96,75 & $7,1\times10^{-15}$ \\
+        Canoas$^{\dagger}$ & 1911--2021 & 1332 & 190 & 28 / 37 & 37 & 97,70 & 6,22 / $4,4\times10^{-16}$ \\
+        Castro & 1911--2021 & 1332 & 150 & 24 & 24 & 98,47 & $1,4\times10^{-14}$ \\
+        Forquilha & 1911--2021 & 1332 & 120 & 28 & 28 & 98,52 & $7,1\times10^{-15}$ \\
+        Jenipapo & 1911--2021 & 1332 & 55 & 204 & 204 & 87,80 & $1,4\times10^{-17}$ \\
+        Joaquim Távora & 1911--2017$^{*}$ & 1284 & 105 & 186 & 186 & 87,74 & $1,4\times10^{-14}$ \\
+        Mundaú & 1911--2021 & 1332 & 250 & 142 & 142 & 91,77 & $5,6\times10^{-17}$ \\
+        Olho D'Água & 1911--2021 & 1332 & 100 & 137 & 137 & 91,95 & $5,6\times10^{-17}$ \\
+        Pesqueiro & 1911--2021 & 1332 & 33 & 35 & 35 & 97,87 & $5,6\times10^{-17}$ \\
+        Poço Verde & 1911--2021 & 1332 & 105 & 382 & 382 & 74,88 & $1,8\times10^{-15}$ \\
+        Rosário & 1911--2021 & 1332 & 350 & 58 & 58 & 96,69 & $7,1\times10^{-15}$ \\
+        Santo Antônio de Russas & 1911--2017$^{*}$ & 1284 & 112 & 22 & 22 & 98,77 & $2,2\times10^{-16}$ \\
+        São José II & 1911--2017 & 1284 & 105 & 16 & 16 & 99,09 & $7,1\times10^{-15}$ \\
+        Umari & 1911--2021 & 1332 & 65 & 0 & 0 & 100,00 & $8,9\times10^{-16}$ \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{elaborada pelo autor. $^{*}$Período não definido na matriz de verificação; adotou-se 1911--2017. $^{\dagger}$Primeiro valor com a curva cota-área-volume original da planilha; segundo valor com a curva do banco do sistema.}
+\end{table}
+
+\begin{figure}[!ht]
+    \centering
+    \Caption{\label{fig:verificacao-25}Verificação numérica nos 25 hidrossistemas: (a) meses com falha na planilha e no simulador; (b) máxima diferença absoluta mensal entre os dois cálculos.}
+    \UFCfig{}{
+        \includegraphics[width=\textwidth]{figuras/verificacao-25.png}
+    }{
+        \Fonte{elaborada pelo autor. Em (b), Canoas aparece com a curva cota-área-volume do banco do sistema.}
+    }
+\end{figure}
+
+\FloatBarrier
+
+A verificação ampliada das regras de racionamento abrangeu os mesmos 25 hidrossistemas simulados com níveis meta. Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, que não possuíam exportação por falta de período definido, foram simulados de 1911 a 2017; somados às 23 exportações, totalizam 33.108 balanços mensais. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
+
+\begin{table}[!ht]
+    \captionsetup{width=15cm}
+    \caption{Hidrossistemas utilizados na verificação ampliada (com níveis meta e racionamento)}
     \label{tab:verificacao-25}
     \centering
     \scriptsize
@@ -146,21 +203,23 @@ A verificação ampliada abrangeu 25 exportações de reservatórios individuais
         Castro & 1911--2021 & 1332 & 62,31 & 150 & 20/40/70 & 0 & 930 & 213 & 106 & 83 \\
         Forquilha & 1911--2021 & 1332 & 50,13 & 120 & 23/53/83 & 0 & 1132 & 68 & 59 & 73 \\
         Jenipapo & 1911--2021 & 1332 & 4,94 & 55 & 0/60/76 & 0 & 778 & 118 & 300 & 136 \\
+        Joaquim Távora & 1911--2017$^{*}$ & 1284 & 26,77 & 105 & 10/27/65 & 68 & 829 & 97 & 27 & 331 \\
         Mundaú & 1911--2021 & 1332 & 21,30 & 250 & 0/50/70 & 0 & 734 & 266 & 199 & 133 \\
         Olho D'Água & 1911--2021 & 1332 & 19,00 & 100 & 5/29/59 & 30 & 715 & 243 & 142 & 232 \\
         Pesqueiro & 1911--2021 & 1332 & 9,03 & 33 & 9/21/58 & 6 & 1132 & 68 & 64 & 68 \\
         Poço Verde & 1911--2021 & 1332 & 12,43 & 105 & 23/70/80 & 89 & 492 & 92 & 205 & 543 \\
         Rosário & 1911--2021 & 1332 & 47,22 & 350 & 43/66/89 & 0 & 1061 & 146 & 66 & 59 \\
+        Santo Antônio de Russas & 1911--2017$^{*}$ & 1284 & 24,00 & 112 & 20/50/90 & 0 & 952 & 68 & 132 & 132 \\
         São José II & 1911--2017 & 1284 & 21,00 & 105 & 14/28/84 & 0 & 1128 & 103 & 10 & 43 \\
         Umari & 1911--2021 & 1332 & 30,00 & 65 & 5/8/31 & 0 & 1267 & 26 & 27 & 12 \\
         \bottomrule
     \end{tabular}}
-    \Fonte{elaborada pelo autor a partir das exportações do simulador. Racionamentos dos estados Alerta, Seca e Seca Severa, arredondados.}
+    \Fonte{elaborada pelo autor a partir das saídas do simulador. Racionamentos dos estados Alerta, Seca e Seca Severa, arredondados. $^{*}$Período não definido na matriz; adotou-se 1911--2017.}
 \end{table}
 
 \begin{table}[!ht]
     \captionsetup{width=15cm}
-    \caption{Resumo das conferências independentes nas 23 exportações executadas (30.540 meses)}
+    \caption{Resumo das conferências independentes nos 25 hidrossistemas (33.108 meses)}
     \label{tab:verificacao-25-resumo}
     \centering
     \footnotesize
@@ -175,13 +234,13 @@ A verificação ampliada abrangeu 25 exportações de reservatórios individuais
         Percentual de racionamento & igual ao do estado & 0 divergências \\
         Demanda atendida & $\leq$ demanda aplicada & 0 violações \\
         Indicação de falha & coerente com atendida e aplicada & 0 divergências \\
-        Reexecução com a versão de referência & mesmos volumes e estados & dif. máx. $5{,}0\times10^{-11}$ hm$^3$; 0 estados divergentes \\
+        Reexecução das 23 exportações & mesmos volumes e estados & dif. máx. $5{,}0\times10^{-11}$ hm$^3$; 0 estados divergentes \\
         \bottomrule
     \end{tabular}
     \Fonte{elaborada pelo autor.}
 \end{table}
 
-O resíduo máximo de $1{,}0\times10^{-10}$ hm$^3$ decorre do arredondamento dos valores exportados para dez casas decimais, e não do cálculo: quando os mesmos casos foram executados diretamente, o resíduo foi da ordem de $10^{-14}$ hm$^3$ ou menor. A reexecução reproduziu as 23 exportações com diferença máxima de volume de $5{,}0\times10^{-11}$ hm$^3$, também atribuível ao arredondamento, e sem nenhum estado divergente. Os meses com falha observados em Acarape do Meio, Cachoeira, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
+O resíduo máximo de $1{,}0\times10^{-10}$ hm$^3$ decorre do arredondamento dos valores exportados para dez casas decimais, e não do cálculo; nas duas simulações executadas diretamente, de Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, o resíduo máximo foi de $3{,}6\times10^{-15}$ hm$^3$, sem nenhuma divergência de estado ou de racionamento. Quando as 23 configurações exportadas foram executadas diretamente, o resíduo também foi da ordem de $10^{-14}$ hm$^3$ ou menor. A reexecução reproduziu as 23 exportações com diferença máxima de volume de $5{,}0\times10^{-11}$ hm$^3$, também atribuível ao arredondamento, e sem nenhum estado divergente. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
 
 \section{Resultados dos casos controlados}
 \label{sec:resultado-casos}
