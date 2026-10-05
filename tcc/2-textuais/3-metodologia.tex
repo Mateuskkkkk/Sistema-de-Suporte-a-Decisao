@@ -52,7 +52,7 @@ Foram definidos três estudos de aplicação, cada um destinado a um modo de ope
          & Quixeramobim & 16 & 7,880 & Série \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor com base no cadastro do sistema.}
+    \Fonte{Elaborada pelo autor com base no cadastro do sistema.}
 \end{table}
 
 \section{Arquitetura do sistema}
@@ -64,11 +64,11 @@ A comunicação entre as camadas ocorre por requisições \textit{Hypertext Tran
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:arquitetura-ssd}Arquitetura do sistema de suporte à decisão desenvolvido.}
+    \Caption{\label{fig:arquitetura-ssd}Arquitetura do sistema de suporte à decisão desenvolvido}
     \UFCfig{}{
         \input{2-textuais/arquitetura}
     }{
-        \Fonte{elaborada pelo autor.}
+        \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
 
@@ -81,11 +81,11 @@ Do lado do sistema, a API valida a configuração, lê no banco as séries de va
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:fluxo-interface}Fluxograma de funcionamento do sistema de suporte à decisão.}
+    \Caption{\label{fig:fluxo-interface}Fluxograma de funcionamento do sistema de suporte à decisão}
     \UFCfig{}{
         \input{2-textuais/fluxograma}
     }{
-        \Fonte{elaborada pelo autor.}
+        \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
 
@@ -201,7 +201,7 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3,
 
     return vol, retirada_efetiva, vertimento, evap_m * area_med
 \end{lstlisting}
-\Fonte{\citeonline{martins2026software}.}
+\Fonte{Elaborada pelo autor.}
 
 Para cada reservatório e mês, o simulador registra data, vazão afluente, afluência em volume, armazenamento inicial e final, demanda solicitada e atendida, retirada total, percentual de racionamento, transferências recebidas e enviadas, evaporação, vertimento, estado operacional e ocorrência de falha. Esses registros permitem conferir individualmente cada componente do balanço.
 
@@ -264,7 +264,7 @@ if regras and not cenario_fq_ativo:
 ...
 demandas_finais[i] = demandas_iniciais[i] * (1.0 - racionamentos[i] / 100.0)
 \end{lstlisting}
-\Fonte{\citeonline{martins2026software}.}
+\Fonte{Elaborada pelo autor.}
 
 Os limites e percentuais podem ser carregados do banco de dados ou editados na interface e aplicados apenas à sessão corrente, sem alterar a base.
 
@@ -289,11 +289,11 @@ Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, r
 
 \begin{figure}[!ht]
     \centering
-    \Caption{\label{fig:planilha-verificacao}Aba de cálculo da planilha de verificação preenchida para Mundaú (demanda de 500 L/s).}
+    \Caption{\label{fig:planilha-verificacao}Aba de cálculo da planilha de verificação preenchida para Mundaú (demanda de 500 L/s)}
     \UFCfig{}{
         \includegraphics[width=\textwidth]{figuras/planilha-verificacao.png}
     }{
-        \Fonte{elaborada pelo autor.}
+        \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
 
@@ -331,7 +331,7 @@ U25 =IF(D25="","",MAX(0,MIN($B$8,Z25)))
 V25 =IF(D25="","",IF(S25>0.0000001,"Sim","Não"))
 W25 =IF(D25="","",U25-(H25+E25-Q25-O25-T25))
 \end{lstlisting}
-\Fonte{elaborada pelo autor.}
+\Fonte{Elaborada pelo autor.}
 
 No topo da aba, um quadro de controle resume a execução: número de meses calculados, meses com falha, atendimento global, vertimento e evaporação totais, resíduo máximo, volumes mínimo e máximo e contagem de volumes negativos. O quadro indica ``OK'' quando o resíduo máximo é inferior a $10^{-8}$ hm$^3$ e não há volumes negativos. A descrição completa das abas e das colunas e um exemplo de cálculo manual constam no Apêndice \ref{ap:memoria-calculo}.
 
@@ -373,7 +373,7 @@ def comparar(planilha, simulador):
             divergentes += 1
     return divergentes
 \end{lstlisting}
-\Fonte{elaborada pelo autor.}
+\Fonte{Elaborada pelo autor.}
 
 
 
@@ -421,7 +421,7 @@ def conferir_regras(df, faixas, cap):
         vf_anterior = vf
     return v
 \end{lstlisting}
-\Fonte{elaborada pelo autor.}
+\Fonte{Elaborada pelo autor.}
 
 
 
@@ -452,7 +452,7 @@ Os casos controlados são testes funcionais com entradas sintéticas para as qua
         Redistribuição da demanda conjunta & mudança da unidade responsável no modo Paralelo \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor.}
+    \Fonte{Elaborada pelo autor.}
 \end{table}
 
 Para facilitar o cálculo manual, adotaram-se, conforme o caso, afluência nula, evaporação nula e curva cota-área-volume com área constante de 1 km$^2$. Um caso é considerado aprovado quando o resultado obtido coincide com o esperado dentro da tolerância de $10^{-9}$ hm$^3$.
@@ -479,7 +479,7 @@ A análise de sensibilidade foi realizada pela variação de um parâmetro por v
         Vazão transferida (estado Normal) & 0 a 700 L/s, passo 100 & 500 L/s & Fogareiro--Quixeramobim \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor.}
+    \Fonte{Elaborada pelo autor.}
 \end{table}
 
 Na variação da vazão transferida, os valores dos demais estados foram ajustados proporcionalmente, preservando as razões da configuração de referência. Na variação do gatilho, as demais regras permaneceram inalteradas.
@@ -509,7 +509,7 @@ As configurações dos três estudos de aplicação são resumidas na Tabela \re
         Regras & curvas-guia com racionamento 0/0/50/70\% & sem racionamento & estado definido por Fogareiro \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor.}
+    \Fonte{Elaborada pelo autor.}
 \end{table}
 
 Em Mundaú, foram empregadas as curvas-guia mensais publicadas no plano de gestão proativa de secas do hidrossistema \cite{pgpsMundau2026}, reproduzidas na Tabela \ref{tab:curvas-mundau}, com atendimento integral nos estados Normal e Alerta e racionamentos de 50\% e 70\% nos estados Seca e Seca Severa, o que corresponde a retiradas de 250, 250, 125 e 75 L/s. As curvas foram utilizadas como dado de entrada para demonstrar a funcionalidade de racionamento; os resultados não são comparados com os do plano.
@@ -530,7 +530,7 @@ Em Mundaú, foram empregadas as curvas-guia mensais publicadas no plano de gest�
         Seca Severa (racionamento 70\%) & 21 & 18 & 16 & 17 & 21 & 43 & 42 & 39 & 36 & 32 & 28 & 25 \\
         \bottomrule
     \end{tabular}}
-    \Fonte{elaborada pelo autor com base em \citeonline{pgpsMundau2026}.}
+    \Fonte{Elaborada pelo autor com base em \citeonline{pgpsMundau2026}.}
 \end{table}
 
 Em Carnaubal--Barragem do Batalhão, a configuração foi definida para demonstrar o modo Paralelo: a demanda conjunta de 160 L/s é inicialmente atribuída a Carnaubal e pode ser deslocada para a Barragem do Batalhão quando Carnaubal fica abaixo de 10\% da capacidade.
@@ -553,7 +553,7 @@ Em Fogareiro--Quixeramobim, empregou-se a configuração específica descrita na
         Seca Severa & 6,0 & 70,5 & 85 \\
         \bottomrule
     \end{tabular}
-    \Fonte{elaborada pelo autor com base na configuração do sistema e em \citeonline{pgpsFogareiroQuixeramobim2023}.}
+    \Fonte{Elaborada pelo autor com base na configuração do sistema e em \citeonline{pgpsFogareiroQuixeramobim2023}.}
 \end{table}
 
 \section{Critérios de avaliação}
