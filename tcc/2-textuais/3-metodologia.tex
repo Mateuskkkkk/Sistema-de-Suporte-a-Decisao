@@ -58,9 +58,9 @@ Foram definidos três estudos de aplicação, cada um destinado a um modo de ope
 \section{Arquitetura do sistema}
 \label{sec:arquitetura}
 
-A estrutura do sistema segue os componentes de dados, modelos e interação discutidos por \citeonline{sprague1980} e foi organizada em três camadas, apresentação, processamento e dados, ilustradas na Figura \ref{fig:arquitetura-ssd}. A camada de dados é o banco SQLite descrito na Seção \ref{sec:base-dados}. A camada de apresentação foi desenvolvida em React \cite{react} e estruturada com Vite \cite{vite}; nela, os estados dos componentes controlam os parâmetros informados pelo usuário, o envio das simulações e a exibição dos resultados. A camada de processamento foi implementada em Python \cite{python} e exposta por uma interface de programação de aplicações construída com FastAPI \cite{fastapi}. As rotinas numéricas utilizam NumPy \cite{harris2020numpy}, para operações vetoriais, e Numba \cite{lam2015numba}, que compila em tempo de execução o laço mensal do balanço hídrico.
+A estrutura do sistema segue os componentes de dados, modelos e interação discutidos por \citeonline{sprague1980} e foi organizada em três camadas, apresentação, processamento e dados, ilustradas na Figura \ref{fig:arquitetura-ssd}. A camada de dados é o banco SQLite descrito na Seção \ref{sec:base-dados}. A camada de apresentação foi desenvolvida em React \cite{react} e estruturada com Vite \cite{vite}; nela, os estados dos componentes controlam os parâmetros informados pelo usuário, o envio das simulações e a exibição dos resultados. A camada de processamento foi implementada em Python \cite{python} e exposta por uma interface de programação de aplicações (API) construída com FastAPI \cite{fastapi}. As rotinas numéricas utilizam NumPy \cite{harris2020numpy}, para operações vetoriais, e Numba \cite{lam2015numba}, que compila em tempo de execução o laço mensal do balanço hídrico.
 
-A comunicação entre as camadas ocorre por requisições HTTP com corpo em formato JSON. A interface envia a configuração da simulação, isto é, reservatórios, volumes iniciais, demandas, gatilhos, modo de operação, período e, quando houver, níveis meta. A API consulta as séries e os parâmetros físicos no banco SQLite, executa o simulador e devolve os registros mensais de cada reservatório, que são transformados pela interface em indicadores, gráficos e tabelas e podem ser exportados em planilha ou JSON. Essa organização separa a apresentação das regras de cálculo e permite que as mesmas rotinas sejam utilizadas por diferentes telas \cite{martins2026software}.
+A comunicação entre as camadas ocorre por requisições \textit{Hypertext Transfer Protocol} (HTTP) com corpo em formato \textit{JavaScript Object Notation} (JSON). A interface envia a configuração da simulação, isto é, reservatórios, volumes iniciais, demandas, gatilhos, modo de operação, período e, quando houver, níveis meta. A API consulta as séries e os parâmetros físicos no banco SQLite, executa o simulador e devolve os registros mensais de cada reservatório, que são transformados pela interface em indicadores, gráficos e tabelas e podem ser exportados em planilha ou JSON. Essa organização separa a apresentação das regras de cálculo e permite que as mesmas rotinas sejam utilizadas por diferentes telas \cite{martins2026software}.
 
 \begin{figure}[!ht]
     \centering
@@ -77,7 +77,7 @@ A comunicação entre as camadas ocorre por requisições HTTP com corpo em form
 
 O funcionamento do sistema é sintetizado no fluxograma da Figura \ref{fig:fluxo-interface}, que separa as ações do usuário, realizadas na interface web, das etapas executadas pelo sistema. Do lado do usuário, a análise segue seis passos. Primeiro, escolhe-se um hidrossistema pré-configurado ou monta-se manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Em seguida, escolhe-se o modo de operação e informam-se volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, cenário hidrológico e período. Opcionalmente, na aba de níveis meta, os limites mensais e os percentuais de racionamento de cada faixa podem ser editados e aplicados à sessão, sem alterar o banco de dados. Ao acionar ``Gerar Simulação'', a configuração é enviada ao sistema.
 
-Do lado do sistema, a API valida a configuração, lê no banco as séries de vazão, a evaporação, as curvas cota-área-volume e as regras e executa o simulador. Para cada mês, o simulador determina o estado operacional e o racionamento, aplica a regra do modo de operação, calcula o balanço hídrico e registra o resultado, repetindo o ciclo até o último mês do período. Os registros mensais retornam à interface, onde são apresentados como indicadores agregados, gráficos de volume, demanda, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Se a configuração não for satisfatória, o usuário altera os dados e executa nova simulação; caso contrário, exporta os registros em planilha eletrônica ou JSON e os gráficos em PNG ou SVG.
+Do lado do sistema, a API valida a configuração, lê no banco as séries de vazão, a evaporação, as curvas cota-área-volume e as regras e executa o simulador. Para cada mês, o simulador determina o estado operacional e o racionamento, aplica a regra do modo de operação, calcula o balanço hídrico e registra o resultado, repetindo o ciclo até o último mês do período. Os registros mensais retornam à interface, onde são apresentados como indicadores agregados, gráficos de volume, demanda, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Se a configuração não for satisfatória, o usuário altera os dados e executa nova simulação; caso contrário, exporta os registros em planilha eletrônica ou JSON e os gráficos em \textit{Portable Network Graphics} (PNG) ou \textit{Scalable Vector Graphics} (SVG).
 
 \begin{figure}[!ht]
     \centering
@@ -201,6 +201,7 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3,
 
     return vol, retirada_efetiva, vertimento, evap_m * area_med
 \end{lstlisting}
+\Fonte{\citeonline{martins2026software}.}
 
 Para cada reservatório e mês, o simulador registra data, vazão afluente, afluência em volume, armazenamento inicial e final, demanda solicitada e atendida, retirada total, percentual de racionamento, transferências recebidas e enviadas, evaporação, vertimento, estado operacional e ocorrência de falha. Esses registros permitem conferir individualmente cada componente do balanço.
 
@@ -263,6 +264,7 @@ if regras and not cenario_fq_ativo:
 ...
 demandas_finais[i] = demandas_iniciais[i] * (1.0 - racionamentos[i] / 100.0)
 \end{lstlisting}
+\Fonte{\citeonline{martins2026software}.}
 
 Os limites e percentuais podem ser carregados do banco de dados ou editados na interface e aplicados apenas à sessão corrente, sem alterar a base.
 
@@ -329,6 +331,7 @@ U25 =IF(D25="","",MAX(0,MIN($B$8,Z25)))
 V25 =IF(D25="","",IF(S25>0.0000001,"Sim","Não"))
 W25 =IF(D25="","",U25-(H25+E25-Q25-O25-T25))
 \end{lstlisting}
+\Fonte{elaborada pelo autor.}
 
 No topo da aba, um quadro de controle resume a execução: número de meses calculados, meses com falha, atendimento global, vertimento e evaporação totais, resíduo máximo, volumes mínimo e máximo e contagem de volumes negativos. O quadro indica ``OK'' quando o resíduo máximo é inferior a $10^{-8}$ hm$^3$ e não há volumes negativos. A descrição completa das abas e das colunas e um exemplo de cálculo manual constam no Apêndice \ref{ap:memoria-calculo}.
 
@@ -370,6 +373,7 @@ def comparar(planilha, simulador):
             divergentes += 1
     return divergentes
 \end{lstlisting}
+\Fonte{elaborada pelo autor.}
 
 
 
@@ -417,6 +421,7 @@ def conferir_regras(df, faixas, cap):
         vf_anterior = vf
     return v
 \end{lstlisting}
+\Fonte{elaborada pelo autor.}
 
 
 
