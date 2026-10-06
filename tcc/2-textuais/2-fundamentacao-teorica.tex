@@ -1,7 +1,7 @@
 \chapter{Fundamentação teórica}
 \label{cap:fundamentacao-teorica}
 
-Este capítulo apresenta os conceitos que fundamentam o desenvolvimento e a avaliação do sistema proposto. Inicialmente, discutem-se as secas no Semiárido e a gestão de reservatórios. Em seguida, são abordados a simulação hidrológica, o balanço hídrico, a evaporação, as regras de operação, os sistemas com múltiplos reservatórios, os sistemas de suporte à decisão e a verificação de modelos computacionais.
+Este capítulo apresenta os conceitos que fundamentam o desenvolvimento e a avaliação do sistema proposto. Inicialmente, discutem-se as secas no Semiárido e a gestão de reservatórios. Em seguida, são abordados a simulação hidrológica, o balanço hídrico, a evaporação, as regras de operação, os sistemas com múltiplos reservatórios, os sistemas de suporte à decisão, as ferramentas de simulação aplicadas a sistemas de reservatórios e a verificação de modelos computacionais.
 
 \section{Secas e variabilidade hidrológica no Semiárido}
 \label{sec:secas-semiarido}
@@ -77,6 +77,42 @@ Essas representações são simplificações da infraestrutura real. Em interval
 Sistemas de suporte à decisão são ferramentas destinadas a auxiliar a análise de problemas nos quais dados, modelos e julgamento humano precisam ser utilizados conjuntamente. \citeonline{sprague1980} caracteriza esses sistemas pelo apoio a decisões semiestruturadas ou não estruturadas, pela interação com o usuário e pela possibilidade de combinar informações e modelos analíticos. Sua finalidade não é automatizar a decisão, mas ampliar a capacidade de investigar alternativas.
 
 Na estrutura proposta por \citeonline{sprague1980}, um SSD reúne uma base de dados, uma base de modelos e mecanismos de comunicação com o usuário. A base de dados armazena as informações necessárias à análise; a base de modelos representa o comportamento do problema; e a interface permite configurar entradas e interpretar resultados. No campo da gestão de águas, \citeonline{souzaFilhoGouveia2003} apresentam os SSD como instrumentos capazes de integrar conhecimento técnico ao planejamento, em que a simulação responde a perguntas do tipo ``o que acontece se'' e a apresentação de resultados por gráficos, tabelas e indicadores facilita a comparação entre alternativas.
+
+\section{Ferramentas de simulação aplicadas a sistemas de reservatórios}
+\label{sec:trabalhos-relacionados}
+
+Diversas ferramentas computacionais foram desenvolvidas para apoiar a análise da operação de sistemas de reservatórios. O MODSIM, desenvolvido na Colorado State University, é um sistema de suporte à decisão para gestão de bacias que representa o sistema como uma rede de fluxo e resolve, a cada intervalo, um problema de otimização que distribui a água segundo prioridades definidas pelo usuário \cite{labadie2004,labadie2007modsim}. No Brasil, o AcquaNet, desenvolvido pelo Laboratório de Sistemas de Suporte a Decisões da Escola Politécnica da Universidade de São Paulo com base no MODSIM, adota a mesma formulação de rede de fluxo e é empregado em estudos de alocação de água em sistemas complexos \cite{schardong2009acquanet}. O HEC-ResSim, do Corpo de Engenheiros do Exército dos Estados Unidos, simula a operação de reservatórios por regras, com intervalos de tempo que podem ser diários ou menores e representação detalhada de zonas operacionais e restrições \cite{klipsch2013ressim}. O WEAP integra oferta e demanda de água no planejamento de bacias, com alocação orientada por prioridades de demanda e preferências de fonte \cite{yates2005weap}, e o RiverWare oferece um ambiente genérico para construir modelos detalhados de sistemas de reservatórios, com simulação por regras e otimização \cite{zagona2001riverware}.
+
+Essas ferramentas são genéricas e abrangentes: podem representar redes extensas, intervalos de tempo curtos e diferentes objetivos operacionais. Em contrapartida, cada aplicação exige que o usuário construa a rede, carregue as séries hidrológicas e as relações físicas dos reservatórios e traduza as regras de operação para a linguagem do programa, o que demanda tempo e conhecimento especializado. O Quadro \ref{qua:ferramentas} resume as características dessas ferramentas e as do sistema desenvolvido neste trabalho.
+
+\begin{quadro}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Características de ferramentas de simulação de sistemas de reservatórios e do sistema desenvolvido}
+    \label{qua:ferramentas}
+    \centering
+    \footnotesize
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.1cm}|>{\raggedright\arraybackslash}p{3.4cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}p{3.6cm}|}
+        \hline
+        \textbf{Ferramenta} & \textbf{Abordagem} & \textbf{Intervalo} & \textbf{Acesso} & \textbf{Dados e regras} \\
+        \hline
+        MODSIM & rede de fluxo com otimização a cada intervalo & definido pelo usuário & programa instalado & rede, séries e prioridades montadas pelo usuário \\
+        \hline
+        AcquaNet & rede de fluxo com otimização, derivado do MODSIM & mensal, entre outros & programa instalado & rede, séries e prioridades montadas pelo usuário \\
+        \hline
+        HEC-ResSim & simulação por regras e zonas operacionais & diário ou menor & programa instalado & reservatórios, regras e séries configurados pelo usuário \\
+        \hline
+        WEAP & planejamento integrado de oferta e demanda & mensal, entre outros & programa instalado, mediante licença & cenários, demandas e prioridades definidos pelo usuário \\
+        \hline
+        RiverWare & simulação por regras e otimização & definido pelo usuário & programa instalado, mediante licença & modelo construído pelo usuário \\
+        \hline
+        Sistema desenvolvido & simulação do balanço hídrico mensal com regras por estado operacional & mensal & navegador web & base com 155 açudes do Ceará, hidrossistemas e curvas-guia dos planos de gestão proativa de secas já cadastrados \\
+        \hline
+    \end{tabular}
+    \Fonte{Elaborada pelo autor com base em \citeonline{labadie2007modsim}, \citeonline{schardong2009acquanet}, \citeonline{klipsch2013ressim}, \citeonline{yates2005weap} e \citeonline{zagona2001riverware}.}
+\end{quadro}
+
+O sistema desenvolvido neste trabalho não pretende substituir essas ferramentas, que são mais completas, por exemplo na otimização da alocação e na representação de intervalos curtos e redes extensas. Seu diferencial está na combinação de características voltadas ao contexto cearense: base de dados já organizada com os reservatórios monitorados no estado, representação direta das regras por estados operacionais adotadas nos planos de gestão proativa de secas, acesso pelo navegador, sem instalação, e disponibilização dos registros mensais completos de cada simulação, acompanhada de verificação documentada. Essa combinação reduz o esforço necessário para examinar cenários de operação, que é a finalidade de um sistema de suporte à decisão segundo \citeonline{sprague1980}.
 
 \section{Verificação de modelos computacionais}
 \label{sec:verificacao-modelos}
