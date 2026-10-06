@@ -95,7 +95,7 @@
 
 \usepackage[format=plain,justification=justified,skip=0pt,singlelinecheck = false,labelsep=colon]{caption}            % Altera o comportamento da tag caption. Algumas opcoes do caption so podem ser alternada no arquivo "antex2.cls, linhas 334 a 348.
 
-\usepackage[alf, abnt-emphasize=bf, recuo=0cm, abnt-etal-cite=2, abnt-etal-list=0, abnt-etal-text=it]{lib/ufcTexcite}
+\usepackage[alf, abnt-emphasize=bf, recuo=0cm, abnt-etal-cite=3, abnt-etal-list=0]{lib/ufcTexcite}
 
 %\usepackage[bottom]{footmisc}                      % Mantém as notas de rodapé sempre na mesma posição
 %\usepackage{times}                                 % Usa a fonte Times
@@ -139,3 +139,12 @@
   {à}{{\`a}}1 {À}{{\`A}}1 {ç}{{\c c}}1 {Ç}{{\c C}}1 {³}{{\textsuperscript{3}}}1
 }
 \newcommand{\datasemano}{[20-{}-]} % data provavel (NBR 6023): seculo certo
+% Notas de rodape conforme o Guia de citacoes da UFC (2025): fonte 10,
+% filete de 5 cm a partir da margem esquerda e linhas alinhadas abaixo da
+% primeira letra da primeira linha
+\renewcommand{\footnoterule}{\kern-3pt\hrule width 5cm\kern 2.6pt}
+\renewcommand{\foottextfont}{\footnotesize}
+\setlength{\footmarkwidth}{1em}
+\setlength{\footmarksep}{0em}
+\setlength{\footparindent}{0em}
+\footmarkstyle{\textsuperscript{#1}\hfill}

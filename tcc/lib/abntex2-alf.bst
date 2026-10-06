@@ -1343,9 +1343,9 @@ FUNCTION {calc.extended.label}
     {editor empty$ not
      {editor format.names.for.label1 * "}{" *  editor format.names.for.label2 *}
      {org-short empty$ not
-      {org-short * "}{" * org-short "u" change.case$ *}
+      {org-short * "}{" * org-short abnt.cite.style #0 = {"u" change.case$} 'skip$ if$ *}
       {organization empty$ not
-       {organization * "}{" * organization "u" change.case$ *}
+       {organization * "}{" * organization abnt.cite.style #0 = {"u" change.case$} 'skip$ if$ *}
         {title empty$ not
          {title format.title.for.label *}
          {"nada}{NADA" *}
