@@ -1,5 +1,5 @@
 MATERIAL COMPLEMENTAR DO TCC
-"Desenvolvimento e avaliação de um sistema de suporte à decisão baseado em simulação
+"Desenvolvimento e avaliação de um sistema de suporte à decisão
 para operação de reservatórios no Ceará" — Francisco Mateus Bezerra Martins (UFC, 2026)
 
 Código-fonte do sistema: https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao
