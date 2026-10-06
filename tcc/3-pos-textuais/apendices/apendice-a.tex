@@ -5,7 +5,7 @@ O sistema desenvolvido neste trabalho está disponível em repositório público
 
 \section{Identificação da versão}
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \Caption{\label{tab:identificacao-codigo}Identificação do código-fonte do sistema}
     \IBGEtab{}{
@@ -28,7 +28,9 @@ Todos os resultados do Capítulo \ref{chap:resultados} foram obtidos com a vers�
 
 \section{Organização do repositório}
 
-\begin{table}[!ht]
+Os componentes principais do repositório e a função de cada um no sistema são apresentados na Tabela \ref{tab:organizacao-repositorio}.
+
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \Caption{\label{tab:organizacao-repositorio}Componentes principais do repositório}
     \IBGEtab{}{
@@ -51,8 +53,9 @@ Todos os resultados do Capítulo \ref{chap:resultados} foram obtidos com a vers�
 
 \section{Dependências e execução}
 
-O serviço de processamento requer Python 3 e as bibliotecas listadas no arquivo \path{backend/requirements.txt}, entre elas FastAPI, Uvicorn, pandas, NumPy e Numba. A interface requer Node.js e as dependências declaradas no arquivo \path{frontend/package.json}, entre elas React, Recharts e Vite. Em síntese, a execução local compreende:
+O serviço de processamento requer Python 3 e as bibliotecas listadas no arquivo \path{backend/requirements.txt}, entre elas FastAPI, Uvicorn, pandas, NumPy e Numba. A interface requer Node.js e as dependências declaradas no arquivo \path{frontend/package.json}, entre elas React, Recharts e Vite. Em síntese, a execução local compreende os comandos do Código-fonte \ref{cod:execucao}:
 
+\noindent\begin{minipage}{\linewidth}
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize,columns=fullflexible,caption={Instruções básicas de execução},label={cod:execucao}]
 git clone https://github.com/Mateuskkkkk/Sistema-de-Suporte-a-Decisao.git
 cd Sistema-de-Suporte-a-Decisao
@@ -69,5 +72,7 @@ npm install
 npx vite
 \end{lstlisting}
 \Fonte{Elaborada pelo autor.}
+\end{minipage}
+\par\medskip
 
 Com os dois componentes em execução, a interface fica acessível no endereço informado pelo Vite e consome a API em \texttt{http://127.0.0.1:8000}, endereço que pode ser alterado pela variável de ambiente \texttt{VITE\_API\_URL}.

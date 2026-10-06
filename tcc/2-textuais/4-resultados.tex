@@ -15,7 +15,7 @@ A separação entre interface, API e motor de cálculo permitiu que as mesmas ro
 
 A tela inicial do simulador é apresentada na Figura \ref{fig:sim-tela-inicial}. O painel lateral concentra a configuração, e a área principal recebe os resultados. A seleção entre ``Simulação Padrão'' e ``Simulação com Níveis Meta'' define se as regras de racionamento serão aplicadas.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-tela-inicial}Tela inicial do simulador}
     \UFCfig{}{
@@ -27,7 +27,7 @@ A tela inicial do simulador é apresentada na Figura \ref{fig:sim-tela-inicial}.
 
 A Figura \ref{fig:sim-config-mundau} mostra o painel de configuração preenchido para a aplicação de Mundaú, com a aba de níveis meta aberta. O gráfico de limites de ativação exibe as faixas mensais, e a tabela abaixo permite editar os limites e os percentuais de racionamento de cada faixa. As alterações podem ser aplicadas à sessão sem modificar o banco de dados, o que permite testar regras alternativas sem afetar a base compartilhada.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-config-mundau}Painel de configuração com níveis meta, preenchido para a aplicação de Mundaú}
     \UFCfig{}{
@@ -39,7 +39,7 @@ A Figura \ref{fig:sim-config-mundau} mostra o painel de configuração preenchid
 
 Após a execução, o painel de resultados apresenta uma linha de indicadores (frequência de falha sistêmica, atendimento médio, meses simulados, racionamento médio, evaporação e vertimento totais), o número de meses abastecidos por reservatório, a lista de meses com falha e os gráficos de volume armazenado, demanda solicitada e atendida, racionamento e afluências, conforme a Figura \ref{fig:sim-resultados-mundau}. No gráfico de volume, a cor da linha indica o estado operacional de cada mês.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-resultados-mundau}Painel de resultados da aplicação de Mundaú}
     \UFCfig{}{
@@ -51,7 +51,7 @@ Após a execução, o painel de resultados apresenta uma linha de indicadores (f
 
 A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, evaporação, volumes inicial e final, demandas solicitada e atendida, retirada total, racionamento, vertimento, falha e estado, conforme a Figura \ref{fig:sim-tabela-mundau}. A mesma tabela pode ser exportada em planilha eletrônica ou JSON pelos botões do cabeçalho, e foi a partir dessas exportações que se realizaram as conferências da Seção \ref{sec:resultado-verificacao}.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-tabela-mundau}Tabela mensal do balanço hídrico, exportável, na aplicação de Mundaú}
     \UFCfig{}{
@@ -73,7 +73,7 @@ Os resultados são apresentados nas duas partes definidas na Seção \ref{sec:me
 
 A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simulador para Mundaú nos dois casos de demanda. Os indicadores agregados coincidiram em todas as casas decimais apresentadas, e o número de meses com falha foi idêntico: 142 meses com 250 L/s e 594 meses com 500 L/s. Na comparação mês a mês, nenhum dos 1.332 meses apresentou divergência na indicação de falha.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Cálculo independente em planilha versus resultado do simulador para Mundaú (1911--2021, 1.332 meses)}
     \label{tab:verificacao-planilha}
@@ -99,7 +99,7 @@ A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simu
 
 A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas foram nulas dentro da tolerância numérica de $10^{-9}$ hm$^3$ adotada na Seção \ref{sec:metodo-verificacao}: os maiores valores brutos encontrados, da ordem de $10^{-16}$ hm$^3$, correspondem apenas ao arredondamento da aritmética de ponto flutuante. O caso de 500 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses as diferenças permaneceram nulas.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Máximas diferenças absolutas mensais entre planilha e simulador e resíduo de conservação de massa (hm$^3$)}
     \label{tab:verificacao-residuos}
@@ -124,7 +124,7 @@ A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolu
 
 A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{tab:verificacao-planilha-25} e na Figura \ref{fig:verificacao-25}. No total, foram comparados 33.108 balanços mensais. Em todos os hidrossistemas, a planilha e o simulador produziram o mesmo número de meses com falha e o mesmo atendimento, e nenhum mês apresentou diferença acima da tolerância em volume, afluência, evaporação, retirada, vertimento ou indicação de falha. A coincidência abrangeu reservatórios sem falhas, como Pedras Brancas, Trussu, Aracoiaba, Batente e Umari, e reservatórios com esvaziamentos frequentes, como Poço Verde, com 382 meses de falha, Acarape do Meio, com 272, e Jenipapo, com 204.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Cálculo independente em planilha versus simulador nos 25 hidrossistemas (modo Individual, sem racionamento, volume inicial de 50\%)}
     \label{tab:verificacao-planilha-25}
@@ -167,7 +167,7 @@ A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{
     \Fonte{Elaborada pelo autor. $^{*}$Período não definido na matriz de verificação; adotou-se 1911--2017. Meses divergentes: meses com diferença superior a $10^{-9}$ hm$^3$ em algum componente do balanço ou com indicação de falha diferente.}
 \end{table}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:verificacao-25}Verificação numérica nos 25 hidrossistemas: (a) meses com falha e (b) atendimento da demanda calculados pela planilha e pelo simulador}
     \UFCfig{}{
@@ -184,7 +184,7 @@ A extensão da comparação aos 25 hidrossistemas é apresentada na Tabela \ref{
 
 A conferência das regras de níveis meta e racionamento abrangeu os mesmos 25 hidrossistemas, agora simulados com as curvas-guia e os racionamentos da matriz, totalizando 33.108 meses. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Hidrossistemas utilizados na verificação das regras de níveis meta e racionamento}
     \label{tab:verificacao-25}
@@ -225,7 +225,7 @@ A conferência das regras de níveis meta e racionamento abrangeu os mesmos 25 h
     \Fonte{Elaborada pelo autor a partir das saídas do simulador. Racionamentos dos estados Alerta, Seca e Seca Severa, arredondados. $^{*}$Período não definido na matriz; adotou-se 1911--2017.}
 \end{table}
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Resumo das conferências das regras de níveis meta e racionamento nos 25 hidrossistemas (33.108 meses)}
     \label{tab:verificacao-25-resumo}
@@ -254,7 +254,7 @@ Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu a
 
 A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resultado esperado pelo cálculo manual, o resultado obtido pelo simulador e a situação do teste. Todos os nove casos foram aprovados.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Resultados dos casos controlados}
     \label{tab:casos-resultados}
@@ -285,7 +285,7 @@ Os testes confirmam os comportamentos de fronteira mais sujeitos a erro. No caso
 
 A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às variações dos parâmetros, e a Tabela \ref{tab:sensibilidade} reúne os valores numéricos.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sensibilidade}Sensibilidade dos indicadores ao volume inicial, à demanda e à evaporação (Mundaú) e ao gatilho e à vazão de transferência (Fogareiro--Quixeramobim)}
     \UFCfig{}{
@@ -295,7 +295,7 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
     }
 \end{figure}
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Resultados da análise de sensibilidade}
     \label{tab:sensibilidade}
@@ -355,7 +355,7 @@ Em todos os parâmetros, a direção da resposta foi a esperada fisicamente: mai
 
 A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-config-mundau}: modo Individual, volume inicial de 50\% (10,65 hm$^3$), demanda de 250 L/s, período de 1911 a 2021 e curvas-guia da Tabela \ref{tab:curvas-mundau}. A evolução histórica do volume e do estado operacional é apresentada na Figura \ref{fig:mundau-volume}, e os indicadores, na Tabela \ref{tab:mundau-indicadores}.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:mundau-volume}Resultados de Mundaú exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado}
     \UFCfig{}{
@@ -372,7 +372,7 @@ A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-co
     }
 \end{figure}
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Indicadores da aplicação de Mundaú}
     \label{tab:mundau-indicadores}
@@ -402,7 +402,7 @@ Com as curvas-guia, o reservatório não apresentou nenhuma falha no período: e
 
 As permanências operacionais foram de 734 meses em Normal (55,1\%), 266 em Alerta (20,0\%), 199 em Seca (14,9\%) e 133 em Seca Severa (10,0\%). A Tabela \ref{tab:mundau-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 13,5\% a 20,7\% dos meses de junho a outubro, quando os limites das curvas são mais altos e não há recarga, e em apenas 1,8\% a 4,5\% dos meses de fevereiro a maio, período da estação chuvosa em que os limites diminuem e as afluências elevam o armazenamento. A frequência do estado Normal, por sua vez, é máxima em abril e maio, ao final da estação chuvosa.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Distribuição dos estados operacionais de Mundaú por mês do ano (\% dos meses)}
     \label{tab:mundau-estados-mes}
@@ -429,7 +429,7 @@ A interpretação hidrológica da Figura \ref{fig:mundau-volume} evidencia três
 
 A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-carnaubal}: Carnaubal (46,62 hm$^3$) é o reservatório prioritário, com gatilho de 10\%, e a Barragem do Batalhão (1,64 hm$^3$) é a segunda unidade; a demanda conjunta é de 160 L/s (0,4147 hm$^3$/mês), sem demandas locais. A Figura \ref{fig:sim-resultados-carnaubal} mostra o painel de resultados da interface, e a Figura \ref{fig:carnaubal-batalhao}, os gráficos exportados pelo simulador com os volumes dos dois reservatórios e a demanda conjunta assumida por cada unidade; os períodos em que a Barragem do Batalhão é responsável aparecem como pulsos no painel (c), e as falhas, como quedas da demanda atendida no painel (b).
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-config-carnaubal}Configuração do modo Paralelo para Carnaubal--Barragem do Batalhão}
     \UFCfig{}{
@@ -439,7 +439,7 @@ A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-c
     }
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-resultados-carnaubal}Indicadores, meses abastecidos e lista de falhas na aplicação de Carnaubal--Barragem do Batalhão}
     \UFCfig{}{
@@ -449,7 +449,7 @@ A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-c
     }
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:carnaubal-batalhao}Resultados de Carnaubal--Barragem do Batalhão exportados pelo simulador (1911--2021): volumes e demanda conjunta solicitada e atendida em cada unidade}
     \UFCfig{}{
@@ -470,7 +470,7 @@ A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-c
 
 Os indicadores são apresentados na Tabela \ref{tab:carnaubal-indicadores}. Carnaubal foi responsável pela demanda conjunta em 1.202 meses e a Barragem do Batalhão, em 130 meses, distribuídos em 41 períodos, com 82 mudanças de responsabilidade. Os períodos mais longos sob responsabilidade do Batalhão ocorreram de fevereiro a setembro de 2016 (8 meses) e, com 7 meses cada, em 1955, entre 1960 e 1961 e em 2015. A demanda conjunta foi atendida em 97,57\% do volume solicitado.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Indicadores da aplicação de Carnaubal--Barragem do Batalhão}
     \label{tab:carnaubal-indicadores}
@@ -504,7 +504,7 @@ Os resultados também revelam o contraste entre as unidades. A Barragem do Batal
 
 A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}. Fogareiro é o reservatório controlador, com as curvas-guia mensais exibidas no gráfico e na tabela de níveis meta; Quixeramobim é o receptor, com gatilho de 30\% (2,364 hm$^3$). Os indicadores obtidos na interface são mostrados na Figura \ref{fig:sim-resultados-fq}, e a evolução dos volumes e das transferências, na Figura \ref{fig:fogareiro-quixeramobim}.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-config-fq}Configuração do modo Série para Fogareiro--Quixeramobim, com as curvas-guia de Fogareiro}
     \UFCfig{}{
@@ -514,7 +514,7 @@ A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}
     }
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:sim-resultados-fq}Indicadores e meses abastecidos na aplicação de Fogareiro--Quixeramobim}
     \UFCfig{}{
@@ -524,7 +524,7 @@ A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}
     }
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:fogareiro-quixeramobim}Resultados de Fogareiro--Quixeramobim exportados pelo simulador (1911--2019): volumes coloridos pelo estado do sistema e vazão transferida}
     \UFCfig{}{
@@ -545,7 +545,7 @@ A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}
 
 Os indicadores constam na Tabela \ref{tab:fq-indicadores}. Nenhum dos reservatórios apresentou falha no período: as demandas aplicadas a cada estado foram integralmente atendidas. Em relação às demandas do estado Normal, o atendimento foi de 94,94\% em Fogareiro e de 96,22\% em Quixeramobim, diferença que corresponde às reduções previstas para os estados Alerta, Seca e Seca Severa.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Indicadores da aplicação de Fogareiro--Quixeramobim (1.308 meses)}
     \label{tab:fq-indicadores}
@@ -583,7 +583,7 @@ O estado do sistema, definido por Fogareiro, permaneceu Normal em 87,5\% dos mes
 
 A Tabela \ref{tab:sintese} reúne os principais indicadores das três aplicações. Os valores não devem ser comparados diretamente entre reservatórios, pois cada aplicação possui capacidades, séries, demandas e regras próprias; a tabela tem a finalidade de registrar, em um único lugar, o que cada modo de operação permitiu observar.
 
-\begin{table}[!ht]
+\begin{table}[!htbp]
     \captionsetup{width=15cm}
     \caption{Síntese dos indicadores das aplicações}
     \label{tab:sintese}
