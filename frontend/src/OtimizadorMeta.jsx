@@ -6,7 +6,7 @@ import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send,
   Download, FileSpreadsheet, FileText, Plus, Search, X,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import * as XLSX from './utils/planilha'
 import { elementToPngDataUrl } from './components/ChartExportMenu'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']

@@ -7,7 +7,7 @@ import {
   Activity, BarChart3, BrainCircuit, Check, Download, RefreshCw, Search,
   SlidersHorizontal, TrendingUp, Waves,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import * as XLSX from './utils/planilha'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 

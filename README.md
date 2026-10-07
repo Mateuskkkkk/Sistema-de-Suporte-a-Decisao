@@ -13,15 +13,27 @@ Sistema web para simulação de balanço hídrico e otimização de níveis meta
 - Tabelas de permanência, volumes históricos e resultados mensais.
 - Exportação dos resultados da otimização em CSV e planilha Excel.
 - Modo claro e modo escuro no topo da aplicação.
+- Indicadores de desempenho de confiabilidade, resiliência e vulnerabilidade (Hashimoto, Stedinger e Loucks, 1982).
+- Indicadores do sistema: falha da demanda conjunta (modo Paralelo) e meses/volume transferido (modo Série).
+- Histerese opcional no gatilho de transferência, para evitar liga-desliga mês a mês.
+- Cenários hidrológicos: série histórica, fatores fixos ou personalizados de afluência, seca repetida e reamostragem anual com semente.
+- Comparação lado a lado de dois cenários (fixe um resultado e simule outro).
+- Salvar e abrir a configuração da simulação em arquivo JSON.
+- Marcação dos meses com falha e dos períodos com racionamento no gráfico de volume.
+- Validação dos campos com mensagens em português, no formulário e na API.
+
+As opções novas vêm desligadas por padrão: com os valores padrão, o simulador reproduz exatamente os resultados da versão usada no TCC.
 
 ## Estrutura do Projeto
 
 ```text
 Sistema-Hidrico-Unificado/
 ├── backend/
-│   ├── main.py
-│   ├── optimizer_engine.py
-│   ├── banco_site.db
+│   ├── main.py               # API (FastAPI) e acesso ao banco
+│   ├── simulador.py          # motor de balanço hídrico e indicadores
+│   ├── optimizer_engine.py   # otimizador de níveis meta
+│   ├── banco_site.db         # séries de vazões, evaporação e CAV
+│   ├── test_*.py             # testes automatizados
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html
@@ -118,6 +130,20 @@ A interface ficará disponível em:
 ```text
 http://127.0.0.1:5173
 ```
+
+### 5. Rodar os Testes
+
+```bash
+cd backend
+python -m unittest discover -p "test_*.py"
+```
+
+Os testes incluem os resultados de referência do TCC (por exemplo, 142 meses de falha em Mundaú e 257 meses de transferência em Fogareiro–Quixeramobim).
+
+## Variáveis de Ambiente do Backend
+
+- `BANCO_SITE_DB`: caminho alternativo para o banco SQLite (padrão: `backend/banco_site.db`, independente da pasta de onde o servidor é iniciado).
+- `CORS_ORIGINS`: lista de origens permitidas separadas por vírgula, por exemplo `https://meu-site.com`. Sem ela, qualquer origem é aceita, sem credenciais.
 
 ## Configuração da API no Frontend
 

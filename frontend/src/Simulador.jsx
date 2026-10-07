@@ -11,7 +11,7 @@ import {
   Save, Info, Shield, ArrowLeftRight, FileSpreadsheet, BarChart2,
   Activity,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import * as XLSX from './utils/planilha'
 import { downloadElementAsPng } from './components/ChartExportMenu'
 
 // nomes dos meses abreviados, usados em vários lugares do app
@@ -21,7 +21,12 @@ const CENARIOS_HIDROLOGICOS = [
   { id: 'afluencia_zero', label: 'Afluência zero' },
   { id: 'seco_50', label: 'Seco -50%' },
   { id: 'umido_120', label: 'Úmido +20%' },
+  { id: 'fator_personalizado', label: 'Percentual personalizado' },
+  { id: 'seca_repetida', label: 'Repetir seca histórica' },
+  { id: 'reamostragem_anual', label: 'Reamostragem de anos' },
 ]
+const ANO_MIN_SERIE = 1911
+const ANO_MAX_SERIE = 2021
 
 const m3sToLps = value => Number(((parseFloat(value) || 0) * 1000).toFixed(3))
 const lpsToM3s = value => Math.max(0, (parseFloat(value) || 0) / 1000)
@@ -54,7 +59,7 @@ const CSS = `
     --blue: #264fa3; --blue-light: #4a7cc7; --blue-pale: #dde8f8;
     --red: #d94040; --red-pale: #fde8e8;
     --yellow: #d4a017; --yellow-pale: #fef3cd;
-    --text: #1e1208; --text-mid: #5a3c24; --text-light: #9a7055;
+    --text: #1e1208; --text-mid: #5a3c24; --text-light: #855f40;
     --border: #ecdcc8; --border-light: #f5ebe0; --card: #ffffff;
     --shadow-sm: 0 1px 4px rgba(150,90,40,0.08);
     --shadow: 0 2px 16px rgba(150,90,40,0.10);
@@ -80,6 +85,23 @@ const CSS = `
   .sim-plano-inp { width:100%; border:1.5px solid transparent; border-radius:4px; background:transparent; text-align:center; font-size:11px; font-family:'Sora',sans-serif; color:var(--text); padding:3px 2px; transition:all 0.15s; outline:none; }
   .sim-plano-inp:focus { border-color:var(--orange); background:var(--orange-pale); }
   .sim-tr:hover td { background: var(--orange-pale) !important; }
+  .sim-root button:focus-visible, .sim-root input:focus-visible, .sim-root select:focus-visible {
+    outline: 2px solid var(--orange-deep); outline-offset: 2px;
+  }
+  .sim-root .sim-invalid { border-color: var(--red) !important; background: var(--red-pale) !important; }
+  .sim-erro-campo { font-size: 10px; color: var(--red); margin-top: 3px; font-weight: 600; line-height: 1.3; }
+  .sim-layout { padding: 14px 26px 0; display: grid; grid-template-columns: 295px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .sim-config-card { position: sticky; top: 16px; }
+  .sim-header { padding: 18px 26px 0; }
+  @media (max-width: 900px) {
+    .sim-layout { grid-template-columns: minmax(0, 1fr); padding: 12px 12px 0; }
+    .sim-config-card { position: static; }
+    .sim-header { padding: 14px 12px 0; }
+    .sim-root .recharts-legend-wrapper { font-size: 9px !important; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sim-fade, .sim-spin { animation: none !important; }
+  }
 `
 
 // cria o objeto de API com os métodos de busca e simulação
@@ -88,14 +110,21 @@ function makeApi(base) {
   const b = base || import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
 
   // faz um GET simples e retorna o JSON; lança erro se der ruim
-  const get  = async (p) => { const r = await fetch(`${b}${p}`); if (!r.ok) throw new Error(`Erro ${r.status}: ${p}`); return r.json() }
+  const get  = async (p) => {
+    const r = await fetch(`${b}${p}`)
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}))
+      throw new Error(typeof e.detail === 'string' ? e.detail : `Erro ${r.status} ao consultar ${p}`)
+    }
+    return r.json()
+  }
 
   // faz um POST com body JSON; trata os erros de validação do backend
   const post = async (p, body) => {
     const r = await fetch(`${b}${p}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     if (!r.ok) {
       const e = await r.json().catch(() => ({}))
-      if (Array.isArray(e.detail)) throw new Error(e.detail.map(x => (x.loc?x.loc.join('→')+': ':'')+x.msg).join(' | '))
+      if (Array.isArray(e.detail)) throw new Error(e.detail.map(x => String(x.msg || '').replace(/^Value error,\s*/, '')).join(' '))
       throw new Error(typeof e.detail==='string' ? e.detail : JSON.stringify(e.detail) || 'Erro')
     }
     return r.json()
@@ -104,7 +133,7 @@ function makeApi(base) {
   return {
     fetchReservatorios: () => get('/api/reservatorios'),
     fetchPresets:       () => get('/api/presets'),
-    fetchPlanoSecas:    (cod) => get(`/api/plano-secas/${cod}`).catch(() => []),
+    fetchPlanoSecas:    (cod) => get(`/api/plano-secas/${encodeURIComponent(cod)}`),
     runSimulacao:       (payload) => post('/api/simular', payload),
   }
 }
@@ -160,12 +189,52 @@ function Label({ icon: Icon, children }) {
   )
 }
 
-function FC({ as='input', children, style, ...props }) {
+function FC({ as='input', children, style, invalid=false, className='', ...props }) {
   const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'#fff', color:'var(--text)', fontSize:12.5, fontFamily:'Sora, sans-serif', outline:'none', transition:'border-color 0.15s', ...style }
   const onF = e => e.target.style.borderColor = 'var(--orange)'
   const onB = e => e.target.style.borderColor = 'var(--border)'
-  if (as === 'select') return <select style={{ ...base, appearance:'none', cursor:'pointer' }} onFocus={onF} onBlur={onB} {...props}>{children}</select>
-  return <input style={base} onFocus={onF} onBlur={onB} {...props} />
+  const extra = { className: `${className} ${invalid ? 'sim-invalid' : ''}`.trim(), 'aria-invalid': invalid || undefined }
+  if (as === 'select') return <select style={{ ...base, appearance:'none', cursor:'pointer' }} onFocus={onF} onBlur={onB} {...extra} {...props}>{children}</select>
+  return <input style={base} onFocus={onF} onBlur={onB} {...extra} {...props} />
+}
+
+// mensagem de erro exibida logo abaixo de um campo
+function ErroCampo({ id, children }) {
+  if (!children) return null
+  return <div id={id} className="sim-erro-campo" role="alert">{children}</div>
+}
+
+// valida a configuração antes do envio; devolve { geral: [...], itens: [{campo: msg}] }
+function validarConfiguracao({ items, modo, mesIni, anoIni, mesFim, anoFim, cenarioHidrologico, fatorAfluencia, secaAnoIni, secaAnoFim, histerese }) {
+  const itens = items.map(it => {
+    const e = {}
+    if (!String(it.nome || '').trim()) e.nome = 'Selecione o reservatório.'
+    const vol = parseFloat(it.volPct)
+    if (!Number.isFinite(vol) || vol < 0 || vol > 100) e.volPct = 'Use um valor entre 0 e 100%.'
+    const dem = parseFloat(it.demanda1 ?? it.demanda)
+    if (!Number.isFinite(dem) || dem < 0) e.demanda = 'A demanda não pode ser negativa.'
+    const gat = parseFloat(it.gatilho)
+    if (modo !== 'Individual' && (!Number.isFinite(gat) || gat < 0 || gat > 100)) e.gatilho = 'Use um valor entre 0 e 100%.'
+    return e
+  })
+  const geral = {}
+  const ai = parseInt(anoIni), af = parseInt(anoFim)
+  if (!Number.isFinite(ai) || ai < ANO_MIN_SERIE || ai > ANO_MAX_SERIE) geral.anoIni = `Ano entre ${ANO_MIN_SERIE} e ${ANO_MAX_SERIE}.`
+  if (!Number.isFinite(af) || af < ANO_MIN_SERIE || af > ANO_MAX_SERIE) geral.anoFim = `Ano entre ${ANO_MIN_SERIE} e ${ANO_MAX_SERIE}.`
+  if (!geral.anoIni && !geral.anoFim && ai * 12 + MESES.indexOf(mesIni) > af * 12 + MESES.indexOf(mesFim)) geral.periodo = 'O início deve ser anterior ao fim.'
+  if (cenarioHidrologico === 'fator_personalizado') {
+    const fp = parseFloat(fatorAfluencia)
+    if (!Number.isFinite(fp) || fp < 0 || fp > 500) geral.fator = 'Use um percentual entre 0 e 500%.'
+  }
+  if (cenarioHidrologico === 'seca_repetida') {
+    const a = parseInt(secaAnoIni), b = parseInt(secaAnoFim)
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a < ANO_MIN_SERIE || b > ANO_MAX_SERIE) geral.seca = `Informe anos entre ${ANO_MIN_SERIE} e ${ANO_MAX_SERIE}.`
+    else if (a > b) geral.seca = 'O ano inicial da seca deve ser anterior ao final.'
+  }
+  const h = parseFloat(histerese)
+  if (modo !== 'Individual' && (!Number.isFinite(h) || h < 0 || h > 100)) geral.histerese = 'Use um valor entre 0 e 100 pontos percentuais.'
+  const temErro = Object.keys(geral).length > 0 || itens.some(e => Object.keys(e).length > 0)
+  return { geral, itens, temErro }
 }
 
 const CTip = ({ active, payload, label }) => {
@@ -492,6 +561,8 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
   const [selRac,setSelRac]=useState('todos')
   const [selBal,setSelBal]=useState('todos')
   const [selTr,setSelTr]=useState('todos')
+  const [marcarFalhas,setMarcarFalhas]=useState(true)
+  const [destacarRac,setDestacarRac]=useState(false)
 
   if (!resultados?.length) return null
 
@@ -504,7 +575,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
     const res = resSel(sel)
     const prevByRes = {}
     return allD.map(data => {
-      const p = {data}
+      const p = {data, __rac: 0}
       res.forEach((r,i) => {
         const d = r.dados.find(x=>x.Data===data)
         const ri = resultados.indexOf(r)
@@ -512,6 +583,8 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
         if(d){
           const vf = parseFloat(d['Armazenamento Final'])||0
           const volPct = cap>0 ? parseFloat(((vf/cap)*100).toFixed(1)) : 0
+          p.__rac = Math.max(p.__rac, parseFloat(d['Racionamento (%)']) || 0)
+          if (d['Falha'] === 'Sim') p[`Falha (${r.reservatorio})`] = volPct
           if (usarNiveisMeta) {
             const faixa = nomeFaixaGrafico(d)
             const chave = `Vol.${faixa} (${r.reservatorio})`
@@ -573,6 +646,19 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
     ...new Set(data.flatMap(row=>Object.keys(row).filter(k=>k!=='data'&&predicate(k))))
   ]
   const volKeys = keysFromAllRows(volData,k=>k.startsWith('Vol.'))
+  const falhaKeys = keysFromAllRows(volData,k=>k.startsWith('Falha ('))
+  const temRacionamento = volData.some(p => p.__rac > 0)
+  // períodos contínuos com racionamento, calculados sobre o trecho visível (zoom)
+  const periodosRac = []
+  if (destacarRac) {
+    let inicio = null
+    volZoom.data.forEach((p, idx) => {
+      const ativo = p.__rac > 0
+      if (ativo && inicio === null) inicio = p.data
+      const proximoAtivo = volZoom.data[idx + 1]?.__rac > 0
+      if (ativo && !proximoAtivo) { periodosRac.push([inicio, p.data]); inicio = null }
+    })
+  }
   const racKeys = keysFromAllRows(racData)
   const serieKeys = keysFromAllRows(serieVazoesData)
   const trKeys = keysFromAllRows(trData)
@@ -581,8 +667,18 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <ChartCard title="Volume Armazenado (%)">
+      <ChartCard title="Volume Armazenado (%)" subtitle={marcarFalhas && falhaKeys.length ? 'Pontos vermelhos: meses com falha de atendimento' : undefined}>
         <ResSel resultados={resultados} sel={selVol} onChange={setSelVol}/>
+        <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:6,fontSize:10.5,color:'var(--text-mid)'}}>
+          <label style={{display:'inline-flex',alignItems:'center',gap:5,cursor:'pointer'}}>
+            <input type="checkbox" checked={marcarFalhas} onChange={e=>setMarcarFalhas(e.target.checked)}/> Marcar meses com falha
+          </label>
+          {temRacionamento&&(
+            <label style={{display:'inline-flex',alignItems:'center',gap:5,cursor:'pointer'}}>
+              <input type="checkbox" checked={destacarRac} onChange={e=>setDestacarRac(e.target.checked)}/> Destacar períodos com racionamento
+            </label>
+          )}
+        </div>
         <ZoomReset zoom={volZoom}/>
         <div style={{ height:250 }}>
           <ResponsiveContainer>
@@ -597,6 +693,13 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
                     return <Line key={k} yAxisId="vol" type="linear" dataKey={k} name={meta.nome} stroke={meta.cor} strokeWidth={2.2} dot={false} connectNulls={false}/>
                   })
                 : volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
+              {periodosRac.map(([x1,x2],idx)=>(
+                <ReferenceArea key={`rac${idx}`} yAxisId="vol" x1={x1} x2={x2} fill="#d4a017" fillOpacity={0.14} strokeOpacity={0} ifOverflow="hidden"/>
+              ))}
+              {marcarFalhas&&falhaKeys.map(k=>(
+                <Line key={k} yAxisId="vol" dataKey={k} name={k} stroke="none" legendType="circle" isAnimationActive={false}
+                  dot={{r:2.6,fill:'#d94040',stroke:'#fff',strokeWidth:0.6}} activeDot={{r:4,fill:'#d94040'}}/>
+              ))}
               {volZoom.area}
             </ComposedChart>
           </ResponsiveContainer>
@@ -1210,7 +1313,10 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao, onO
         setFaixasOriginal(JSON.parse(JSON.stringify(d)))
         if (faixasAtivas) setMsg({type:'session',text:'Curvas carregadas na sessão para este reservatório.'})
       })
-      .catch(()=>{ setFaixas([]); setFaixasOriginal([]) })
+      .catch(e=>{
+        setFaixas([]); setFaixasOriginal([])
+        setMsg({type:'error',text:`Não foi possível carregar os níveis meta da base de dados: ${e.message}`})
+      })
       .finally(()=>setLoading(false))
   },[reservatorio?.cod, reservatorio?.nome, faixasSessao])
 
@@ -1494,7 +1600,9 @@ function NiveisMeta({ faixas }) {
 function ResSearch({ resList, value, onChange }) {
   const [query, setQuery] = useState(value || '')
   const [open,  setOpen]  = useState(false)
+  const [ativo, setAtivo] = useState(-1)
   const ref = React.useRef(null)
+  const listaId = React.useId()
 
   useEffect(() => { setQuery(value || '') }, [value])
 
@@ -1514,13 +1622,32 @@ function ResSearch({ resList, value, onChange }) {
     onChange(nome)
   }
 
+  const onKeyDown = e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!open) { setOpen(true); return }
+      const passo = e.key === 'ArrowDown' ? 1 : -1
+      setAtivo(i => Math.max(0, Math.min(filtered.length - 1, i + passo)))
+    } else if (e.key === 'Enter' && open && filtered[ativo]) {
+      e.preventDefault()
+      select(filtered[ativo].CORPO)
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
   return (
     <div ref={ref} style={{position:'relative'}}>
       <input
         value={query}
-        onChange={e=>{ setQuery(e.target.value); setOpen(true); if(!e.target.value) onChange('') }}
+        onChange={e=>{ setQuery(e.target.value); setOpen(true); setAtivo(-1); if(!e.target.value) onChange('') }}
         onFocus={()=>setOpen(true)}
+        onKeyDown={onKeyDown}
         placeholder="Digite para buscar…"
+        aria-label="Buscar reservatório"
+        role="combobox" aria-expanded={open && filtered.length > 0} aria-autocomplete="list"
+        aria-controls={listaId}
+        aria-activedescendant={open && filtered[ativo] ? `${listaId}-${ativo}` : undefined}
         style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',background:'var(--card)',color:'var(--text)',fontSize:12.5,outline:'none',transition:'border-color 0.15s'}}
         onMouseEnter={e=>e.target.style.borderColor='var(--orange)'}
         onMouseLeave={e=>{ if(document.activeElement!==e.target) e.target.style.borderColor='var(--border)' }}
@@ -1528,13 +1655,12 @@ function ResSearch({ resList, value, onChange }) {
         onBlurCapture={e=>e.target.style.borderColor='var(--border)'}
       />
       {open && filtered.length > 0 && (
-        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',boxShadow:'var(--shadow)',zIndex:999,maxHeight:200,overflowY:'auto',marginTop:2}}>
-          {filtered.map(r=>(
-            <div key={r.COD}
+        <div id={listaId} role="listbox" aria-label="Reservatórios encontrados" style={{position:'absolute',top:'100%',left:0,right:0,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',boxShadow:'var(--shadow)',zIndex:999,maxHeight:200,overflowY:'auto',marginTop:2}}>
+          {filtered.map((r,i)=>(
+            <div key={r.COD} id={`${listaId}-${i}`} role="option" aria-selected={i===ativo}
               onMouseDown={()=>select(r.CORPO)}
-              style={{padding:'7px 11px',fontSize:12,cursor:'pointer',borderBottom:'1px solid var(--border-light)',transition:'background 0.1s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='var(--orange-pale)'}
-              onMouseLeave={e=>e.currentTarget.style.background='var(--card)'}>
+              style={{padding:'7px 11px',fontSize:12,cursor:'pointer',borderBottom:'1px solid var(--border-light)',transition:'background 0.1s',background:i===ativo?'var(--orange-pale)':'var(--card)'}}
+              onMouseEnter={()=>setAtivo(i)}>
               <span style={{fontWeight:600,color:'var(--text)'}}>{r.CORPO}</span>
               <span style={{fontSize:10,color:'var(--text-light)',marginLeft:8,fontFamily:'Sora, sans-serif'}}>{r.COD}</span>
             </div>
@@ -1545,19 +1671,19 @@ function ResSearch({ resList, value, onChange }) {
   )
 }
 
-function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo, cenarioHidrossistema }) {
+function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo, cenarioHidrossistema, erros = {} }) {
   const [open,setOpen]=useState(true)
   const isPgpsFq = cenarioHidrossistema==='pgps_fogareiro_quixeramobim_cenario_1'
   const showGatilho = modo !== 'Individual' && (isPgpsFq ? String(res.cod)==='16' : index===0)
   return (
     <div style={{background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',marginBottom:6,overflow:'hidden'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',cursor:'pointer',borderBottom:open?'1.5px solid var(--border-light)':'none'}} onClick={()=>setOpen(!open)}>
+      <div role="button" tabIndex={0} aria-expanded={open} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!open)}}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',cursor:'pointer',borderBottom:open?'1.5px solid var(--border-light)':'none'}} onClick={()=>setOpen(!open)}>
         <div style={{display:'flex',alignItems:'center',gap:7}}>
           <div style={{width:19,height:19,borderRadius:'50%',background:'var(--orange-pale)',border:'1.5px solid var(--orange-light)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,color:'var(--orange-deep)',flexShrink:0}}>{index+1}</div>
           <span style={{fontSize:12,fontWeight:700,color:'var(--orange-deep)'}}>{res.nome||`Reservatório ${index+1}`}</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:4}}>
-          {index>0&&<button onClick={e=>{e.stopPropagation();onRemove(index)}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-light)',padding:3,borderRadius:4}} onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><Trash2 size={11}/></button>}
+          {index>0&&<button aria-label={`Remover ${res.nome||`reservatório ${index+1}`}`} title="Remover reservatório" onClick={e=>{e.stopPropagation();onRemove(index)}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-light)',padding:3,borderRadius:4}} onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><Trash2 size={11}/></button>}
           <ChevronDown size={12} color="var(--text-light)" style={{transform:open?'rotate(180deg)':'none',transition:'transform 0.2s'}}/>
         </div>
       </div>
@@ -1570,24 +1696,29 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo, ce
               onChange(index,{nome:val,cod:s?.COD||'',capacidade:getCapacidadeHm3(s),est_evap:s?.['Est. Evap.']||'',volPct:50,vol_inicial:getCapacidadeHm3(s)*0.5})
             }}/>
             {res.capacidade>0&&<div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,fontFamily:'Sora, sans-serif'}}>Cap: {res.capacidade.toFixed(2)} hm³ · COD: {res.cod}</div>}
+            <ErroCampo>{erros.nome}</ErroCampo>
           </div>
           <div style={{display:'grid',gridTemplateColumns:showGatilho?'1fr 1fr':'1fr 1fr',gap:6}}>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Vol. Inicial (%)</div>
-              <FC type="number" min="0" max="100" step="1" value={res.volPct??50} onChange={e=>{const p=parseFloat(e.target.value)||0;onChange(index,{volPct:p,vol_inicial:(res.capacidade*p)/100})}}/>
+              <FC type="number" min="0" max="100" step="1" aria-label={`Volume inicial de ${res.nome||'reservatório'} (%)`} invalid={Boolean(erros.volPct)} value={res.volPct??50} onChange={e=>{const p=parseFloat(e.target.value);const v=Number.isFinite(p)?p:0;onChange(index,{volPct:v,vol_inicial:(res.capacidade*Math.max(0,Math.min(100,v)))/100})}}/>
+              <ErroCampo>{erros.volPct}</ErroCampo>
               {res.capacidade>0&&<div style={{fontSize:9,color:'var(--text-light)',marginTop:2,fontFamily:'Sora, sans-serif'}}>= {((res.capacidade*(res.volPct??50))/100).toFixed(2)} hm³</div>}
             </div>
             <div>
               <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Demanda (L/s)</div>
-              <FC type="number" min="0" step="10" value={m3sToLps(res.demanda1 ?? res.demanda ?? 0)} onChange={e=>{
-                const demanda1 = lpsToM3s(e.target.value)
+              <FC type="number" min="0" step="10" aria-label={`Demanda de ${res.nome||'reservatório'} (L/s)`} invalid={Boolean(erros.demanda)} value={m3sToLps(res.demanda1 ?? res.demanda ?? 0)} onChange={e=>{
+                const bruto = parseFloat(e.target.value)
+                const demanda1 = Number.isFinite(bruto) ? bruto / 1000 : 0
                 onChange(index,{demanda1,demanda:demanda1})
               }}/>
+              <ErroCampo>{erros.demanda}</ErroCampo>
             </div>
             {showGatilho&&(
               <div>
                 <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Gatilho Transf. (%)</div>
-                <FC type="number" min="0" max="100" step="1" value={isPgpsFq?30:res.gatilho} disabled={isPgpsFq} onChange={e=>onChange(index,{gatilho:parseFloat(e.target.value)||0})}/>
+                <FC type="number" min="0" max="100" step="1" aria-label="Gatilho de transferência (% da capacidade)" invalid={Boolean(erros.gatilho)} value={isPgpsFq?30:res.gatilho} disabled={isPgpsFq} onChange={e=>{const g=parseFloat(e.target.value);onChange(index,{gatilho:Number.isFinite(g)?g:0})}}/>
+                <ErroCampo>{erros.gatilho}</ErroCampo>
               </div>
             )}
           </div>
@@ -1597,17 +1728,233 @@ function ResCard({ res, index, resList, onChange, onRemove, modoLocked, modo, ce
   )
 }
 
-function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, onPresetApply, appliedCurvas }) {
+// -----------------------------------------------------------------------------
+// Indicadores de desempenho (Hashimoto et al., 1982) calculados pela API
+// -----------------------------------------------------------------------------
+const fmtNum = (v, casas = 1) => (v === null || v === undefined || Number.isNaN(Number(v))) ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
+
+const LINHAS_INDICADORES = [
+  { chave: 'confiabilidade_percent', rotulo: 'Confiabilidade (%)', casas: 1, dica: 'Fração dos meses sem falha.' },
+  { chave: 'resiliencia_percent', rotulo: 'Resiliência (%)', casas: 1, dica: 'Probabilidade de sair da falha no mês seguinte.' },
+  { chave: 'vulnerabilidade_percent', rotulo: 'Vulnerabilidade (%)', casas: 1, dica: 'Média, entre os eventos de falha, do maior déficit relativo do evento.' },
+  { chave: 'meses_falha', rotulo: 'Meses com falha', casas: 0 },
+  { chave: 'eventos_falha', rotulo: 'Eventos de falha', casas: 0 },
+  { chave: 'duracao_maxima_falha_meses', rotulo: 'Maior evento (meses)', casas: 0 },
+  { chave: 'deficit_acumulado_hm3', rotulo: 'Déficit acumulado (hm³)', casas: 2 },
+  { chave: 'atendimento_demanda_aplicada_percent', rotulo: 'Atendimento da demanda aplicada (%)', casas: 2 },
+  { chave: 'atendimento_demanda_solicitada_percent', rotulo: 'Atendimento da demanda solicitada (%)', casas: 2 },
+  { chave: 'meses_racionamento', rotulo: 'Meses com racionamento', casas: 0 },
+]
+
+function linhasSistema(sistema) {
+  if (!sistema) return []
+  const linhas = []
+  if (sistema.modo === 'paralelo') {
+    linhas.push(['Meses com falha da demanda conjunta', fmtNum(sistema.meses_falha_demanda_conjunta, 0)])
+    linhas.push(['Atendimento da demanda conjunta (%)', fmtNum(sistema.atendimento_demanda_conjunta_percent, 2)])
+    linhas.push(['Mudanças de unidade responsável', fmtNum(sistema.mudancas_de_responsavel, 0)])
+  }
+  if (sistema.modo === 'serie') {
+    linhas.push(['Meses com transferência', fmtNum(sistema.meses_com_transferencia, 0)])
+    linhas.push(['Acionamentos da transferência', fmtNum(sistema.acionamentos_transferencia, 0)])
+    linhas.push(['Volume transferido (hm³)', fmtNum(sistema.volume_transferido_hm3, 2)])
+  }
+  if (sistema.modo !== 'individual') linhas.push(['Falhas sistêmicas (todas as unidades)', fmtNum(sistema.falhas_sistemicas, 0)])
+  return linhas
+}
+
+function IndicadoresDesempenho({ resultados, sistema }) {
+  if (!resultados?.length || !resultados[0].indicadores) return null
+  const cel = { padding:'6px 10px', borderBottom:'1px solid var(--border-light)', textAlign:'right', fontFamily:'JetBrains Mono', fontSize:11.5 }
+  const sis = linhasSistema(sistema)
+  return (
+    <Card className="sim-fade" style={{ padding:'16px 20px' }}>
+      <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginBottom:4, display:'flex', alignItems:'center', gap:8 }}>
+        <Shield size={15} color="var(--orange)"/> Indicadores de Desempenho
+      </div>
+      <div style={{ fontSize:10.5, color:'var(--text-light)', marginBottom:10 }}>Confiabilidade, resiliência e vulnerabilidade segundo Hashimoto, Stedinger e Loucks (1982).</div>
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+          <thead>
+            <tr>
+              <th scope="col" style={{ ...cel, textAlign:'left', fontFamily:'Sora', color:'var(--text-light)', fontSize:10.5 }}>Indicador</th>
+              {resultados.map((r,i)=><th scope="col" key={i} style={{ ...cel, fontFamily:'Sora', color:COLORS[i%4].stroke, fontSize:10.5 }}>{r.reservatorio}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {LINHAS_INDICADORES.map(l=>(
+              <tr key={l.chave} className="sim-tr">
+                <th scope="row" title={l.dica} style={{ ...cel, textAlign:'left', fontFamily:'Sora', fontWeight:600, color:'var(--text-mid)' }}>{l.rotulo}</th>
+                {resultados.map((r,i)=><td key={i} style={cel}>{fmtNum(r.indicadores?.[l.chave], l.casas)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {sis.length>0&&(
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))', gap:8, marginTop:12 }}>
+          {sis.map(([rotulo, valor])=>(
+            <div key={rotulo} style={{ background:'var(--bg)', border:'1.5px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'9px 12px' }}>
+              <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{rotulo}</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'var(--text)', fontFamily:'JetBrains Mono', marginTop:3 }}>{valor}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Comparação de cenários: cenário fixado (A) × simulação atual (B)
+// -----------------------------------------------------------------------------
+function descreverCenario(meta) {
+  if (!meta) return ''
+  const partes = [meta.modo]
+  partes.push(meta.usarNiveisMeta ? 'com níveis meta' : 'sem níveis meta')
+  if (meta.cenarioHidrologicoNome) partes.push(meta.cenarioHidrologicoNome)
+  if (meta.periodo) partes.push(meta.periodo)
+  if (meta.histerese > 0) partes.push(`histerese ${meta.histerese} p.p.`)
+  if (meta.demandas) partes.push(`demandas ${meta.demandas}`)
+  return partes.join(' · ')
+}
+
+function ComparacaoCenarios({ cenarioA, resultados, simMeta }) {
+  const nomesA = cenarioA.resultados.map(r => r.reservatorio)
+  const comuns = resultados.map(r => r.reservatorio).filter(n => nomesA.includes(n))
+  const [sel, setSel] = useState(comuns[0] || null)
+  if (!comuns.length) {
+    return (
+      <Card style={{ padding:'18px 20px', fontSize:12, color:'var(--text-mid)' }}>
+        Os dois cenários não têm reservatórios em comum. Simule os mesmos reservatórios para comparar.
+      </Card>
+    )
+  }
+  const nomeSel = comuns.includes(sel) ? sel : comuns[0]
+  const rA = cenarioA.resultados.find(r => r.reservatorio === nomeSel)
+  const rB = resultados.find(r => r.reservatorio === nomeSel)
+  const capA = cenarioA.simMeta?.params?.[cenarioA.resultados.indexOf(rA)]?.capacidade || 1
+  const capB = simMeta?.params?.[resultados.indexOf(rB)]?.capacidade || 1
+  const porData = new Map()
+  rA.dados.forEach(d => porData.set(d.Data, { data: d.Data, 'Cenário A': +((parseFloat(d['Armazenamento Final'])||0) / capA * 100).toFixed(1) }))
+  rB.dados.forEach(d => {
+    const p = porData.get(d.Data) || { data: d.Data }
+    p['Cenário B (atual)'] = +((parseFloat(d['Armazenamento Final'])||0) / capB * 100).toFixed(1)
+    porData.set(d.Data, p)
+  })
+  const serie = [...porData.values()].sort((a,b)=>a.data.localeCompare(b.data))
+  const iv = Math.max(0, Math.floor(serie.length/12)-1)
+
+  const volMin = (r, cap) => Math.min(...r.dados.map(d => parseFloat(d['Armazenamento Final'])||0)) / cap * 100
+  const soma = (r, chave) => r.dados.reduce((acc, d) => acc + (parseFloat(d[chave])||0), 0)
+  const linhas = [
+    ...LINHAS_INDICADORES.map(l => ({ rotulo: l.rotulo, a: rA.indicadores?.[l.chave], b: rB.indicadores?.[l.chave], casas: l.casas, melhorMaior: !['vulnerabilidade_percent','meses_falha','eventos_falha','duracao_maxima_falha_meses','deficit_acumulado_hm3','meses_racionamento'].includes(l.chave) })),
+    { rotulo: 'Volume mínimo (% cap.)', a: volMin(rA, capA), b: volMin(rB, capB), casas: 1, melhorMaior: true },
+    { rotulo: 'Vertimento total (hm³)', a: soma(rA, 'Vertimento (hm³)'), b: soma(rB, 'Vertimento (hm³)'), casas: 1 },
+    { rotulo: 'Evaporação total (hm³)', a: soma(rA, 'Evaporação (hm³)'), b: soma(rB, 'Evaporação (hm³)'), casas: 1 },
+  ]
+  const cel = { padding:'6px 10px', borderBottom:'1px solid var(--border-light)', textAlign:'right', fontFamily:'JetBrains Mono', fontSize:11.5 }
+  const corDif = (l) => {
+    const d = (Number(l.b) || 0) - (Number(l.a) || 0)
+    if (Math.abs(d) < 1e-9 || l.melhorMaior === undefined) return 'var(--text-mid)'
+    return (d > 0) === l.melhorMaior ? 'var(--teal)' : 'var(--red)'
+  }
+  const sisA = linhasSistema(cenarioA.simMeta?.indicadoresSistema)
+  const sisB = linhasSistema(simMeta?.indicadoresSistema)
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <Card className="sim-fade" style={{ padding:'16px 20px' }}>
+        <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginBottom:8, display:'flex', alignItems:'center', gap:8 }}>
+          <ArrowLeftRight size={15} color="var(--orange)"/> Comparação de Cenários
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:8, marginBottom:12 }}>
+          <div style={{ background:'var(--blue-pale)', borderRadius:'var(--radius-sm)', padding:'8px 12px', fontSize:11, color:'var(--text-mid)' }}>
+            <strong style={{ color:'var(--blue)' }}>Cenário A (fixado)</strong><br/>{descreverCenario(cenarioA.simMeta)}
+          </div>
+          <div style={{ background:'var(--orange-pale)', borderRadius:'var(--radius-sm)', padding:'8px 12px', fontSize:11, color:'var(--text-mid)' }}>
+            <strong style={{ color:'var(--orange-deep)' }}>Cenário B (atual)</strong><br/>{descreverCenario(simMeta)}
+          </div>
+        </div>
+        {comuns.length>1&&(
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:10 }}>
+            {comuns.map(n=>(
+              <button key={n} className={`sim-tab ${n===nomeSel?'on':'off'}`} onClick={()=>setSel(n)}>{n}</button>
+            ))}
+          </div>
+        )}
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+            <thead>
+              <tr>
+                <th scope="col" style={{ ...cel, textAlign:'left', fontFamily:'Sora', color:'var(--text-light)', fontSize:10.5 }}>{nomeSel}</th>
+                <th scope="col" style={{ ...cel, fontFamily:'Sora', color:'var(--blue)', fontSize:10.5 }}>Cenário A</th>
+                <th scope="col" style={{ ...cel, fontFamily:'Sora', color:'var(--orange-deep)', fontSize:10.5 }}>Cenário B</th>
+                <th scope="col" style={{ ...cel, fontFamily:'Sora', color:'var(--text-light)', fontSize:10.5 }}>Diferença (B − A)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map(l=>(
+                <tr key={l.rotulo} className="sim-tr">
+                  <th scope="row" style={{ ...cel, textAlign:'left', fontFamily:'Sora', fontWeight:600, color:'var(--text-mid)' }}>{l.rotulo}</th>
+                  <td style={cel}>{fmtNum(l.a, l.casas)}</td>
+                  <td style={cel}>{fmtNum(l.b, l.casas)}</td>
+                  <td style={{ ...cel, color:corDif(l), fontWeight:700 }}>{(Number(l.b)||0)-(Number(l.a)||0) > 0 ? '+' : ''}{fmtNum((Number(l.b)||0)-(Number(l.a)||0), l.casas)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {(sisA.length>0||sisB.length>0)&&(
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:8, marginTop:12, fontSize:11 }}>
+            {[['Sistema – cenário A', sisA, 'var(--blue)'], ['Sistema – cenário B', sisB, 'var(--orange-deep)']].map(([titulo, itens, cor])=>(
+              <div key={titulo} style={{ border:'1.5px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'8px 12px' }}>
+                <div style={{ fontWeight:800, color:cor, marginBottom:4 }}>{titulo}</div>
+                {itens.length ? itens.map(([r,v])=><div key={r} style={{ display:'flex', justifyContent:'space-between', gap:8, color:'var(--text-mid)' }}><span>{r}</span><strong style={{ fontFamily:'JetBrains Mono' }}>{v}</strong></div>) : <span style={{ color:'var(--text-light)' }}>Modo individual.</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <ChartCard title={`Volume armazenado – ${nomeSel}`} subtitle="% da capacidade nos dois cenários">
+        <div style={{ height:250 }}>
+          <ResponsiveContainer>
+            <LineChart data={serie} margin={{top:4,right:20,left:0,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
+              <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}/>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+              <Line type="monotone" dataKey="Cenário A" stroke="#264fa3" strokeWidth={1.8} dot={false}/>
+              <Line type="monotone" dataKey="Cenário B (atual)" stroke="#e07b2a" strokeWidth={1.8} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+    </div>
+  )
+}
+
+const ITEM_VAZIO = {nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}
+const TIPO_ARQUIVO_CONFIG = 'ssd-reservatorios-configuracao'
+
+function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, onPresetApply, appliedCurvas, obterExtrasConfig, onAbrirConfig }) {
   const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
   const [vazaoConj,setVazaoConj]=useState(0)
   const [atendimentoTransferencia,setAtendimentoTransferencia]=useState(100)
+  const [histerese,setHisterese]=useState(0)
   const [cenarioHidrologico,setCenarioHidrologico]=useState('historico')
+  const [fatorAfluencia,setFatorAfluencia]=useState(100)
+  const [secaAnoIni,setSecaAnoIni]=useState(2012)
+  const [secaAnoFim,setSecaAnoFim]=useState(2017)
+  const [semente,setSemente]=useState(1)
   const [mesIni,setMesIni]=useState('JAN'),[anoIni,setAnoIni]=useState(1911)
   const [mesFim,setMesFim]=useState('DEZ'),[anoFim,setAnoFim]=useState(2017)
   const [presetSel,setPresetSel]=useState('')
   const [cenarioHidrossistema,setCenarioHidrossistema]=useState(null)
+  const [tentouEnviar,setTentouEnviar]=useState(false)
+  const [avisoArquivo,setAvisoArquivo]=useState(null)
 
   useEffect(() => {
     if (!appliedCurvas?.reservatorio || !resList.length) return
@@ -1633,7 +1980,14 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     onReset&&onReset({ keepCurvas: true })
   }, [appliedCurvas?.id, resList])
 
-  const change=(idx,patch)=>setItems(prev=>{const n=prev.map((it,i)=>i===idx?{...it,...patch}:it);onResChange&&onResChange(n);return n})
+  const validacao = useMemo(() => validarConfiguracao({
+    items, modo, mesIni, anoIni, mesFim, anoFim, cenarioHidrologico, fatorAfluencia, secaAnoIni, secaAnoFim, histerese,
+  }), [items, modo, mesIni, anoIni, mesFim, anoFim, cenarioHidrologico, fatorAfluencia, secaAnoIni, secaAnoFim, histerese])
+  // os erros só aparecem depois da primeira tentativa de envio ou quando o campo já foi preenchido
+  const eg = validacao.geral
+
+  const atualizarItems=n=>{setItems(n);onResChange&&onResChange(n)}
+  const change=(idx,patch)=>atualizarItems(items.map((it,i)=>i===idx?{...it,...patch}:it))
 
   const applyPreset=(nome)=>{
     const p=presets.find(x=>x.nome===nome)
@@ -1666,38 +2020,97 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     setVazaoConj(0)
     setAtendimentoTransferencia(100)
     setModoLocked(false)
-    const empty = [{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}]
+    const empty = [{...ITEM_VAZIO}]
     setItems(empty)
     onResChange&&onResChange(empty)
     onReset&&onReset()
   }
 
   const submit=()=>{
+    setTentouEnviar(true)
+    if (validacao.temErro) return
     onSimulate({
       reservatorios:items.map(it=>({nome:String(it.nome||''),cod:String(it.cod||''),capacidade:parseFloat(it.capacidade)||0,est_evap:String(it.est_evap??''),vol_inicial:parseFloat(it.vol_inicial)||0,demanda:parseFloat(it.demanda1 ?? it.demanda)||0,demanda1:parseFloat(it.demanda1 ?? it.demanda)||0,gatilho:parseFloat(it.gatilho)||0})),
       modo:String(modo),vazao_conjunta:modo==='Individual'?0:lpsToM3s(vazaoConj),
       atendimento_transferencia:modo==='Série'?Math.max(0,Math.min(100,parseFloat(atendimentoTransferencia)||0)):100,
+      histerese_transferencia:modo==='Individual'?0:Math.max(0,parseFloat(histerese)||0),
       cenario_hidrologico:String(cenarioHidrologico),
+      fator_afluencia_percent:parseFloat(fatorAfluencia)||0,
+      seca_ano_inicial:cenarioHidrologico==='seca_repetida'?parseInt(secaAnoIni):null,
+      seca_ano_final:cenarioHidrologico==='seca_repetida'?parseInt(secaAnoFim):null,
+      semente:parseInt(semente)||1,
       cenario_hidrossistema:cenarioHidrossistema,
       mes_inicial:String(mesIni),ano_inicial:parseInt(anoIni),
       mes_final:String(mesFim),ano_final:parseInt(anoFim),
     })
   }
 
+  // ---- salvar e abrir configuração (arquivo JSON) ----
+  const salvarConfiguracao=()=>{
+    const config = {
+      tipo: TIPO_ARQUIVO_CONFIG, versao: 1, salvo_em: new Date().toISOString(),
+      items, modo, modoLocked, presetSel, cenarioHidrossistema, vazaoConj, atendimentoTransferencia, histerese,
+      cenarioHidrologico, fatorAfluencia, secaAnoIni, secaAnoFim, semente, mesIni, anoIni, mesFim, anoFim,
+      ...(obterExtrasConfig ? obterExtrasConfig() : {}),
+    }
+    const nome = String(items[0]?.nome || 'simulacao').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w-]+/g,'_')
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' })
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `configuracao_${nome}.json` })
+    document.body.appendChild(a); a.click(); a.remove()
+    setAvisoArquivo({ tipo:'ok', texto:'Configuração salva.' })
+  }
+
+  const abrirConfiguracao=async(evento)=>{
+    const arquivo = evento.target.files?.[0]
+    evento.target.value = ''
+    if (!arquivo) return
+    try {
+      const c = JSON.parse(await arquivo.text())
+      if (c.tipo !== TIPO_ARQUIVO_CONFIG || !Array.isArray(c.items) || !c.items.length) throw new Error('o arquivo não é uma configuração do simulador.')
+      const itensValidos = c.items.map(it => ({ ...ITEM_VAZIO, ...it }))
+      setItems(itensValidos); onResChange&&onResChange(itensValidos)
+      setModo(c.modo || 'Individual'); setModoLocked(Boolean(c.modoLocked))
+      setPresetSel(c.presetSel || ''); setCenarioHidrossistema(c.cenarioHidrossistema || null)
+      setVazaoConj(c.vazaoConj ?? 0); setAtendimentoTransferencia(c.atendimentoTransferencia ?? 100); setHisterese(c.histerese ?? 0)
+      setCenarioHidrologico(c.cenarioHidrologico || 'historico'); setFatorAfluencia(c.fatorAfluencia ?? 100)
+      setSecaAnoIni(c.secaAnoIni ?? 2012); setSecaAnoFim(c.secaAnoFim ?? 2017); setSemente(c.semente ?? 1)
+      setMesIni(c.mesIni || 'JAN'); setAnoIni(c.anoIni ?? 1911); setMesFim(c.mesFim || 'DEZ'); setAnoFim(c.anoFim ?? 2017)
+      onAbrirConfig && onAbrirConfig(c)
+      setAvisoArquivo({ tipo:'ok', texto:`Configuração aberta: ${arquivo.name}` })
+    } catch (erro) {
+      setAvisoArquivo({ tipo:'erro', texto:`Não foi possível abrir a configuração: ${erro.message}` })
+    }
+  }
+
+  const rotuloCampo = {fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}
+  const bloqueado = loading || validacao.temErro && tentouEnviar
+
   return (
-    <Card style={{padding:'18px 14px',position:'sticky',top:16}}>
-      <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:2}}>Configuração</div>
-      <div style={{fontSize:11,color:'var(--text-light)',marginBottom:14}}>Cenário: <strong style={{color:'var(--orange-deep)'}}>{items[0]?.nome||'Nenhum selecionado'}</strong></div>
+    <Card className="sim-config-card" style={{padding:'18px 14px'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+        <div>
+          <div style={{fontSize:14.5,fontWeight:800,color:'var(--text)',marginBottom:2}}>Configuração</div>
+          <div style={{fontSize:11,color:'var(--text-light)',marginBottom:10}}>Cenário: <strong style={{color:'var(--orange-deep)'}}>{items[0]?.nome||'Nenhum selecionado'}</strong></div>
+        </div>
+      </div>
+      <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:4}}>
+        <button type="button" className="sim-ghost" onClick={salvarConfiguracao} title="Salvar a configuração atual em um arquivo JSON"><Save size={12}/> Salvar</button>
+        <label className="sim-ghost" style={{cursor:'pointer'}} title="Abrir uma configuração salva anteriormente">
+          <FileSpreadsheet size={12}/> Abrir
+          <input type="file" accept="application/json,.json" onChange={abrirConfiguracao} style={{display:'none'}} aria-label="Abrir arquivo de configuração"/>
+        </label>
+      </div>
+      {avisoArquivo&&<div role="status" style={{fontSize:10.5,marginBottom:4,color:avisoArquivo.tipo==='erro'?'var(--red)':'var(--teal)',fontWeight:600}}>{avisoArquivo.texto}</div>}
 
       {presets.length>0&&(
         <>
           <Label icon={Zap}>Hidrossistema</Label>
           <div style={{display:'flex',gap:5}}>
-            <FC as="select" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
+            <FC as="select" aria-label="Hidrossistema pré-configurado" style={{flex:1}} value={presetSel} onChange={e=>{setPresetSel(e.target.value);applyPreset(e.target.value)}}>
               <option value="">Configuração manual…</option>
               {presets.map(p=><option key={p.nome} value={p.nome}>{p.nome}</option>)}
             </FC>
-            {presetSel&&<button onClick={clearPreset} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
+            {presetSel&&<button onClick={clearPreset} aria-label="Limpar hidrossistema" style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'0 8px',cursor:'pointer',color:'var(--text-light)',fontSize:14,transition:'all 0.15s'}} title="Limpar preset" onMouseEnter={e=>e.currentTarget.style.color='var(--red)'} onMouseLeave={e=>e.currentTarget.style.color='var(--text-light)'}><X size={13}/></button>}
           </div>
           {presetSel&&<div style={{marginTop:5,fontSize:10.5,color:'var(--blue)',background:'var(--blue-pale)',borderRadius:5,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:5}}><Info size={11}/> Modo de operação: <strong>{modo}</strong></div>}
         </>
@@ -1705,10 +2118,11 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       <Label icon={Database}>Reservatórios</Label>
       {items.map((res,i)=>(
-        <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>setItems(p=>p.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo} cenarioHidrossistema={cenarioHidrossistema}/>
+        <ResCard key={i} res={res} index={i} resList={resList} onChange={change} onRemove={idx=>atualizarItems(items.filter((_,j)=>j!==idx))} modoLocked={modoLocked} modo={modo} cenarioHidrossistema={cenarioHidrossistema}
+          erros={Object.fromEntries(Object.entries(validacao.itens[i]||{}).filter(([k])=>tentouEnviar || k!=='nome'))}/>
       ))}
 
-      <button onClick={()=>setItems(p=>[...p,{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}])}
+      <button onClick={()=>atualizarItems([...items,{...ITEM_VAZIO}])}
         style={{width:'100%',padding:'6px',background:'none',border:'1.5px dashed var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-light)',fontSize:11,cursor:'pointer',marginBottom:2,transition:'all 0.15s'}}
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.background='var(--orange-pale)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-light)';e.currentTarget.style.background='none'}}>
@@ -1716,9 +2130,9 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
       </button>
 
       <Label icon={Settings2}>Modo de Operação</Label>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5,marginBottom:4}}>
+      <div role="radiogroup" aria-label="Modo de operação" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5,marginBottom:4}}>
         {['Individual','Série','Paralelo'].map(m=>(
-          <button key={m} onClick={()=>!modoLocked&&setModo(m)}
+          <button key={m} role="radio" aria-checked={modo===m} aria-disabled={modoLocked&&modo!==m} onClick={()=>!modoLocked&&setModo(m)}
             style={{padding:'7px 4px',border:`1.5px solid ${modo===m?'var(--orange)':'var(--border)'}`,borderRadius:'var(--radius-xs)',background:modo===m?'var(--orange-pale)':'none',color:modo===m?'var(--orange-deep)':'var(--text-light)',fontSize:11,fontWeight:700,cursor:modoLocked?'not-allowed':'pointer',transition:'all 0.15s',opacity:modoLocked&&modo!==m?0.4:1}}>
             {m}
           </button>
@@ -1727,40 +2141,84 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
 
       {modo!=='Individual'&&(
         <div style={{marginTop:9}}>
-          <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>{modo==='Série'?'Vazão de Transferência (L/s)':'Vazão Conjunta (L/s)'}</div>
-          <FC type="number" min="0" step="10" value={vazaoConj} onChange={e=>setVazaoConj(Math.max(0, parseFloat(e.target.value)||0))}/>
+          <div style={rotuloCampo}>{modo==='Série'?'Vazão de Transferência (L/s)':'Vazão Conjunta (L/s)'}</div>
+          <FC type="number" min="0" step="10" aria-label={modo==='Série'?'Vazão de transferência (L/s)':'Vazão conjunta (L/s)'} value={vazaoConj} onChange={e=>setVazaoConj(Math.max(0, parseFloat(e.target.value)||0))}/>
           {modo==='Série'&&<div style={{marginTop:7}}>
-            <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Atendimento da Transferência (%)</div>
-            <FC type="number" min="0" max="100" step="1" value={atendimentoTransferencia} onChange={e=>setAtendimentoTransferencia(Math.max(0,Math.min(100,parseFloat(e.target.value)||0)))}/>
+            <div style={rotuloCampo}>Atendimento da Transferência (%)</div>
+            <FC type="number" min="0" max="100" step="1" aria-label="Atendimento da transferência (%)" value={atendimentoTransferencia} onChange={e=>setAtendimentoTransferencia(Math.max(0,Math.min(100,parseFloat(e.target.value)||0)))}/>
           </div>}
+          <div style={{marginTop:7}}>
+            <div style={rotuloCampo} title="Pontos percentuais da capacidade acima do gatilho necessários para encerrar a ação">Histerese do gatilho (p.p.)</div>
+            <FC type="number" min="0" max="100" step="1" aria-label="Histerese do gatilho em pontos percentuais" invalid={Boolean(eg.histerese)} value={histerese} onChange={e=>setHisterese(e.target.value)}/>
+            <div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,lineHeight:1.35}}>
+              {parseFloat(histerese)>0
+                ? `${modo==='Série'?'A transferência':'A demanda conjunta'} só é encerrada quando o volume passa de gatilho + ${parseFloat(histerese)} p.p.`
+                : 'Zero: a regra liga e desliga no próprio gatilho.'}
+            </div>
+            <ErroCampo>{eg.histerese}</ErroCampo>
+          </div>
         </div>
       )}
 
       <Label icon={Activity}>Cenário Hidrológico</Label>
-      <FC as="select" value={cenarioHidrologico} onChange={e=>setCenarioHidrologico(e.target.value)}>
+      <FC as="select" aria-label="Cenário hidrológico" value={cenarioHidrologico} onChange={e=>setCenarioHidrologico(e.target.value)}>
         {CENARIOS_HIDROLOGICOS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
       </FC>
+      {cenarioHidrologico==='fator_personalizado'&&(
+        <div style={{marginTop:7}}>
+          <div style={rotuloCampo}>Afluência (% da histórica)</div>
+          <FC type="number" min="0" max="500" step="5" aria-label="Afluência em percentual da histórica" invalid={Boolean(eg.fator)} value={fatorAfluencia} onChange={e=>setFatorAfluencia(e.target.value)}/>
+          <ErroCampo>{eg.fator}</ErroCampo>
+        </div>
+      )}
+      {cenarioHidrologico==='seca_repetida'&&(
+        <div style={{marginTop:7}}>
+          <div style={rotuloCampo}>Anos da seca a repetir</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+            <FC type="number" min={ANO_MIN_SERIE} max={ANO_MAX_SERIE} aria-label="Ano inicial da seca" invalid={Boolean(eg.seca)} value={secaAnoIni} onChange={e=>setSecaAnoIni(e.target.value)}/>
+            <FC type="number" min={ANO_MIN_SERIE} max={ANO_MAX_SERIE} aria-label="Ano final da seca" invalid={Boolean(eg.seca)} value={secaAnoFim} onChange={e=>setSecaAnoFim(e.target.value)}/>
+          </div>
+          <div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,lineHeight:1.35}}>Os anos escolhidos são repetidos em sequência ao longo de todo o período simulado.</div>
+          <ErroCampo>{eg.seca}</ErroCampo>
+        </div>
+      )}
+      {cenarioHidrologico==='reamostragem_anual'&&(
+        <div style={{marginTop:7}}>
+          <div style={rotuloCampo}>Semente do sorteio</div>
+          <FC type="number" min="0" step="1" aria-label="Semente do sorteio" value={semente} onChange={e=>setSemente(e.target.value)}/>
+          <div style={{fontSize:9.5,color:'var(--text-light)',marginTop:2,lineHeight:1.35}}>Cada ano simulado recebe um ano histórico sorteado. A mesma semente reproduz o mesmo sorteio.</div>
+        </div>
+      )}
 
       <Label icon={Calendar}>Período</Label>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
         <div>
           <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Início</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
-            <FC as="select" value={mesIni} onChange={e=>setMesIni(e.target.value)} style={{fontSize:11}}>{MESES.map(m=><option key={m}>{m}</option>)}</FC>
-            <FC type="number" value={anoIni} onChange={e=>setAnoIni(e.target.value)} min="1900" max="2100" style={{fontSize:11}} placeholder="Ano"/>
+            <FC as="select" aria-label="Mês inicial" value={mesIni} onChange={e=>setMesIni(e.target.value)} style={{fontSize:11}}>{MESES.map(m=><option key={m}>{m}</option>)}</FC>
+            <FC type="number" aria-label="Ano inicial" invalid={Boolean(eg.anoIni||eg.periodo)} value={anoIni} onChange={e=>setAnoIni(e.target.value)} min={ANO_MIN_SERIE} max={ANO_MAX_SERIE} style={{fontSize:11}} placeholder="Ano"/>
           </div>
+          <ErroCampo>{eg.anoIni}</ErroCampo>
         </div>
         <div>
           <div style={{fontSize:10,color:'var(--text-light)',marginBottom:3,fontWeight:600}}>Fim</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
-            <FC as="select" value={mesFim} onChange={e=>setMesFim(e.target.value)} style={{fontSize:11}}>{MESES.map(m=><option key={m}>{m}</option>)}</FC>
-            <FC type="number" value={anoFim} onChange={e=>setAnoFim(e.target.value)} min="1900" max="2100" style={{fontSize:11}} placeholder="Ano"/>
+            <FC as="select" aria-label="Mês final" value={mesFim} onChange={e=>setMesFim(e.target.value)} style={{fontSize:11}}>{MESES.map(m=><option key={m}>{m}</option>)}</FC>
+            <FC type="number" aria-label="Ano final" invalid={Boolean(eg.anoFim||eg.periodo)} value={anoFim} onChange={e=>setAnoFim(e.target.value)} min={ANO_MIN_SERIE} max={ANO_MAX_SERIE} style={{fontSize:11}} placeholder="Ano"/>
           </div>
+          <ErroCampo>{eg.anoFim}</ErroCampo>
         </div>
       </div>
+      <ErroCampo>{eg.periodo}</ErroCampo>
 
-      <button onClick={submit} disabled={loading||!items[0].nome}
-        style={{width:'100%',marginTop:16,padding:12,background:loading||!items[0].nome?'var(--border)':'linear-gradient(135deg,var(--orange),var(--orange-deep))',border:'none',borderRadius:'var(--radius-sm)',color:loading||!items[0].nome?'var(--text-light)':'#fff',fontSize:13,fontWeight:800,cursor:loading||!items[0].nome?'not-allowed':'pointer',boxShadow:loading?'none':'0 4px 18px var(--orange-glow)',transition:'all 0.2s',letterSpacing:'0.02em'}}
+      {tentouEnviar&&validacao.temErro&&(
+        <div role="alert" style={{marginTop:12,fontSize:11,color:'var(--red)',background:'var(--red-pale)',borderRadius:'var(--radius-xs)',padding:'7px 10px',fontWeight:600}}>
+          Corrija os campos destacados antes de simular.
+        </div>
+      )}
+
+      <button onClick={submit} disabled={bloqueado} aria-busy={loading}
+        style={{width:'100%',marginTop:16,padding:12,background:bloqueado?'var(--border)':'linear-gradient(135deg,var(--orange),var(--orange-deep))',border:'none',borderRadius:'var(--radius-sm)',color:bloqueado?'var(--text-light)':'#fff',fontSize:13,fontWeight:800,cursor:bloqueado?'not-allowed':'pointer',boxShadow:loading?'none':'0 4px 18px var(--orange-glow)',transition:'all 0.2s',letterSpacing:'0.02em'}}
         onMouseEnter={e=>{if(!loading)e.currentTarget.style.transform='translateY(-1px)'}}
         onMouseLeave={e=>e.currentTarget.style.transform='none'}>
         {loading?'Simulando…':'▶ Gerar Simulação'}
@@ -1792,6 +2250,15 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
   const [activeTab,setActiveTab]=useState('padrao')
   const [resultTab,setResultTab]=useState('graficos')
   const [activeRes,setActiveRes]=useState([])
+  const [cenarioA,setCenarioA]=useState(null)        // cenário fixado para comparação
+  const [segundosSimulando,setSegundosSimulando]=useState(0)
+
+  useEffect(() => {
+    if (!loading) { setSegundosSimulando(0); return }
+    const inicio = Date.now()
+    const id = setInterval(() => setSegundosSimulando(Math.floor((Date.now() - inicio) / 1000)), 500)
+    return () => clearInterval(id)
+  }, [loading])
 
   // NOVO: armazena as faixas customizadas por código de reservatório
   // estrutura: { [cod]: FaixaCustom[] | null }
@@ -1862,8 +2329,14 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
         params:payload.reservatorios.map(r=>({demanda_nominal:r.demanda,capacidade:r.capacidade})),
         usarNiveisMeta: activeTab === 'meta',
         cenarioHidrossistema: payload.cenario_hidrossistema,
+        indicadoresSistema: data.indicadores_sistema,
+        cenarioHidrologicoNome: data.cenario_hidrologico?.nome,
+        periodo: `${payload.mes_inicial}/${payload.ano_inicial}–${payload.mes_final}/${payload.ano_final}`,
+        histerese: payload.histerese_transferencia || 0,
+        demandas: payload.reservatorios.map(r=>`${m3sToLps(r.demanda)} L/s`).join(', '),
+        geradoEm: new Date(),
       })
-      setResultTab('graficos')
+      setResultTab(t => t === 'comparar' && cenarioA ? 'comparar' : 'graficos')
       setTimeout(()=>document.getElementById('sim-anchor')?.scrollIntoView({behavior:'smooth',block:'start'}),200)
     }catch(e){setError(e.message)}
     finally{setLoading(false)}
@@ -1877,7 +2350,21 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
     {id:'graficos',  label:'Gráficos'},
     {id:'vazoes',    label:'Balanço Hídrico'},
     {id:'garantia',  label:'Garantia'},
+    ...(cenarioA ? [{id:'comparar', label:'Comparar cenários'}] : []),
   ]
+
+  const fixarCenario = () => {
+    if (!resultados) return
+    setCenarioA({ resultados, simMeta })
+  }
+
+  // dados extras guardados no arquivo de configuração e restaurados ao abri-lo
+  const obterExtrasConfig = () => ({ usarNiveisMeta: activeTab === 'meta', planoSecasSessao: planoSecasSession })
+  const handleAbrirConfig = (config) => {
+    setResultados(null); setSimMeta(null); setError(null); setResultTab('graficos')
+    setPlanoSecasSession(config.planoSecasSessao || {})
+    setActiveTab(config.usarNiveisMeta ? 'meta' : 'padrao')
+  }
 
   // indica visualmente se há faixas customizadas ativas na sessão
   const temPlanoCustom = Object.values(planoSecasSession).some(v => v !== null && v !== undefined)
@@ -1888,7 +2375,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       <style>{CSS}</style>
       <style>{`.sim-root.app-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow-sm:0 1px 6px rgba(0,0,0,.35);--shadow:0 2px 18px rgba(0,0,0,.45)}.sim-root.app-dark input,.sim-root.app-dark select,.sim-root.app-dark textarea{background:#080503!important;color:var(--text)!important;border-color:var(--border)!important}.sim-root.app-dark option{background:#080503;color:var(--text)}.sim-root.app-dark .sim-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.sim-root.app-dark .sim-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}.sim-root.app-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
 
-      <div style={{padding:'18px 26px 0',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+      <div className="sim-header" style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3}}>
             <Waves size={21} color="var(--orange)" strokeWidth={2}/>
@@ -1916,7 +2403,13 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
             {MAIN_TABS.map(t=><button key={t.id} className={`sim-tab ${activeTab===t.id?'on':'off'}`} onClick={()=>setActiveTab(t.id)}>{t.label}</button>)}
           </div>
           {resultados&&(
-            <div style={{display:'flex',gap:6}}>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              <button className="sim-ghost" onClick={()=>{fixarCenario(); setResultTab('graficos')}} title="Guarda esta simulação como cenário A para comparar com as próximas">
+                <ArrowLeftRight size={12}/> {cenarioA ? 'Substituir cenário A' : 'Fixar para comparar'}
+              </button>
+              {cenarioA&&<button className="sim-ghost" onClick={()=>{setCenarioA(null); if(resultTab==='comparar') setResultTab('graficos')}} title="Remove o cenário fixado">
+                <Trash2 size={12}/> Remover cenário A
+              </button>}
               <button className="sim-ghost" onClick={()=>exportExcel(resultados, simMeta?.modo||'Individual')}>
                 <FileSpreadsheet size={12}/> Excel
               </button>
@@ -1938,11 +2431,11 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
         </div>
       )}
 
-      <div style={{padding:'14px 26px 0',display:'grid',gridTemplateColumns:'295px 1fr',gap:16,alignItems:'start'}}>
+      <div className="sim-layout">
 
-        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} onPresetApply={handlePresetApply} appliedCurvas={curvasOtimizadas}/>
+        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} onPresetApply={handlePresetApply} appliedCurvas={curvasOtimizadas} obterExtrasConfig={obterExtrasConfig} onAbrirConfig={handleAbrirConfig}/>
 
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{display:'flex',flexDirection:'column',gap:12,minWidth:0}}>
 
           {(activeTab==='padrao' || activeTab==='meta')&&(
             <>
@@ -1960,15 +2453,20 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
                 <div style={{background:'var(--red-pale)',border:'1.5px solid var(--red)',borderRadius:'var(--radius-sm)',padding:'10px 14px',display:'flex',alignItems:'center',gap:9}}>
                   <AlertTriangle size={13} color="var(--red)"/>
                   <span style={{flex:1,fontSize:11.5,color:'var(--red)',fontWeight:500}}>{error}</span>
-                  <button onClick={()=>setError(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1}}>×</button>
+                  <button onClick={()=>setError(null)} aria-label="Fechar mensagem de erro" style={{background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:16,lineHeight:1}}>×</button>
                 </div>
               )}
 
               {loading&&(
                 <Card style={{padding:'46px 20px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
-                  <RefreshCw size={32} color="var(--orange)" className="sim-spin"/>
-                  <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>Simulando…</div>
-                  <div style={{fontSize:11,color:'var(--text-light)'}}>Processando série histórica e calculando balanço hídrico.</div>
+                  <div role="status" aria-live="polite" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+                    <RefreshCw size={32} color="var(--orange)" className="sim-spin" aria-hidden="true"/>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>Simulando… {segundosSimulando > 0 ? `${segundosSimulando} s` : ''}</div>
+                    <div style={{fontSize:11,color:'var(--text-light)',textAlign:'center'}}>
+                      Processando a série de vazões e calculando o balanço hídrico mês a mês.
+                      {segundosSimulando >= 15 && <><br/>Períodos longos e vários reservatórios podem levar mais tempo. Se o servidor estiver em plano gratuito, a primeira requisição também pode demorar enquanto ele inicia.</>}
+                    </div>
+                  </div>
                 </Card>
               )}
 
@@ -1987,11 +2485,15 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
               {!loading&&resultados&&(
                 <>
                   <div id="sim-anchor"/>
-                  <div style={{display:'flex',gap:3,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',padding:3,width:'fit-content',boxShadow:'var(--shadow-sm)',flexWrap:'wrap'}}>
-                    {RES_TABS.map(t=><button key={t.id} className={`sim-tab ${resultTab===t.id?'on':'off'}`} onClick={()=>setResultTab(t.id)}>{t.label}</button>)}
+                  <div role="tablist" aria-label="Resultados" style={{display:'flex',gap:3,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',padding:3,width:'fit-content',maxWidth:'100%',boxShadow:'var(--shadow-sm)',flexWrap:'wrap'}}>
+                    {RES_TABS.map(t=><button key={t.id} role="tab" aria-selected={resultTab===t.id} className={`sim-tab ${resultTab===t.id?'on':'off'}`} onClick={()=>setResultTab(t.id)}>{t.label}</button>)}
                   </div>
 
+                  {resultTab==='comparar' && cenarioA ? (
+                    <ComparacaoCenarios cenarioA={cenarioA} resultados={resultados} simMeta={simMeta}/>
+                  ) : (<>
                   <MetricsRow resultados={resultados} modo={simMeta?.modo||'Individual'}/>
+                  <IndicadoresDesempenho resultados={resultados} sistema={simMeta?.indicadoresSistema}/>
                   <MesesAbastecidos resultados={resultados} modo={simMeta?.modo||'Individual'} params={simMeta?.params}/>
                   <FailureDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>
                   {simMeta?.cenarioHidrossistema==='pgps_fogareiro_quixeramobim_cenario_1'&&<PgpsValidation resultados={resultados}/>}
@@ -1999,6 +2501,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
                   {resultTab==='graficos'  && <Charts resultados={resultados} params={simMeta?.params} modo={simMeta?.modo||'Individual'} usarNiveisMeta={simMeta?.usarNiveisMeta}/>}
                   {resultTab==='vazoes'    && <VazoesDetail resultados={resultados} modo={simMeta?.modo||'Individual'}/>}
                   {resultTab==='garantia'  && simMeta && <GarantiaAnalise resultados={resultados} modo={simMeta.modo} vazaoConjunta={simMeta.vazaoConjunta} params={simMeta.params}/>}
+                  </>)}
                 </>
               )}
             </>
