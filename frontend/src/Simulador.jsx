@@ -2275,6 +2275,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
   const [activeRes,setActiveRes]=useState([])
   const [cenarioA,setCenarioA]=useState(null)        // cenário fixado para comparação
   const [segundosSimulando,setSegundosSimulando]=useState(0)
+  const [mostrarNiveis,setMostrarNiveis]=useState(false)   // painel de níveis meta após a simulação
 
   useEffect(() => {
     if (!loading) { setSegundosSimulando(0); return }
@@ -2346,6 +2347,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
 
       const data=await api.runSimulacao(payloadComPlano)
       setResultados(data.resultados)
+      setMostrarNiveis(false)
       setSimMeta({
         modo:payload.modo,
         vazaoConjunta:payload.vazao_conjunta,
@@ -2454,14 +2456,29 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
 
           {(activeTab==='padrao' || activeTab==='meta')&&(
             <>
+              {activeTab==='meta'&&resultados&&!loading&&(
+                <Card style={{padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}>
+                  <div style={{fontSize:12.5,fontWeight:800,color:'var(--text)',display:'flex',alignItems:'center',gap:8}}>
+                    <Shield size={14} color="var(--orange)"/>Níveis Meta
+                    <span style={{fontSize:11,fontWeight:500,color:'var(--text-light)'}}>usados nesta simulação</span>
+                  </div>
+                  <button className="sim-ghost" onClick={()=>setMostrarNiveis(v=>!v)} aria-expanded={mostrarNiveis} aria-controls="painel-niveis-meta">
+                    <ChevronDown size={12} style={{transform:mostrarNiveis?'rotate(180deg)':'none',transition:'transform 0.2s'}}/>
+                    {mostrarNiveis ? 'Ocultar níveis meta' : 'Ver níveis meta'}
+                  </button>
+                </Card>
+              )}
               {activeTab==='meta'&&(
-                <PlanoSecasPanel
-                  api={api}
-                  reservatorios={activeRes}
-                  onFaixasChange={handleFaixasChange}
-                  faixasSessao={planoSecasSession}
-                  onOpenOtimizador={onOpenOtimizador}
-                />
+                // fica montado mesmo oculto, para não perder edições nem recarregar as faixas
+                <div id="painel-niveis-meta" hidden={Boolean(resultados) && !mostrarNiveis}>
+                  <PlanoSecasPanel
+                    api={api}
+                    reservatorios={activeRes}
+                    onFaixasChange={handleFaixasChange}
+                    faixasSessao={planoSecasSession}
+                    onOpenOtimizador={onOpenOtimizador}
+                  />
+                </div>
               )}
 
               {error&&(
