@@ -1,11 +1,19 @@
-fastapi
-uvicorn
-pandas
-numpy
-scipy
-openpyxl
-deap
-pyswarms
-numba
-scikit-learn
-xgboost
+# API e servidor
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+pydantic>=2.5,<3
+httpx>=0.27,<1  # cliente usado pelos testes da API
+
+# cálculo e dados
+numpy>=1.26,<3
+pandas>=2.1,<4
+numba>=0.59,<1
+scipy>=1.11,<2
+openpyxl>=3.1,<4
+
+# otimizador de níveis meta
+pyswarms>=1.3,<2
+
+# previsão de vazões
+scikit-learn>=1.4,<2
+xgboost>=2.0,<4
