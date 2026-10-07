@@ -14,7 +14,8 @@ export default function App() {
   const [view, setView] = useState('simulador')
   const [curvasOtimizadas, setCurvasOtimizadas] = useState(null)
   const [darkMode, setDarkMode] = useState(false)
-  const apiUrl = import.meta.env.VITE_API_URL
+  // na versão desktop a interface e a API ficam no mesmo endereço
+  const apiUrl = import.meta.env.MODE === 'desktop' ? '.' : import.meta.env.VITE_API_URL
   const campoSelecionado = useRef(null)
 
   const selecionarAoFocar = e => {

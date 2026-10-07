@@ -12,7 +12,8 @@
   },
   "scripts": {
     "build": "npx --yes vite build",
-    "dev": "npx vite"
+    "dev": "npx vite",
+    "build:desktop": "npx vite build --mode desktop"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

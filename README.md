@@ -144,6 +144,11 @@ Os testes incluem os resultados de referência do TCC (por exemplo, 142 meses de
 - `BANCO_SITE_DB`: caminho alternativo para o banco SQLite (padrão: `backend/banco_site.db`, independente da pasta de onde o servidor é iniciado).
 - `CORS_ORIGINS`: lista de origens permitidas separadas por vírgula, por exemplo `https://meu-site.com`. Sem ela, qualquer origem é aceita, sem credenciais.
 
+## Versão Desktop
+
+Para gerar um programa para Windows que abre o sistema numa janela própria, sem
+servidor nem internet, veja [desktop/README.md](desktop/README.md).
+
 ## Configuração da API no Frontend
 
 O frontend lê a variável `VITE_API_URL`. Para desenvolvimento local, use:

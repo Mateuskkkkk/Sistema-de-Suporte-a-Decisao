@@ -5,12 +5,17 @@ preparados e devolve, para cada reservatório, os registros mensais e os
 indicadores de desempenho. A conversão de vazão para volume usa o mês
 convencional de 30 dias (2,592 hm³ por m³/s).
 """
+import sys
 import unicodedata
 
 import numpy as np
 from numba import njit
 
 from optimizer_engine import dinamica_mensal_fast
+
+# O cache do Numba grava arquivos ao lado do código-fonte, o que não existe no
+# executável empacotado; nele a função é compilada a cada execução.
+CACHE_NUMBA = not getattr(sys, "frozen", False)
 
 SEGUNDOS_MES_PADRAO = 2_592_000.0
 HM3_POR_M3S = SEGUNDOS_MES_PADRAO / 1e6
@@ -447,7 +452,7 @@ def indicadores_sistema(saidas, modo):
 # ---------------------------------------------------------------------------
 # Vazões de garantia (permanência)
 # ---------------------------------------------------------------------------
-@njit(cache=True)
+@njit(cache=CACHE_NUMBA)
 def contar_falhas_demanda(demanda_hm3, aflu_hm3, evap_m, cap_hm3, cav_vol, cav_area, vol_inicial):
     """Número de meses em que uma demanda constante não é integralmente atendida."""
     vol = vol_inicial
