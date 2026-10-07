@@ -4,6 +4,7 @@ import SimuladorHidrico from './Simulador'
 import OtimizadorMeta from './OtimizadorMeta'
 import PrevisaoVazoes from './PrevisaoVazoes'
 import ChartExportMenu from './components/ChartExportMenu'
+import { VARS_ESCURO } from './tema'
 
 // Campos em que o valor é selecionado ao receber o foco, para que o usuário
 // digite o novo valor sem precisar apagar o anterior.
@@ -33,7 +34,7 @@ export default function App() {
   return (
     <div className={`app-shell ${darkMode ? 'app-dark' : ''}`} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}
       onFocus={selecionarAoFocar} onMouseUp={manterSelecao} onKeyDown={liberarSelecao} onBlur={liberarSelecao}>
-      <style>{`.app-shell{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--text:#1e1208;--text-light:#9a7055;--border:#ecdcc8;--card:#fffaf4;font-family:'Sora',sans-serif}.app-shell.app-dark{--bg:#050403;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--text:#fff7ef;--text-light:#c0987c;--border:#2a1a10;--card:#0d0805}.brand-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff7ed;border:1.5px solid var(--border);box-shadow:0 1px 8px rgba(150,90,40,.14);flex:0 0 auto}.app-dark .brand-icon{background:#120b07;border-color:#3a2416;box-shadow:0 0 0 1px rgba(249,115,22,.18),0 2px 14px rgba(0,0,0,.35)}.theme-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-light);padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}.theme-btn:hover{color:var(--orange-deep);border-color:var(--orange-deep)}.app-shell button:focus-visible{outline:2px solid var(--orange-deep);outline-offset:2px}@media (max-width:760px){.app-header{padding:10px 12px!important}.app-header nav{width:100%;overflow-x:auto}.app-header nav button{flex:1 0 auto}}`}</style>
+      <style>{`.app-shell{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--text:#1e1208;--text-light:#9a7055;--border:#ecdcc8;--card:#fffaf4;font-family:'Sora',sans-serif}.app-shell.app-dark{${VARS_ESCURO}}.brand-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff7ed;border:1.5px solid var(--border);box-shadow:0 1px 8px rgba(150,90,40,.14);flex:0 0 auto}.app-dark .brand-icon{background:var(--card-2);border-color:var(--border);box-shadow:0 2px 14px rgba(0,0,0,.35)}.theme-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-light);padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}.theme-btn:hover{color:var(--orange-deep);border-color:var(--orange-deep)}.app-shell button:focus-visible{outline:2px solid var(--orange-deep);outline-offset:2px}@media (max-width:760px){.app-header{padding:10px 12px!important}.app-header nav{width:100%;overflow-x:auto}.app-header nav button{flex:1 0 auto}}`}</style>
       <header className="app-header" style={{
         display: 'flex',
         justifyContent: 'space-between',

@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { VARS_ESCURO } from './tema'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, ReferenceArea,
   Tooltip, XAxis, YAxis,
@@ -110,7 +111,7 @@ function useBoxZoom(data, key = 'data') {
       },
     },
     area: left !== null && right !== null
-      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="var(--teal)" fillOpacity={0.16} />
       : null,
   }
 }
@@ -374,7 +375,7 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
 
   return (
     <div className={`pv-root ${darkMode ? 'pv-dark' : ''}`} style={{ minHeight: 600, padding: '18px 26px 48px' }}>
-      <style>{`.pv-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pv-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--blue-pale:#071634;--red-pale:#2a0c0c;--shadow:0 2px 18px rgba(0,0,0,.45)}.pv-layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}.pv-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif}.pv-btn:disabled{cursor:not-allowed;opacity:.55}.pv-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.pv-ghost{background:var(--card);color:var(--text-mid);border:1.5px solid var(--border)}.pv-tabbar{display:flex;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;padding:3px;width:fit-content}.pv-tab{border:0;border-radius:7px;background:transparent;color:var(--text-light);font:900 12px 'Sora',sans-serif;padding:8px 13px;cursor:pointer}.pv-tab.on{background:var(--orange-pale);color:var(--orange-deep)}.pv-section{border-top:1.5px solid var(--border-light);padding-top:13px;margin-top:13px}.pv-model-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--border-light);padding:4px;border-radius:9px}.pv-model-option{border:0;border-radius:7px;padding:8px 6px;background:transparent;color:var(--text-light);font:900 11px 'Sora',sans-serif;cursor:pointer}.pv-model-option.on{background:var(--card);color:var(--orange-deep);box-shadow:0 1px 5px rgba(80,40,10,.12)}.pv-indicator-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}.pv-indicator{display:grid;grid-template-columns:18px minmax(0,1fr) 45px;gap:8px;align-items:center;width:100%;padding:8px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--card);color:var(--text);text-align:left;cursor:pointer;font-family:'Sora',sans-serif}.pv-indicator.on{border-color:var(--teal);background:var(--teal-pale)}.pv-check{width:16px;height:16px;border:1.5px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;background:var(--card)}.pv-indicator.on .pv-check{background:var(--teal);border-color:var(--teal);color:#fff}.pv-importance-track{height:4px;border-radius:3px;background:var(--border-light);overflow:hidden;margin-top:4px}.pv-importance-fill{height:100%;background:var(--orange);border-radius:3px}.pv-table-wrap{max-height:430px;overflow:auto;border:1.5px solid var(--border);border-radius:var(--radius-sm)}.pv-table{width:100%;border-collapse:collapse;font-size:12px}.pv-table th{position:sticky;top:0;background:var(--card);color:var(--text-light);text-align:left;padding:8px;border-bottom:1.5px solid var(--border-light)}.pv-table td{padding:8px;border-bottom:1px solid var(--border-light)}@keyframes pv-spin{to{transform:rotate(360deg)}}.pv-spin{animation:pv-spin 1s linear infinite}@media(max-width:920px){.pv-layout{grid-template-columns:1fr}.pv-tabbar{width:100%}.pv-tab{flex:1}}`}</style>
+      <style>{`.pv-root{--grade:#ecdcc8;--card-2:#fff;--campo:#fff;--serie-1:#264fa3;--serie-2:#e07b2a;--serie-3:#2a9d8f;--serie-4:#9b2dca;--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pv-dark{${VARS_ESCURO}}.pv-layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}.pv-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif}.pv-btn:disabled{cursor:not-allowed;opacity:.55}.pv-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.pv-ghost{background:var(--card);color:var(--text-mid);border:1.5px solid var(--border)}.pv-tabbar{display:flex;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;padding:3px;width:fit-content}.pv-tab{border:0;border-radius:7px;background:transparent;color:var(--text-light);font:900 12px 'Sora',sans-serif;padding:8px 13px;cursor:pointer}.pv-tab.on{background:var(--orange-pale);color:var(--orange-deep)}.pv-section{border-top:1.5px solid var(--border-light);padding-top:13px;margin-top:13px}.pv-model-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--border-light);padding:4px;border-radius:9px}.pv-model-option{border:0;border-radius:7px;padding:8px 6px;background:transparent;color:var(--text-light);font:900 11px 'Sora',sans-serif;cursor:pointer}.pv-model-option.on{background:var(--card);color:var(--orange-deep);box-shadow:0 1px 5px rgba(80,40,10,.12)}.pv-indicator-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}.pv-indicator{display:grid;grid-template-columns:18px minmax(0,1fr) 45px;gap:8px;align-items:center;width:100%;padding:8px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--card);color:var(--text);text-align:left;cursor:pointer;font-family:'Sora',sans-serif}.pv-indicator.on{border-color:var(--teal);background:var(--teal-pale)}.pv-check{width:16px;height:16px;border:1.5px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;background:var(--card)}.pv-indicator.on .pv-check{background:var(--teal);border-color:var(--teal);color:#fff}.pv-importance-track{height:4px;border-radius:3px;background:var(--border-light);overflow:hidden;margin-top:4px}.pv-importance-fill{height:100%;background:var(--orange);border-radius:3px}.pv-table-wrap{max-height:430px;overflow:auto;border:1.5px solid var(--border);border-radius:var(--radius-sm)}.pv-table{width:100%;border-collapse:collapse;font-size:12px}.pv-table th{position:sticky;top:0;background:var(--card);color:var(--text-light);text-align:left;padding:8px;border-bottom:1.5px solid var(--border-light)}.pv-table td{padding:8px;border-bottom:1px solid var(--border-light)}@keyframes pv-spin{to{transform:rotate(360deg)}}.pv-spin{animation:pv-spin 1s linear infinite}@media(max-width:920px){.pv-layout{grid-template-columns:1fr}.pv-tabbar{width:100%}.pv-tab{flex:1}}`}</style>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -576,13 +577,13 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
                   <div style={{ height: 285 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={qxxZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...qxxZoom.props}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
                         <XAxis dataKey="garantia" tick={{ fontSize: 10, fill: 'var(--text-light)' }} unit="%" />
                         <YAxis yAxisId="m3s" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                         <YAxis yAxisId="ls" orientation="right" tick={{ fontSize: 10, fill: 'var(--orange-deep)' }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Area yAxisId="m3s" dataKey="vazao_m3s" name="Vazão de garantia (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.14} strokeWidth={2} dot={false} />
-                        <Line yAxisId="ls" type="monotone" dataKey="vazao_ls" name="Vazão de garantia (L/s)" stroke="#e07b2a" strokeWidth={2} dot={false} />
+                        <Area yAxisId="m3s" dataKey="vazao_m3s" name="Vazão de garantia (m³/s)" stroke="var(--serie-1)" fill="var(--serie-1)" fillOpacity={0.14} strokeWidth={2} dot={false} />
+                        <Line yAxisId="ls" type="monotone" dataKey="vazao_ls" name="Vazão de garantia (L/s)" stroke="var(--serie-2)" strokeWidth={2} dot={false} />
                         {qxxZoom.area}
                       </AreaChart>
                     </ResponsiveContainer>
@@ -671,12 +672,12 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
                   <div style={{ height: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={forecastZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...forecastZoom.props}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
                         <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                         <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Line type="monotone" dataKey="Historico" name="Histórico" stroke="#264fa3" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="Previsao" name="Previsão" stroke="#e07b2a" strokeWidth={2.5} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="Historico" name="Histórico" stroke="var(--serie-1)" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="Previsao" name="Previsão" stroke="var(--serie-2)" strokeWidth={2.5} dot={{ r: 3 }} />
                         {forecastZoom.area}
                       </LineChart>
                     </ResponsiveContainer>
@@ -690,12 +691,12 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
                     <div style={{ height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={validationZoom.data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} {...validationZoom.props}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
                           <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                           <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                           <Tooltip content={<ChartTooltip />} />
-                          <Line type="monotone" dataKey="Observado" stroke="#2a9d8f" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="Previsto" stroke="#e07b2a" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="Observado" stroke="var(--serie-3)" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="Previsto" stroke="var(--serie-2)" strokeWidth={2} dot={false} />
                           {validationZoom.area}
                         </LineChart>
                       </ResponsiveContainer>

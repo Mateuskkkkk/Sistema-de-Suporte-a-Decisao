@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from './utils/planilha'
 import { downloadElementAsPng } from './components/ChartExportMenu'
+import { cssEscuro } from './tema'
 
 // nomes dos meses abreviados, usados em vários lugares do app
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
@@ -42,11 +43,19 @@ const ANOS  = Array.from({ length: 110 }, (_, i) => 1911 + i)
 
 // paleta de cores usada nos gráficos quando tem mais de um reservatório
 const COLORS = [
-  { stroke: '#264fa3', fill: '#264fa3', fillOp: 0.15 },
-  { stroke: '#e07b2a', fill: '#e07b2a', fillOp: 0.15 },
-  { stroke: '#2a9d8f', fill: '#2a9d8f', fillOp: 0.15 },
-  { stroke: '#9b2dca', fill: '#9b2dca', fillOp: 0.15 },
+  { stroke: 'var(--serie-1)', fill: 'var(--serie-1)', fillOp: 0.15 },
+  { stroke: 'var(--serie-2)', fill: 'var(--serie-2)', fillOp: 0.15 },
+  { stroke: 'var(--serie-3)', fill: 'var(--serie-3)', fillOp: 0.15 },
+  { stroke: 'var(--serie-4)', fill: 'var(--serie-4)', fillOp: 0.15 },
 ]
+
+// modo escuro: paleta compartilhada (tema.js) e ajustes próprios do simulador
+const CSS_ESCURO = cssEscuro('.sim-root.app-dark') + `
+.sim-root.app-dark .sim-ghost{background:var(--card);color:var(--text-mid);border-color:var(--border)}
+.sim-root.app-dark .sim-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}
+.sim-root.app-dark .sim-tab.off{color:var(--text-light)}
+.sim-root.app-dark .sim-aviso-api{background:var(--yellow-pale)!important;border-color:var(--yellow)!important}
+.sim-root.app-dark .sim-aviso-api div,.sim-root.app-dark .sim-aviso-api code{color:var(--text-mid)!important;background:transparent!important}`
 
 // CSS global injetado no componente — define as variáveis de cor, fontes,
 // animações e os estilos das classes reutilizáveis (.sim-tab, .sim-ghost, etc.)
@@ -61,6 +70,9 @@ const CSS = `
     --yellow: #d4a017; --yellow-pale: #fef3cd;
     --text: #1e1208; --text-mid: #5a3c24; --text-light: #855f40;
     --border: #ecdcc8; --border-light: #f5ebe0; --card: #ffffff;
+    --card-2: #ffffff; --campo: #ffffff; --grade: #ecdcc8;
+    --serie-1: #264fa3; --serie-2: #e07b2a; --serie-3: #2a9d8f; --serie-4: #9b2dca;
+    --faixa-normal: #2a9d8f; --faixa-alerta: #d4a017; --faixa-seca: #e07b2a; --faixa-severa: #d94040; --faixa-colapso: #7f1d1d;
     --shadow-sm: 0 1px 4px rgba(150,90,40,0.08);
     --shadow: 0 2px 16px rgba(150,90,40,0.10);
     --radius: 14px; --radius-sm: 9px; --radius-xs: 6px;
@@ -195,7 +207,7 @@ function FC({ as='input', children, style, invalid=false, className='', onFocus,
   // exibir "0" antes do novo número.
   const [rascunho, setRascunho] = useState(null)
   const numerico = as !== 'select' && props.type === 'number'
-  const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'#fff', color:'var(--text)', fontSize:12.5, fontFamily:'Sora, sans-serif', outline:'none', transition:'border-color 0.15s', ...style }
+  const base = { width:'100%', padding:'7px 10px', border:'1.5px solid var(--border)', borderRadius:'var(--radius-xs)', background:'var(--card)', color:'var(--text)', fontSize:12.5, fontFamily:'Sora, sans-serif', outline:'none', transition:'border-color 0.15s', ...style }
   const onF = e => { e.target.style.borderColor = 'var(--orange)'; onFocus?.(e) }
   const onB = e => { e.target.style.borderColor = 'var(--border)'; if (numerico) setRascunho(null); onBlur?.(e) }
   const onC = e => { if (numerico) setRascunho(e.target.value); onChange?.(e) }
@@ -244,7 +256,7 @@ function validarConfiguracao({ items, modo, mesIni, anoIni, mesFim, anoFim, cena
 const CTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background:'#fff', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
+    <div style={{ background:'var(--card)', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
       <div style={{ fontWeight:700, marginBottom:5, color:'var(--text)' }}>{label}</div>
       {payload.map((p,i) => (
         <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
@@ -482,13 +494,12 @@ function ResSel({ resultados, sel, onChange }) {
     <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
       <button onClick={()=>onChange('todos')} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel==='todos'?'var(--orange)':'var(--border)'}`,background:sel==='todos'?'var(--orange-pale)':'none',color:sel==='todos'?'var(--orange-deep)':'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>Sobrepostos</button>
       {resultados.map((r,i)=>(
-        <button key={i} onClick={()=>onChange(i)} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel===i?COLORS[i%4].stroke:'var(--border)'}`,background:sel===i?'rgba('+hexToRgb(COLORS[i%4].stroke)+',0.1)':'none',color:sel===i?COLORS[i%4].stroke:'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>{r.reservatorio}</button>
+        <button key={i} onClick={()=>onChange(i)} style={{padding:'4px 11px',borderRadius:20,border:`1.5px solid ${sel===i?COLORS[i%4].stroke:'var(--border)'}`,background:sel===i?`color-mix(in srgb, ${COLORS[i%4].stroke} 10%, transparent)`:'none',color:sel===i?COLORS[i%4].stroke:'var(--text-light)',fontSize:10.5,fontWeight:700,cursor:'pointer',transition:'all 0.15s'}}>{r.reservatorio}</button>
       ))}
     </div>
   )
 }
 
-function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `${r},${g},${b}`}
 
 function useBoxZoom(data, key = 'data') {
   const [left, setLeft] = useState(null)
@@ -519,7 +530,7 @@ function useBoxZoom(data, key = 'data') {
     reset: () => setDomain(null),
     props: zoomProps,
     area: left !== null && right !== null
-      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="var(--teal)" fillOpacity={0.16} />
       : null,
   }
 }
@@ -548,15 +559,15 @@ function nomeFaixaGrafico(d) {
 
 function corFaixaGrafico(nome, racionamento = 0) {
   const faixa = normalizarNomeFaixa(nome)
-  if (faixa.includes('colapso') || faixa.includes('falha')) return '#7f1d1d'
-  if (faixa.includes('normal') || faixa.includes('acima do teto')) return '#2a9d8f'
-  if (faixa.includes('alerta') || faixa.includes('atencao')) return '#d4a017'
-  if (faixa.includes('severa') || faixa.includes('emerg') || faixa.includes('critic')) return '#d94040'
-  if (faixa.includes('seca')) return '#e07b2a'
-  if (racionamento >= 70) return '#d94040'
-  if (racionamento >= 35) return '#e07b2a'
-  if (racionamento > 0) return '#d4a017'
-  return '#264fa3'
+  if (faixa.includes('colapso') || faixa.includes('falha')) return 'var(--faixa-colapso)'
+  if (faixa.includes('normal') || faixa.includes('acima do teto')) return 'var(--faixa-normal)'
+  if (faixa.includes('alerta') || faixa.includes('atencao')) return 'var(--faixa-alerta)'
+  if (faixa.includes('severa') || faixa.includes('emerg') || faixa.includes('critic')) return 'var(--faixa-severa)'
+  if (faixa.includes('seca')) return 'var(--faixa-seca)'
+  if (racionamento >= 70) return 'var(--faixa-severa)'
+  if (racionamento >= 35) return 'var(--faixa-seca)'
+  if (racionamento > 0) return 'var(--faixa-alerta)'
+  return 'var(--serie-1)'
 }
 
 function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
@@ -687,7 +698,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
         <div style={{ height:250 }}>
           <ResponsiveContainer>
             <ComposedChart data={volZoom.data} margin={{top:4,right:28,left:0,bottom:0}} {...volZoom.props}>
-              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis yAxisId="vol" domain={[0,100]} tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -698,11 +709,11 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
                   })
                 : volKeys.map((k,i)=><Area key={k} yAxisId="vol" type="monotone" dataKey={k} stroke={COLORS[i%4].stroke} fill={COLORS[i%4].fill} fillOpacity={COLORS[i%4].fillOp} strokeWidth={2} dot={false}/>)}
               {periodosRac.map(([x1,x2],idx)=>(
-                <ReferenceArea key={`rac${idx}`} yAxisId="vol" x1={x1} x2={x2} fill="#d4a017" fillOpacity={0.14} strokeOpacity={0} ifOverflow="hidden"/>
+                <ReferenceArea key={`rac${idx}`} yAxisId="vol" x1={x1} x2={x2} fill="var(--faixa-alerta)" fillOpacity={0.14} strokeOpacity={0} ifOverflow="hidden"/>
               ))}
               {marcarFalhas&&falhaKeys.map(k=>(
                 <Line key={k} yAxisId="vol" dataKey={k} name={k} stroke="none" legendType="circle" isAnimationActive={false}
-                  dot={{r:2.6,fill:'#d94040',stroke:'#fff',strokeWidth:0.6}} activeDot={{r:4,fill:'#d94040'}}/>
+                  dot={{r:2.6,fill:'var(--red)',stroke:'var(--card)',strokeWidth:0.6}} activeDot={{r:4,fill:'var(--red)'}}/>
               ))}
               {volZoom.area}
             </ComposedChart>
@@ -716,7 +727,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
         <div style={{ height:200 }}>
           <ResponsiveContainer>
             <LineChart data={demZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...demZoom.props}>
-              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -737,7 +748,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
           <div style={{ height:180 }}>
             <ResponsiveContainer>
               <BarChart data={racZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...racZoom.props}>
-                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'%',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -755,7 +766,7 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
         <div style={{ height:185 }}>
           <ResponsiveContainer>
             <LineChart data={serieVazoesZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...serieVazoesZoom.props}>
-              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -773,11 +784,11 @@ function Charts({ resultados, params, modo, usarNiveisMeta = false }) {
           <div style={{ height:180 }}>
             <ResponsiveContainer>
               <BarChart data={trZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...trZoom.props}>
-                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
                 <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'m³/s',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-                {trKeys.map((k)=><Bar key={k} dataKey={k} fill="#9b2dca" fillOpacity={0.7} radius={[3,3,0,0]}/>)}
+                {trKeys.map((k)=><Bar key={k} dataKey={k} fill="var(--serie-4)" fillOpacity={0.7} radius={[3,3,0,0]}/>)}
                 {trZoom.area}
               </BarChart>
             </ResponsiveContainer>
@@ -861,14 +872,14 @@ function VazoesDetail({ resultados, modo }) {
         <div style={{ height:220 }}>
           <ResponsiveContainer>
             <BarChart data={balZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...balZoom.props}>
-              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'hm³',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
               {resultados.map((res,i)=>[
-                <Bar key={`af${i}`} dataKey={`Afluência(${res.reservatorio})`} fill="#2a9d8f" fillOpacity={0.65} radius={[3,3,0,0]}/>,
-                <Bar key={`da${i}`} dataKey={`Demanda Atendida(${res.reservatorio})`} fill="#d4a017" fillOpacity={0.7} radius={[3,3,0,0]}/>,
-                <Bar key={`ev${i}`} dataKey={`Evap.(${res.reservatorio})`} fill="#e07b2a" fillOpacity={0.65} radius={[3,3,0,0]}/>,
+                <Bar key={`af${i}`} dataKey={`Afluência(${res.reservatorio})`} fill="var(--teal)" fillOpacity={0.65} radius={[3,3,0,0]}/>,
+                <Bar key={`da${i}`} dataKey={`Demanda Atendida(${res.reservatorio})`} fill="var(--yellow)" fillOpacity={0.7} radius={[3,3,0,0]}/>,
+                <Bar key={`ev${i}`} dataKey={`Evap.(${res.reservatorio})`} fill="var(--orange)" fillOpacity={0.65} radius={[3,3,0,0]}/>,
               ])}
               {balZoom.area}
             </BarChart>
@@ -1013,11 +1024,11 @@ function GarantiaAnalise({ resultados, modo, vazaoConjunta, params }) {
           <div style={{ height:230 }}>
             <ResponsiveContainer>
               <AreaChart data={garantiaZoom.data} margin={{top:4,right:20,left:0,bottom:0}} {...garantiaZoom.props}>
-                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
                 <XAxis dataKey="garantia" type="number" domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}} label={{value:'Garantia Acumulada (%)',position:'insideBottom',offset:-2,fill:'var(--text-light)',fontSize:10}}/>
                 <YAxis tick={{fontSize:10,fill:'var(--blue)'}} label={{value:'Vazão (m³/s)',angle:-90,position:'insideLeft',fill:'var(--blue)',fontSize:10}}/>
                 <Tooltip content={<CTip/>}/>
-                <Area type="monotone" dataKey="vazao" name="Vazão (m³/s)" stroke="#264fa3" fill="#264fa3" fillOpacity={0.15} strokeWidth={2} dot={false}/>
+                <Area type="monotone" dataKey="vazao" name="Vazão (m³/s)" stroke="var(--serie-1)" fill="var(--serie-1)" fillOpacity={0.15} strokeWidth={2} dot={false}/>
                 {garantiaZoom.area}
               </AreaChart>
             </ResponsiveContainer>
@@ -1476,7 +1487,7 @@ function PlanoSecasPanel({ api, reservatorios, onFaixasChange, faixasSessao, onO
 }
 
 function nivelColor(idx, total) {
-  if (total <= 1) return '#2a9d8f'
+  if (total <= 1) return 'var(--faixa-normal)'
   const t = idx / (total - 1)
   const stops = [
     [42,157,143],
@@ -1511,9 +1522,9 @@ function NiveisMeta({ faixas }) {
   const cores = faixasRestritas.map((f, i) => {
     if (f._cor) return f._cor
     const nome = String(f.Faixa || '').toLowerCase()
-    if (nome.includes('alerta') || nome.includes('atenção') || nome.includes('atencao')) return '#d4a017'
-    if (nome.includes('severa') || nome.includes('emergência') || nome.includes('emergencia') || nome.includes('crítico') || nome.includes('critico')) return '#d94040'
-    if (nome.includes('seca')) return '#e07b2a'
+    if (nome.includes('alerta') || nome.includes('atenção') || nome.includes('atencao')) return 'var(--faixa-alerta)'
+    if (nome.includes('severa') || nome.includes('emergência') || nome.includes('emergencia') || nome.includes('crítico') || nome.includes('critico')) return 'var(--faixa-severa)'
+    if (nome.includes('seca')) return 'var(--faixa-seca)'
     return nivelColor(i, n)
   })
 
@@ -1524,7 +1535,7 @@ function NiveisMeta({ faixas }) {
       nome: faixa.Faixa || `Faixa ${i + 1}`,
       cor: cores[i],
     })).reverse(),
-    { chave: 'faixa_0', nome: nomeFaixaNormal, cor: '#2a9d8f' },
+    { chave: 'faixa_0', nome: nomeFaixaNormal, cor: 'var(--faixa-normal)' },
   ]
 
   const data = MESES.map(mes => {
@@ -1543,7 +1554,7 @@ function NiveisMeta({ faixas }) {
   const Tip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
-      <div style={{ background:'#fff', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
+      <div style={{ background:'var(--card)', border:'1.5px solid var(--border)', borderRadius:10, padding:'9px 13px', boxShadow:'var(--shadow)', fontSize:11 }}>
         <div style={{ fontWeight:700, marginBottom:6, color:'var(--text)' }}>{label}</div>
         {faixasRestritas.map((f, i) => (
           <div key={i} style={{ display:'flex', gap:7, alignItems:'center', marginBottom:2 }}>
@@ -1568,7 +1579,7 @@ function NiveisMeta({ faixas }) {
       <div style={{ height:260 }}>
         <ResponsiveContainer>
           <AreaChart data={metaZoom.data} margin={{top:4,right:20,left:0,bottom:4}} {...metaZoom.props}>
-            <CartesianGrid strokeDasharray={"3 3"} stroke="var(--border)"/>
+            <CartesianGrid strokeDasharray={"3 3"} stroke="var(--grade)"/>
             <XAxis dataKey="mes" tick={{fontSize:10,fill:'var(--text-light)'}}/>
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}
               label={{value:'% Cap.',angle:-90,position:'insideLeft',fill:'var(--text-light)',fontSize:10}}/>
@@ -1923,12 +1934,12 @@ function ComparacaoCenarios({ cenarioA, resultados, simMeta }) {
         <div style={{ height:250 }}>
           <ResponsiveContainer>
             <LineChart data={serie} margin={{top:4,right:20,left:0,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)"/>
               <XAxis dataKey="data" tickFormatter={tickFmt} interval={iv} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <YAxis domain={[0,100]} tick={{fontSize:10,fill:'var(--text-light)'}}/>
               <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-              <Line type="monotone" dataKey="Cenário A" stroke="#264fa3" strokeWidth={1.8} dot={false}/>
-              <Line type="monotone" dataKey="Cenário B (atual)" stroke="#e07b2a" strokeWidth={1.8} dot={false}/>
+              <Line type="monotone" dataKey="Cenário A" stroke="var(--serie-1)" strokeWidth={1.8} dot={false}/>
+              <Line type="monotone" dataKey="Cenário B (atual)" stroke="var(--serie-2)" strokeWidth={1.8} dot={false}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -2390,7 +2401,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
   return (
     <div className={`sim-root ${darkMode ? 'app-dark' : ''}`} style={{minHeight:600,paddingBottom:48}}>
       <style>{CSS}</style>
-      <style>{`.sim-root.app-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow-sm:0 1px 6px rgba(0,0,0,.35);--shadow:0 2px 18px rgba(0,0,0,.45)}.sim-root.app-dark input,.sim-root.app-dark select,.sim-root.app-dark textarea{background:#080503!important;color:var(--text)!important;border-color:var(--border)!important}.sim-root.app-dark option{background:#080503;color:var(--text)}.sim-root.app-dark .sim-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.sim-root.app-dark .sim-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}.sim-root.app-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
+      <style>{CSS_ESCURO}</style>
 
       <div className="sim-header" style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
         <div>
@@ -2439,7 +2450,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
       </div>
 
       {apiError&&(
-        <div style={{margin:'12px 26px 0',padding:'10px 14px',background:'#fffbea',border:'1.5px solid #f5c842',borderRadius:'var(--radius-sm)',display:'flex',gap:9,alignItems:'flex-start'}}>
+        <div className="sim-aviso-api" style={{margin:'12px 26px 0',padding:'10px 14px',background:'#fffbea',border:'1.5px solid #f5c842',borderRadius:'var(--radius-sm)',display:'flex',gap:9,alignItems:'flex-start'}}>
           <AlertTriangle size={13} color="#b48a0c" style={{marginTop:1}}/>
           <div style={{fontSize:11,color:'#7a5c00',lineHeight:1.6}}>
             <strong>API não encontrada.</strong> Configure <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>VITE_API_URL</code> ou passe a prop <code style={{fontFamily:'JetBrains Mono',background:'#fef3cd',padding:'1px 4px',borderRadius:3}}>apiUrl</code>.<br/>
