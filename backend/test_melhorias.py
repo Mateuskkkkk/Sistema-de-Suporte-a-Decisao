@@ -38,11 +38,11 @@ def simular(reservatorios, modo="Individual", conjunta_lps=0.0, ano_final=2021, 
     return main.processar_simulacao_api(req)
 
 
-def fogareiro_quixeramobim(histerese=0.0):
+def fogareiro_quixeramobim():
     return simular(
         [reservatorio("Fogareiro", 100, 272), reservatorio("Quixeramobim", 100, 342, gatilho=30)],
         modo="Série", conjunta_lps=500, ano_final=2019, usar_niveis_meta=True,
-        cenario_hidrossistema=PLANO_FQ, histerese_transferencia=histerese,
+        cenario_hidrossistema=PLANO_FQ,
     )
 
 
@@ -70,20 +70,6 @@ class ResultadosDeReferenciaTests(unittest.TestCase):
         sistema = fogareiro_quixeramobim()["indicadores_sistema"]
         self.assertEqual(sistema["meses_com_transferencia"], 257)
         self.assertAlmostEqual(sistema["volume_transferido_hm3"], 301.58, places=2)
-
-
-class HistereseTests(unittest.TestCase):
-    def test_histerese_reduz_acionamentos_da_transferencia(self):
-        sem = fogareiro_quixeramobim(0.0)["indicadores_sistema"]
-        com = fogareiro_quixeramobim(10.0)["indicadores_sistema"]
-        self.assertLess(com["acionamentos_transferencia"], sem["acionamentos_transferencia"])
-
-    def test_regra_de_gatilho(self):
-        # sem ação ativa, vale o gatilho; com ação ativa, vale o limite de desligamento
-        self.assertTrue(simulador._abaixo_do_gatilho(2.9, 3.0, 4.0, False))
-        self.assertFalse(simulador._abaixo_do_gatilho(3.5, 3.0, 4.0, False))
-        self.assertTrue(simulador._abaixo_do_gatilho(3.5, 3.0, 4.0, True))
-        self.assertFalse(simulador._abaixo_do_gatilho(4.0, 3.0, 4.0, True))
 
 
 class IndicadoresDesempenhoTests(unittest.TestCase):

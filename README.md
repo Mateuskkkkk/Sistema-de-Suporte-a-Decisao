@@ -15,7 +15,6 @@ Sistema web para simulação de balanço hídrico e otimização de níveis meta
 - Modo claro e modo escuro no topo da aplicação.
 - Indicadores de desempenho de confiabilidade, resiliência e vulnerabilidade (Hashimoto, Stedinger e Loucks, 1982).
 - Indicadores do sistema: falha da demanda conjunta (modo Paralelo) e meses/volume transferido (modo Série).
-- Histerese opcional no gatilho de transferência, para evitar liga-desliga mês a mês.
 - Cenários hidrológicos: série histórica, fatores fixos ou personalizados de afluência, seca repetida e reamostragem anual com semente.
 - Comparação lado a lado de dois cenários (fixe um resultado e simule outro).
 - Salvar e abrir a configuração da simulação em arquivo JSON.

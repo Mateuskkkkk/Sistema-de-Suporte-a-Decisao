@@ -91,17 +91,6 @@ def normalizar_modo_simulacao(modo: str) -> str:
 # ---------------------------------------------------------------------------
 # Simulação
 # ---------------------------------------------------------------------------
-def _abaixo_do_gatilho(volume, vol_gatilho, vol_desligamento, ativo_anterior):
-    """Regra de gatilho com histerese.
-
-    Sem histerese (vol_desligamento == vol_gatilho), a ação fica ativa sempre que
-    o volume está abaixo do gatilho. Com histerese, uma ação já ativa só é
-    encerrada quando o volume alcança o limite de desligamento, maior que o gatilho.
-    """
-    limite = vol_desligamento if ativo_anterior else vol_gatilho
-    return volume < limite
-
-
 def simular_sistema_n(
     series,
     params,
@@ -109,15 +98,8 @@ def simular_sistema_n(
     vazao_conjunta,
     atendimento_transferencia=100.0,
     cenario_hidrossistema=None,
-    histerese_percent=0.0,
 ):
-    """Simula mês a mês todos os reservatórios.
-
-    histerese_percent: pontos percentuais da capacidade acima do gatilho que o
-    volume precisa alcançar para encerrar uma transferência (modo Série) ou para
-    devolver a demanda conjunta à unidade anterior (modo Paralelo). Com 0, o
-    comportamento é o da regra simples de gatilho.
-    """
+    """Simula mês a mês todos os reservatórios."""
     n_res = len(series)
     if n_res == 0:
         return []
@@ -125,7 +107,6 @@ def simular_sistema_n(
     n_meses = len(series[0]["datas"])
     modo_id = normalizar_modo_simulacao(modo)
     vazao_conjunta = float(vazao_conjunta)
-    histerese_percent = max(0.0, float(histerese_percent or 0.0))
     atendimento_transferencia = max(0.0, min(float(atendimento_transferencia), 100.0)) / 100.0
     cenario_fq_ativo = cenario_hidrossistema == FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID and modo_id == "serie"
     indices_por_codigo = {str(param.get("cod", "")): indice for indice, param in enumerate(params)}
@@ -162,9 +143,6 @@ def simular_sistema_n(
     volumes_atuais = [float(p["vol_ini"]) for p in params]
     afluencias_hm3 = [serie["vazoes_m3s"] * HM3_POR_M3S for serie in series]
     evaporacoes_m = [serie["evaporacao_mm"] / 1000.0 for serie in series]
-    # estado das regras de gatilho no mês anterior (usado pela histerese)
-    transferencia_ativa = [False] * n_res
-    conjunta_deslocada = [False] * n_res
 
     for t in range(n_meses):
         estado_sistema_fq = None
@@ -240,21 +218,15 @@ def simular_sistema_n(
                 p = params[i]
                 capacidade = float(p["capacidade"])
                 vol_gatilho = capacidade * (float(p["gatilho"]) / 100.0)
-                vol_retorno = capacidade * ((float(p["gatilho"]) + histerese_percent) / 100.0)
                 carga_para_mover_bruta = alocacao_conjunta_bruta[i]
-                deslocar = False
 
-                if carga_para_mover_bruta > 0 and _abaixo_do_gatilho(
-                    volumes_atuais[i], vol_gatilho, vol_retorno, conjunta_deslocada[i]
-                ):
+                if carga_para_mover_bruta > 0 and volumes_atuais[i] < vol_gatilho:
                     dem_esp_prox = responsabilidade_especifica[i + 1] * (1.0 - racionamentos[i + 1] / 100.0)
                     carga_conj_prox = carga_para_mover_bruta * (1.0 - racionamentos[i + 1] / 100.0)
                     demanda_total_prox_hm3 = (dem_esp_prox + carga_conj_prox) * HM3_POR_M3S
                     if prev_volumes_pos_natureza[i + 1] >= demanda_total_prox_hm3:
                         alocacao_conjunta_bruta[i] = 0.0
                         alocacao_conjunta_bruta[i + 1] += carga_para_mover_bruta
-                        deslocar = True
-                conjunta_deslocada[i] = deslocar
 
             for i in range(n_res):
                 dem_esp = responsabilidade_especifica[i] * (1.0 - racionamentos[i] / 100.0)
@@ -280,13 +252,7 @@ def simular_sistema_n(
                 capacidade_receptor = float(params[idx_receiver]["capacidade"])
                 gatilho_percent = FOGAREIRO_QUIXERAMOBIM_CENARIO_1["gatilho_receptor_percent"]
                 vol_gatilho = capacidade_receptor * gatilho_percent / 100.0
-                vol_desligamento = capacidade_receptor * (gatilho_percent + histerese_percent) / 100.0
-                ativa = _abaixo_do_gatilho(
-                    prev_volumes_pos_natureza[idx_receiver], vol_gatilho, vol_desligamento,
-                    transferencia_ativa[idx_receiver],
-                )
-                transferencia_ativa[idx_receiver] = ativa
-                if ativa:
+                if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho:
                     transferencia_normal = FOGAREIRO_QUIXERAMOBIM_CENARIO_1["transferencias_lps"]["Normal"]
                     fator_estado = (
                         FOGAREIRO_QUIXERAMOBIM_CENARIO_1["transferencias_lps"][estado_sistema_fq]
@@ -309,13 +275,7 @@ def simular_sistema_n(
                     capacidade_receptor = float(params[idx_receiver]["capacidade"])
                     gatilho_percent = float(params[idx_receiver]["gatilho"])
                     vol_gatilho = capacidade_receptor * (gatilho_percent / 100.0)
-                    vol_desligamento = capacidade_receptor * ((gatilho_percent + histerese_percent) / 100.0)
-                    ativa = _abaixo_do_gatilho(
-                        prev_volumes_pos_natureza[idx_receiver], vol_gatilho, vol_desligamento,
-                        transferencia_ativa[idx_receiver],
-                    )
-                    transferencia_ativa[idx_receiver] = ativa
-                    if ativa:
+                    if prev_volumes_pos_natureza[idx_receiver] < vol_gatilho:
                         fluxo_transferencia = vazao_conjunta * atendimento_transferencia
                         vol_demanda_hm3 = fluxo_transferencia * HM3_POR_M3S
                         disponivel_sender = prev_volumes_pos_natureza[idx_sender]

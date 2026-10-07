@@ -161,7 +161,6 @@ class SimulacaoRequest(BaseModel):
     usar_niveis_meta: bool = False
     cenario_hidrossistema: Optional[str] = None
     # opções adicionadas na versão 1.1; os valores padrão reproduzem a versão 1.0
-    histerese_transferencia: float = 0.0
     fator_afluencia_percent: float = 100.0
     seca_ano_inicial: Optional[int] = None
     seca_ano_final: Optional[int] = None
@@ -184,8 +183,6 @@ class SimulacaoRequest(BaseModel):
             erros.append("O atendimento da transferência deve estar entre 0 e 100%.")
         if self.cenario_hidrologico not in CENARIOS_HIDROLOGICOS:
             erros.append(f"Cenário hidrológico desconhecido: {self.cenario_hidrologico}.")
-        if not 0.0 <= self.histerese_transferencia <= 100.0:
-            erros.append("A histerese deve estar entre 0 e 100 pontos percentuais.")
         if not 0.0 <= self.fator_afluencia_percent <= 500.0:
             erros.append("O percentual da afluência deve estar entre 0 e 500%.")
         if self.cenario_hidrologico == "seca_repetida":
@@ -538,7 +535,7 @@ def processar_simulacao_api(req: SimulacaoRequest):
     try:
         saidas = simular_sistema_n(
             series, params, req.modo, req.vazao_conjunta, req.atendimento_transferencia,
-            cenario_hidrossistema_ativo, req.histerese_transferencia,
+            cenario_hidrossistema_ativo,
         )
     except ValueError as erro:
         raise HTTPException(status_code=400, detail=str(erro))
