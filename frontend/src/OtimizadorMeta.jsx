@@ -481,6 +481,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   const [metodo, setMetodo] = useState('pso')
   const [populacao, setPopulacao] = useState(80)
   const [geracoes, setGeracoes] = useState(60)
+  const [larguraMinima, setLarguraMinima] = useState(5)
   const [selecaoPorCenario, setSelecaoPorCenario] = useState({})
   const [ninicio, setNinicio] = useState(7)
   const [mesIni, setMesIni] = useState(1)
@@ -690,7 +691,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       faixas_nomes: nomesConfigurados,
     }
     const payload = usarPareto
-      ? { ...comum, populacao, geracoes, seed: 1 }
+      ? { ...comum, populacao, geracoes, seed: 1, largura_minima: Math.min(25, Math.max(0, Number(larguraMinima) || 0)) / 100 }
       : { ...comum, iters, garantia_req: scenarioSnapshot.garantiaReq }
 
     try {
@@ -887,7 +888,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     <div><b>Per&iacute;odo</b>${MESES[mesIni - 1]}/${anoIni} a ${MESES[mesFim - 1]}/${anoFim}</div>
     <div><b>Probabilidade de aflu&ecirc;ncia</b>${escapeHtml((prob * 100).toFixed(0))}%</div>
     ${isPareto
-      ? `<div><b>NSGA-II</b>${escapeHtml(resultadoBruto.parametros?.populacao)} indiv&iacute;duos &times; ${escapeHtml(resultadoBruto.parametros?.geracoes)} gera&ccedil;&otilde;es</div>`
+      ? `<div><b>NSGA-II</b>${escapeHtml(resultadoBruto.parametros?.populacao)} indiv&iacute;duos &times; ${escapeHtml(resultadoBruto.parametros?.geracoes)} gera&ccedil;&otilde;es, largura m&iacute;nima ${escapeHtml(num((resultadoBruto.parametros?.largura_minima || 0) * 100, 0))}%</div>`
       : `<div><b>Itera&ccedil;&otilde;es PSO</b>${escapeHtml(iters)}</div>`}
   </div>
   ${paretoHtml}
@@ -1022,6 +1023,14 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                     <input type="range" min="5" max="500" step="5" value={geracoes} onChange={e => setGeracoes(Number(e.target.value))} />
                     <input className="opt-mini" type="number" min="5" max="500" step="5" value={geracoes} onChange={e => setGeracoes(Number(e.target.value))} />
                   </div>
+                </div>
+                <div>
+                  <label className="opt-label">Largura mínima de cada nível (% do volume)</label>
+                  <div className="opt-control-row">
+                    <input type="range" min="0" max="20" step="1" value={larguraMinima} onChange={e => setLarguraMinima(Number(e.target.value))} />
+                    <input className="opt-mini" type="number" min="0" max="25" step="1" value={larguraMinima} onChange={e => setLarguraMinima(Number(e.target.value))} />
+                  </div>
+                  <p className="opt-metodo-desc">Distância mínima entre curvas vizinhas em todos os meses. Sem ela, o NSGA-II tende a espremer os níveis intermediários.</p>
                 </div>
               </>
             )}

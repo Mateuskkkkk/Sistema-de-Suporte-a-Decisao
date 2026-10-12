@@ -59,6 +59,9 @@ class ParetoPayload(BaseModel):
     frac_dsup: List[float]
     quantidade_faixas: int = 4
     faixas_nomes: Optional[List[str]] = None
+    # distância mínima entre curvas vizinhas, em fração da capacidade, em todos os meses;
+    # sem ela o NSGA-II tende a espremer os níveis intermediários (ir direto do Normal ao mais severo)
+    largura_minima: float = Field(0.05, ge=0.0, le=0.25)
     populacao: int = Field(80, ge=20, le=400)
     geracoes: int = Field(60, ge=5, le=500)
     seed: Optional[int] = 1
@@ -103,13 +106,20 @@ def avaliar_operacao(nmetas, aflu_hm3, evap_serie_m, ret_vec_hm3, cap_hm3, cav_v
     return falhas, entregue, deficit, racionamento, vol_min
 
 
+def largura_minima_curvas(nmetas):
+    """Menor distância, em fração da capacidade, entre duas curvas vizinhas em qualquer mês."""
+    if len(nmetas) < 2:
+        return 1.0
+    return float(np.min(np.diff(np.sort(nmetas, axis=0), axis=0)))
+
+
 class ProblemaNiveisMeta(Problem):
     """Variáveis: um nível meta por estado restritivo (ordenados dentro da avaliação)."""
 
     def __init__(self, dados):
         self.d = dados
         n_var = len(dados["ret_vec_hm3"]) - 1
-        super().__init__(n_var=n_var, n_obj=2, n_ieq_constr=2, xl=NIVEL_MIN, xu=NIVEL_MAX)
+        super().__init__(n_var=n_var, n_obj=2, n_ieq_constr=3, xl=NIVEL_MIN, xu=NIVEL_MAX)
 
     def curvas(self, x):
         d = self.d
@@ -121,12 +131,13 @@ class ProblemaNiveisMeta(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         d = self.d
         F = np.zeros((len(X), 2))
-        G = np.zeros((len(X), 2))
+        G = np.zeros((len(X), 3))
         for i, x in enumerate(X):
             niveis, nmetas = self.curvas(x)
             folga = np.min(np.diff(niveis)) if len(niveis) > 1 else 1.0
             G[i, 0] = FOLGA_ENTRE_NIVEIS - folga
             G[i, 1] = VOLUME_META_MIN - float(np.min(nmetas))
+            G[i, 2] = d["largura_minima"] - largura_minima_curvas(nmetas)
             falhas, entregue, _, _, _ = avaliar_operacao(nmetas, d["aflu_hm3"], d["evap_m"], d["ret_vec_hm3"], d["cap_hm3"],
                                                         d["cav_vol"], d["cav_area"], d["mes_inicio"])
             F[i, 0] = falhas
@@ -163,6 +174,7 @@ def preparar_dados(payload: ParetoPayload):
         "aflu_prob": np.concatenate([aflu_prob_12[k:], aflu_prob_12[:k]]),
         "evap_ano": np.concatenate([evap_ano_12[k:], evap_ano_12[:k]]),
         "ninicio": int(payload.ninicio), "mes_inicio": int(payload.mes_inicio),
+        "largura_minima": float(payload.largura_minima),
     }
 
 
@@ -264,7 +276,8 @@ def pareto_generator(payload: ParetoPayload):
             "capacidade_hm3": problema.d["cap_hm3"],
             "demanda_normal_lps": round(1000.0 * problema.d["ret_vec_hm3"][0] / HM3_POR_M3S, 3),
             "avaliacoes": int(algoritmo.evaluator.n_eval),
-            "parametros": {"populacao": payload.populacao, "geracoes": payload.geracoes, "seed": payload.seed},
+            "parametros": {"populacao": payload.populacao, "geracoes": payload.geracoes, "seed": payload.seed,
+                           "largura_minima": payload.largura_minima},
             "solucoes": solucoes,
             "destaques": escolher_destaques(solucoes),
             "referencia_sem_racionamento": referencia,

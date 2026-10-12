@@ -45,6 +45,9 @@ class ParetoTests(unittest.TestCase):
             niveis = sorted(s["niveis_meta"])
             self.assertTrue(np.all(np.diff(niveis) >= op.FOLGA_ENTRE_NIVEIS - 1e-9))
             self.assertGreaterEqual(min(min(c) for c in s["matriz_curvas"]), op.VOLUME_META_MIN - 1e-9)
+            # largura mínima padrão (5% do volume) entre curvas vizinhas, em todos os meses
+            curvas = np.array(s["matriz_curvas"])
+            self.assertGreaterEqual(np.min(curvas[:-1] - curvas[1:]), 0.05 - 1e-9)
 
     def test_destaques(self):
         d, sol = self.r["destaques"], self.r["solucoes"]
@@ -71,6 +74,13 @@ class ParetoTests(unittest.TestCase):
         outra = rodar(mundau())[-1]
         self.assertEqual([(s["meses_falha"], s["entregue_hm3"]) for s in outra["solucoes"]],
                          [(s["meses_falha"], s["entregue_hm3"]) for s in self.r["solucoes"]])
+
+    def test_largura_minima_configuravel(self):
+        r = rodar(mundau(largura_minima=0.10))[-1]
+        self.assertEqual(r["status"], "sucesso")
+        for s in r["solucoes"]:
+            curvas = np.array(s["matriz_curvas"])
+            self.assertGreaterEqual(np.min(curvas[:-1] - curvas[1:]), 0.10 - 1e-9)
 
     def test_erro_vira_mensagem(self):
         r = rodar(mundau(durb_m3s=0.0))[-1]
