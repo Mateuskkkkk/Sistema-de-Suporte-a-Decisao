@@ -14,6 +14,7 @@ from pydantic import BaseModel, model_validator
 
 from forecast_engine import router as previsao_router
 from optimizer_engine import router as otimizador_router
+from otimizador_pareto import router as pareto_router
 from simulador import (  # noqa: F401  (reexportados para os testes e scripts)
     FOGAREIRO_QUIXERAMOBIM_CENARIO_1,
     FOGAREIRO_QUIXERAMOBIM_CENARIO_1_ID,
@@ -45,6 +46,7 @@ app.add_middleware(
 )
 
 app.include_router(otimizador_router)
+app.include_router(pareto_router)
 app.include_router(previsao_router)
 
 # banco de dados ao lado deste arquivo, independentemente da pasta de execução

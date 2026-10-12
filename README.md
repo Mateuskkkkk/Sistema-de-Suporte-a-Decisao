@@ -8,6 +8,7 @@ Sistema web para simulação de balanço hídrico e otimização de níveis meta
 - Carregamento de hidrossistemas pré-configurados.
 - Operação individual, em série ou em paralelo.
 - Otimização de níveis meta com curvas de Alerta, Seca e Seca Severa.
+- Dois métodos de otimização: PSO (atinge as garantias requeridas de cada nível) e NSGA-II multiobjetivo (fronteira de Pareto entre segurança, em meses sem falha, e água entregue).
 - Aplicação das curvas otimizadas diretamente no simulador.
 - Gráficos com faixas de criticidade hídrica.
 - Tabelas de permanência, volumes históricos e resultados mensais.
@@ -30,7 +31,8 @@ Sistema-Hidrico-Unificado/
 ├── backend/
 │   ├── main.py               # API (FastAPI) e acesso ao banco
 │   ├── simulador.py          # motor de balanço hídrico e indicadores
-│   ├── optimizer_engine.py   # otimizador de níveis meta
+│   ├── optimizer_engine.py   # otimizador de níveis meta (PSO)
+│   ├── otimizador_pareto.py  # otimização multiobjetivo (NSGA-II)
 │   ├── banco_site.db         # séries de vazões, evaporação e CAV
 │   ├── test_*.py             # testes automatizados
 │   └── requirements.txt
@@ -60,9 +62,13 @@ Sistema-Hidrico-Unificado/
 1. Entre na aba **Otimizador**.
 2. Escolha o reservatório ou hidrossistema.
 3. Configure período histórico, mês inicial, demandas e permanências desejadas.
-4. Execute a otimização.
-5. Analise as curvas de Alerta, Seca e Seca Severa.
-6. Use as opções de exportação para salvar os resultados.
+4. Escolha o método:
+   - **Garantias (PSO)**: informe a garantia requerida de cada nível; o PSO procura as curvas que chegam mais perto delas.
+   - **Pareto (NSGA-II)**: não pede garantias. O algoritmo busca ao mesmo tempo o menor número de meses com falha (segurança) e o maior volume de água entregue, e devolve a fronteira de Pareto: o conjunto de curvas em que não dá para melhorar um objetivo sem piorar o outro.
+5. Execute a otimização.
+6. No NSGA-II, escolha uma solução no gráfico da fronteira ou nos atalhos **Segurança total** (sem falhas, com a maior entrega possível), **Equilíbrio** (ponto de joelho) e **Máxima entrega**. O ponto **Sem níveis meta** mostra a operação sem racionamento, como referência.
+7. Analise as curvas de Alerta, Seca e Seca Severa.
+8. Use as opções de exportação para salvar os resultados (no NSGA-II, o Excel traz também a tabela da fronteira).
 
 ### Aplicar Curvas no Simulador
 

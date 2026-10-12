@@ -11,10 +11,10 @@ datas = [
     (str(raiz / "backend" / "banco_site.db"), "backend"),
 ]
 binaries = []
-hiddenimports = ["main", "simulador", "optimizer_engine", "forecast_engine"]
+hiddenimports = ["main", "simulador", "optimizer_engine", "otimizador_pareto", "forecast_engine"]
 
 # pacotes com bibliotecas nativas ou arquivos de dados que precisam ir inteiros
-for pacote in ["xgboost", "pyswarms"]:
+for pacote in ["xgboost", "pyswarms", "pymoo"]:
     d, b, h = collect_all(pacote)
     datas += d
     binaries += b
