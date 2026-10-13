@@ -65,6 +65,7 @@ Sistema-Hidrico-Unificado/
 4. Escolha o método:
    - **Garantias (PSO)**: informe a garantia requerida de cada nível; o PSO procura as curvas que chegam mais perto delas.
    - **Pareto (NSGA-II)**: não pede garantias. O algoritmo busca ao mesmo tempo o menor número de meses com falha (segurança) e o maior volume de água entregue, e devolve a fronteira de Pareto: o conjunto de curvas em que não dá para melhorar um objetivo sem piorar o outro.
+     O **critério da água entregue** pode ser **Racionamento gradual** (padrão), que minimiza o déficit quadrático e por isso prefere cortes pequenos e escalonados (faixas mais largas), ou **Volume total**, que maximiza o volume entregue e tende a ir direto do atendimento pleno ao nível mais severo.
      A **largura mínima de cada nível** (padrão 5% do volume) impõe uma distância mínima entre curvas vizinhas em todos os meses; sem ela, o algoritmo tende a espremer os níveis intermediários, porque passar direto do atendimento pleno ao racionamento mais severo quase não piora os dois objetivos.
 5. Execute a otimização.
 6. No NSGA-II, escolha uma solução no gráfico da fronteira ou nos atalhos **Segurança total** (sem falhas, com a maior entrega possível), **Equilíbrio** (ponto de joelho) e **Máxima entrega**. O ponto **Sem níveis meta** mostra a operação sem racionamento, como referência.

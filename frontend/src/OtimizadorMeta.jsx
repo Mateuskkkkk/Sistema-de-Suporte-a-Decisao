@@ -334,6 +334,11 @@ const METODOS = [
   { id: 'nsga2', nome: 'Pareto (NSGA-II)', descricao: 'Mostra o compromisso entre segurança (meses sem falha) e água entregue.' },
 ]
 
+const CRITERIOS = [
+  { id: 'gradual', nome: 'Racionamento gradual', descricao: 'Minimiza o déficit quadrático: cortes pequenos e frequentes pesam menos que cortes raros e profundos, o que escalona os níveis.' },
+  { id: 'total', nome: 'Volume total', descricao: 'Maximiza o volume entregue. Tende a ir direto do atendimento pleno ao nível mais severo, com faixas intermediárias estreitas.' },
+]
+
 const DESTAQUES = [
   { chave: 'seguranca_total', titulo: 'Segurança total', Icone: ShieldCheck, cor: 'var(--teal)', vazio: 'Nenhuma solução sem falhas nesta demanda' },
   { chave: 'equilibrio', titulo: 'Equilíbrio', Icone: Scale, cor: 'var(--blue)' },
@@ -354,6 +359,7 @@ function ParetoTooltip({ active, payload }) {
       <div style={{ fontWeight: 900, marginBottom: 5 }}>{ponto.referencia ? 'Sem níveis meta (referência)' : `Solução ${ponto.id + 1}`}</div>
       <div>Meses com falha: <strong>{ponto.meses_falha}</strong> ({num(ponto.garantia_percent)}% de garantia)</div>
       <div>Água entregue: <strong>{num(ponto.entregue_percent)}%</strong> da demanda ({num(ponto.vazao_media_lps)} L/s em média)</div>
+      <div>Déficit quadrático médio: <strong>{num(ponto.deficit_quadratico_percent, 2)}%</strong></div>
       {!ponto.referencia && <div>Meses em racionamento: <strong>{ponto.meses_racionamento}</strong></div>}
       <div>Volume mínimo: <strong>{num(ponto.volume_minimo_percent)}%</strong></div>
     </div>
@@ -365,8 +371,11 @@ function ParetoPanel({ dados, selecionada, onSelect }) {
   const ref = dados.referencia_sem_racionamento
   const destaques = dados.destaques || {}
   const corDe = id => DESTAQUES.find(d => destaques[d.chave] === id)?.cor
-  const pontos = solucoes.map(s => ({ ...s, x: s.entregue_percent, y: s.meses_falha }))
-  const pontoRef = ref ? [{ ...ref, referencia: true, x: ref.entregue_percent, y: ref.meses_falha }] : []
+  // eixo x = o critério de água entregue que foi otimizado (no gradual, o déficit quadrático, com o melhor à direita)
+  const gradual = dados.parametros?.criterio_entrega === 'gradual'
+  const eixoX = s => (gradual ? s.deficit_quadratico_percent : s.entregue_percent)
+  const pontos = solucoes.map(s => ({ ...s, x: eixoX(s), y: s.meses_falha }))
+  const pontoRef = ref ? [{ ...ref, referencia: true, x: eixoX(ref), y: ref.meses_falha }] : []
 
   const forma = ({ cx, cy, payload }) => {
     if (cx == null || cy == null) return null
@@ -390,7 +399,7 @@ function ParetoPanel({ dados, selecionada, onSelect }) {
         <span style={{ fontSize: 13.5, fontWeight: 900 }}>Fronteira de Pareto: segurança × água entregue</span>
       </div>
       <p style={{ fontSize: 11, color: 'var(--text-light)', margin: '0 0 12px' }}>
-        {solucoes.length} soluções não dominadas ({num(dados.avaliacoes, 0)} simulações). Nenhuma delas melhora a segurança sem reduzir a água entregue. Clique em um ponto para ver as curvas e aplicar no Simulador.
+        {solucoes.length} soluções não dominadas ({num(dados.avaliacoes, 0)} simulações), critério {gradual ? 'racionamento gradual' : 'volume total'}. Nenhuma delas melhora a segurança sem piorar a entrega de água. Clique em um ponto para ver as curvas e aplicar no Simulador.
       </p>
 
       <div className="opt-pareto-cards">
@@ -423,9 +432,10 @@ function ParetoPanel({ dados, selecionada, onSelect }) {
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 12, right: 18, bottom: 18, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
-            <XAxis type="number" dataKey="x" name="Água entregue" domain={['auto', 'auto']} tickFormatter={v => `${num(v)}%`}
+            <XAxis type="number" dataKey="x" name={gradual ? 'Déficit quadrático médio' : 'Água entregue'} domain={['auto', 'auto']}
+              reversed={gradual} tickFormatter={v => `${num(v)}%`}
               tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false}
-              label={{ value: 'Água entregue (% da demanda)', position: 'insideBottom', offset: -10, fill: 'var(--text-light)', fontSize: 11 }} />
+              label={{ value: gradual ? 'Déficit quadrático médio (% da demanda, menor à direita)' : 'Água entregue (% da demanda)', position: 'insideBottom', offset: -10, fill: 'var(--text-light)', fontSize: 11 }} />
             <YAxis type="number" dataKey="y" name="Meses com falha" allowDecimals={false}
               tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false}
               label={{ value: 'Meses com falha', angle: -90, position: 'insideLeft', offset: 14, fill: 'var(--text-light)', fontSize: 11 }} />
@@ -455,6 +465,7 @@ function MetricasSolucao({ s }) {
     ['Água entregue', `${num(s.entregue_percent)}%`, `${num(s.entregue_hm3)} hm³`],
     ['Vazão média', `${num(s.vazao_media_lps)} L/s`, 'entregue no período'],
     ['Déficit', `${num(s.deficit_hm3)} hm³`, 'não atendido'],
+    ['Déficit quadrático', `${num(s.deficit_quadratico_percent, 2)}%`, 'médio, da demanda'],
     ['Racionamento', `${s.meses_racionamento}`, 'meses abaixo do Normal'],
     ['Volume mínimo', `${num(s.volume_minimo_percent)}%`, 'da capacidade'],
   ]
@@ -482,6 +493,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   const [populacao, setPopulacao] = useState(80)
   const [geracoes, setGeracoes] = useState(60)
   const [larguraMinima, setLarguraMinima] = useState(5)
+  const [criterioEntrega, setCriterioEntrega] = useState('gradual')
   const [selecaoPorCenario, setSelecaoPorCenario] = useState({})
   const [ninicio, setNinicio] = useState(7)
   const [mesIni, setMesIni] = useState(1)
@@ -691,7 +703,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       faixas_nomes: nomesConfigurados,
     }
     const payload = usarPareto
-      ? { ...comum, populacao, geracoes, seed: 1, largura_minima: Math.min(25, Math.max(0, Number(larguraMinima) || 0)) / 100 }
+      ? { ...comum, populacao, geracoes, seed: 1, largura_minima: Math.min(25, Math.max(0, Number(larguraMinima) || 0)) / 100, criterio_entrega: criterioEntrega }
       : { ...comum, iters, garantia_req: scenarioSnapshot.garantiaReq }
 
     try {
@@ -782,6 +794,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     'Água Entregue (hm³)': s.entregue_hm3,
     'Vazão Média (L/s)': s.vazao_media_lps,
     'Déficit (hm³)': s.deficit_hm3,
+    'Déficit Quadrático Médio (%)': s.deficit_quadratico_percent,
     'Meses em Racionamento': s.meses_racionamento,
     'Volume Mínimo (%)': s.volume_minimo_percent,
     ...Object.fromEntries((s.niveis_meta || []).map((n, k) => [`Nível Meta ${labelsAtivos[k + 1] || k + 1}`, Number(n.toFixed(4))])),
@@ -888,7 +901,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     <div><b>Per&iacute;odo</b>${MESES[mesIni - 1]}/${anoIni} a ${MESES[mesFim - 1]}/${anoFim}</div>
     <div><b>Probabilidade de aflu&ecirc;ncia</b>${escapeHtml((prob * 100).toFixed(0))}%</div>
     ${isPareto
-      ? `<div><b>NSGA-II</b>${escapeHtml(resultadoBruto.parametros?.populacao)} indiv&iacute;duos &times; ${escapeHtml(resultadoBruto.parametros?.geracoes)} gera&ccedil;&otilde;es, largura m&iacute;nima ${escapeHtml(num((resultadoBruto.parametros?.largura_minima || 0) * 100, 0))}%</div>`
+      ? `<div><b>NSGA-II</b>${escapeHtml(resultadoBruto.parametros?.populacao)} indiv&iacute;duos &times; ${escapeHtml(resultadoBruto.parametros?.geracoes)} gera&ccedil;&otilde;es, crit&eacute;rio ${resultadoBruto.parametros?.criterio_entrega === 'gradual' ? 'racionamento gradual' : 'volume total'}, largura m&iacute;nima ${escapeHtml(num((resultadoBruto.parametros?.largura_minima || 0) * 100, 0))}%</div>`
       : `<div><b>Itera&ccedil;&otilde;es PSO</b>${escapeHtml(iters)}</div>`}
   </div>
   ${paretoHtml}
@@ -1010,6 +1023,18 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               </div>
             ) : (
               <>
+                <div>
+                  <label className="opt-label center">Critério da Água Entregue</label>
+                  <div className="opt-metodo" role="radiogroup" aria-label="Critério da água entregue">
+                    {CRITERIOS.map(c => (
+                      <button key={c.id} type="button" role="radio" aria-checked={criterioEntrega === c.id}
+                        className={`opt-metodo-btn ${criterioEntrega === c.id ? 'active' : ''}`} onClick={() => setCriterioEntrega(c.id)}>
+                        {c.nome}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="opt-metodo-desc">{CRITERIOS.find(c => c.id === criterioEntrega)?.descricao}</p>
+                </div>
                 <div>
                   <label className="opt-label">População NSGA-II</label>
                   <div className="opt-control-row">

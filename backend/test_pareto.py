@@ -33,7 +33,7 @@ class ParetoTests(unittest.TestCase):
         self.assertGreater(len(self.r["solucoes"]), 3)
 
     def test_solucoes_nao_dominadas(self):
-        pts = [(s["meses_falha"], -s["entregue_hm3"]) for s in self.r["solucoes"]]
+        pts = [(s["meses_falha"], s["objetivo_entrega"]) for s in self.r["solucoes"]]
         for i, a in enumerate(pts):
             for j, b in enumerate(pts):
                 if i != j:
@@ -52,8 +52,8 @@ class ParetoTests(unittest.TestCase):
     def test_destaques(self):
         d, sol = self.r["destaques"], self.r["solucoes"]
         self.assertEqual(sol[d["seguranca_total"]]["meses_falha"], 0)
-        maior = max(s["entregue_hm3"] for s in sol)
-        self.assertEqual(sol[d["maxima_entrega"]]["entregue_hm3"], maior)
+        melhor = min(s["objetivo_entrega"] for s in sol)
+        self.assertEqual(sol[d["maxima_entrega"]]["objetivo_entrega"], melhor)
         self.assertIn(d["equilibrio"], range(len(sol)))
 
     def test_referencia_igual_ao_simulador(self):
@@ -81,6 +81,24 @@ class ParetoTests(unittest.TestCase):
         for s in r["solucoes"]:
             curvas = np.array(s["matriz_curvas"])
             self.assertGreaterEqual(np.min(curvas[:-1] - curvas[1:]), 0.10 - 1e-9)
+
+    def test_criterio_total_maximiza_volume(self):
+        r = rodar(mundau(criterio_entrega="total"))[-1]
+        self.assertEqual(r["status"], "sucesso")
+        for s in r["solucoes"]:
+            self.assertAlmostEqual(s["objetivo_entrega"], -s["entregue_hm3"], places=3)
+        pts = [(s["meses_falha"], -s["entregue_hm3"]) for s in r["solucoes"]]
+        for i, a in enumerate(pts):
+            self.assertFalse(any(b[0] <= a[0] and b[1] <= a[1] and b != a for b in pts), f"solução {i} dominada")
+
+    def test_gradual_afasta_curvas(self):
+        # o déficit quadrático favorece o racionamento escalonado: faixas mais largas que no critério "total"
+        def largura_media(r):
+            return np.mean([np.mean(np.array(s["matriz_curvas"])[:-1] - np.array(s["matriz_curvas"])[1:])
+                            for s in r["solucoes"]])
+        gradual = rodar(mundau(largura_minima=0.0, frac_durb=[1, 0.9, 0.8, 0.5]))[-1]
+        total = rodar(mundau(largura_minima=0.0, frac_durb=[1, 0.9, 0.8, 0.5], criterio_entrega="total"))[-1]
+        self.assertGreater(largura_media(gradual), 2 * largura_media(total))
 
     def test_erro_vira_mensagem(self):
         r = rodar(mundau(durb_m3s=0.0))[-1]
