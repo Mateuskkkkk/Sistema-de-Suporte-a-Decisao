@@ -191,7 +191,7 @@
 \local{Crateús}
 
 % Exemplo: \dataaprovacao{01 de Janeiro de 2012}
-\dataaprovacao{xx/xx/xxxx.}
+\dataaprovacao{\rule{0.7cm}{0.4pt}/\rule{0.7cm}{0.4pt}/\rule{1.2cm}{0.4pt}.} % preencher após a defesa
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%           Informação sobre o Orientador         %%
@@ -224,21 +224,23 @@
 % \membrodabancadoisies{Universidade Federal do Ceará - UFC}
 
 
-\membrodabancadois{Prof. Dr. Xxxxxxx Xxxxxx Xxxxxxx}
-\membrodabancadoiscentro{Faculdade de Filosofia Dom Aureliano Matos (FAFIDAM)}
-\membrodabancadoisies{Universidade do Membro da Banca três (SIGLA)}
-\membrodabancatres{Prof. Dr. Xxxxxxx Xxxxxx Xxxxxxx}
-\membrodabancatrescentro{Centro de Ciências e Tecnologia (CCT)}
-\membrodabancatresies{Universidade do Membro da Banca quatro (SIGLA)}
-\membrodabancaquatro{Prof. Dr. Xxxxxxx Xxxxxx Xxxxxxx}
-\membrodabancaquatrocentro{Centro de Ciências e Tecnologia (CCT)}
-\membrodabancaquatroies{Universidade do Membro da Banca cinco (SIGLA)}
-\membrodabancacinco{Prof. Dr. Xxxxxxx Xxxxxx Xxxxxxx}
-\membrodabancacincocentro{Teste}
-\membrodabancacincoies{Universidade do Membro da Banca seis (SIGLA)}
-\membrodabancaseis{Prof. Dr. Xxxxxxx Xxxxxx Xxxxxxx}
+% PREENCHER: nomes e instituições dos membros da banca
+\membrodabancadois{Prof. [nome do primeiro membro da banca]}
+\membrodabancadoiscentro{}
+\membrodabancadoisies{[Instituição (SIGLA)]}
+\membrodabancatres{Prof. [nome do segundo membro da banca]}
+\membrodabancatrescentro{}
+\membrodabancatresies{[Instituição (SIGLA)]}
+% membros vazios não são impressos na folha de aprovação
+\membrodabancaquatro{}
+\membrodabancaquatrocentro{}
+\membrodabancaquatroies{}
+\membrodabancacinco{}
+\membrodabancacincocentro{}
+\membrodabancacincoies{}
+\membrodabancaseis{}
 \membrodabancaseiscentro{}
-\membrodabancaseisies{Universidade do Membro da Banca sete (SIGLA)}
+\membrodabancaseisies{}
 
 \begin{document}	
 	% Elementos pré-textuais
@@ -249,7 +251,7 @@
 	\imprimirfolhadeaprovacao
 	\imprimirdedicatoria{1-pre-textuais/dedicatoria}
 	\imprimiragradecimentos{1-pre-textuais/agradecimentos}
-	\imprimirepigrafe{1-pre-textuais/epigrafe}
+	% \imprimirepigrafe{1-pre-textuais/epigrafe} % opcional; reative ao incluir uma epígrafe com autoria
 		\imprimirresumo{1-pre-textuais/resumo}
 		\imprimirabstract{1-pre-textuais/abstract}
 		\glsadd{UFC}\glsadd{API}\glsadd{COGERH}\glsadd{FUNCEME}\glsadd{HTTP}\glsadd{JSON}\glsadd{PNG}\glsadd{SSD}\glsadd{SVG}

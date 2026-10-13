@@ -96,7 +96,7 @@ Do lado do sistema, a API valida a configuração, lê no banco as séries de va
 \section{Modelo de simulação hidrológica}
 \label{sec:modelo-simulacao}
 
-O simulador opera em intervalo mensal e aplica o princípio da conservação de massa a cada reservatório. Adotam-se as seguintes hipóteses: (i) todas as grandezas de volume são expressas em hm$^3$; (ii) o mês tem duração convencional de 30 dias; (iii) a afluência, a retirada e as transferências são tratadas como volumes mensais concentrados, sem distribuição intramensal; (iv) o volume mínimo operacional é nulo e o máximo é a capacidade; e (v) a evaporação é calculada com a área média do espelho d'água.
+O simulador opera em intervalo mensal e aplica o princípio da conservação de massa a cada reservatório. Adotam-se as seguintes hipóteses: (i) todas as grandezas de volume são expressas em hm$^3$; (ii) o mês tem duração convencional de 30 dias; (iii) a afluência, a retirada e as transferências são tratadas como volumes mensais concentrados, sem distribuição intramensal; (iv) o volume mínimo operacional é nulo e o máximo é a capacidade; (v) a evaporação é calculada com a área média do espelho d'água; e (vi) não são representadas a precipitação direta sobre o espelho d'água nem as perdas por infiltração.
 
 As vazões médias mensais, em m$^3$/s, são convertidas para hm$^3$/mês pela Equação \ref{eq:conversao-vazao}. A mesma conversão é aplicada às demandas e às transferências.
 
@@ -295,7 +295,7 @@ O cálculo independente foi realizado em planilha eletrônica. A planilha, elabo
 
 A planilha foi construída para refazer, sem programação, o mesmo cálculo mensal do simulador, e funciona em quatro etapas. Na primeira, a série de vazões médias mensais do reservatório é colada na aba \texttt{Vazoes\_COLAR}, com um ano por linha e um mês por coluna. Na segunda, o reservatório é escolhido pelo nome na célula \texttt{B6} da aba \texttt{Verificacao}; a partir dele, funções de busca (\texttt{INDEX} e \texttt{MATCH}) recuperam, na aba \texttt{Dados\_Acudes}, o código, a capacidade, a estação de evaporação e a posição da curva cota-área-volume na aba \texttt{Dados\_CAV}, e a aba \texttt{Aux\_CAV} copia somente a curva do reservatório escolhido, em hm$^3$ e km$^2$. Na terceira, o usuário informa o volume inicial, em percentual da capacidade (\texttt{B10}), e a demanda constante, em m$^3$/s (\texttt{B12}).
 
-Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade; o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Mundaú com demanda de 500 L/s: no alto, os parâmetros, o quadro de controle e a descrição da lógica reproduzida; abaixo, as primeiras linhas mensais do cálculo.
+Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; a demanda solicitada é informada em m$^3$/s (J) e convertida em volume (K); calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade e convertida em demanda atendida (R), da qual resulta o déficit (S); o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Mundaú com demanda de 500 L/s: no alto, os parâmetros, o quadro de controle e a descrição da lógica reproduzida; abaixo, as primeiras linhas mensais do cálculo.
 
 \begin{figure}[!htbp]
     \centering
@@ -307,7 +307,7 @@ Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, r
     }
 \end{figure}
 
-As fórmulas de uma linha típica são apresentadas no Código-fonte \ref{cod:formulas-planilha}; a coluna M repete a fórmula de I aplicada ao volume preliminar L.
+As fórmulas de uma linha típica são apresentadas no Código-fonte \ref{cod:formulas-planilha}; a coluna M repete a fórmula de I aplicada ao volume preliminar L, e a coluna Z guarda o volume após a limitação da retirada, antes da separação do vertimento.
 
 \noindent\begin{minipage}{\linewidth}
 \begin{lstlisting}[
@@ -558,7 +558,7 @@ Em Fogareiro--Quixeramobim, empregou-se a configuração específica descrita na
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Retiradas e transferências por estado na configuração de Fogareiro--Quixeramobim}
+    \caption[Retiradas e transferências por estado em Fogareiro--Quixeramobim]{Retiradas e transferências por estado na configuração de Fogareiro--Quixeramobim}
     \label{tab:fq-regras}
     \centering
     \footnotesize

@@ -13,7 +13,7 @@ Na análise de sensibilidade, os indicadores responderam aos parâmetros na dire
 
 As aplicações mostraram a utilidade do sistema para examinar consequências de diferentes configurações. Em Mundaú, a adoção das curvas-guia eliminou as 142 falhas que ocorreriam sem racionamento, à custa de 332 meses com retirada reduzida. Em Carnaubal--Barragem do Batalhão, a tabulação mensal permitiu identificar que todas as falhas ocorreram em meses nos quais a Barragem do Batalhão não tinha volume para assumir a demanda conjunta. Em Fogareiro--Quixeramobim, os registros mensais revelaram a alternância da transferência em meses consecutivos, decorrente da ausência de histerese na regra de gatilho.
 
-O sistema é, portanto, um instrumento para explorar hipóteses de operação sobre a série histórica, de forma transparente e reprodutível. Seus limites, contudo, devem ser respeitados: o mês convencional de 30 dias, a dependência das séries cadastradas, a evaporação representada por médias mensais, a simplificação das transferências e a ausência de representação hidráulica condicionam os resultados. Sobretudo, os testes realizados verificam a implementação, mas não constituem validação com dados observados, de modo que os resultados não demonstram que o modelo representa a operação real dos reservatórios e não substituem a análise técnica e institucional da decisão.
+O sistema é, portanto, um instrumento para explorar hipóteses de operação sobre a série histórica, de forma transparente e reprodutível. Seus limites, contudo, devem ser respeitados: o mês convencional de 30 dias, a dependência das séries cadastradas, a evaporação representada por médias mensais, a ausência de precipitação direta e de volume morto no balanço, a simplificação das transferências e a ausência de representação hidráulica condicionam os resultados. Sobretudo, os testes realizados verificam a implementação, mas não constituem validação com dados observados, de modo que os resultados não demonstram que o modelo representa a operação real dos reservatórios e não substituem a análise técnica e institucional da decisão.
 
 \section{Trabalhos futuros}
 \label{sec:trabalhos-futuros}
@@ -22,6 +22,7 @@ Recomenda-se, em trabalhos futuros:
 
 \begin{alineas}
     \item considerar o número real de dias de cada mês na conversão entre vazão e volume;
+    \item incluir no balanço a precipitação direta sobre o espelho d'água e o volume mínimo operacional associado à cota da tomada d'água;
     \item ampliar a validação das séries de entrada, com rotinas de detecção e tratamento de lacunas e registros inconsistentes, e utilizar séries de evaporação mensais em vez de médias;
     \item representar separadamente os volumes liberados pelo fornecedor, as perdas em trânsito e os volumes recebidos, e incluir histerese nos gatilhos de transferência;
     \item utilizar as séries de afluência incremental e propagar os vertimentos e as liberações dos reservatórios de montante para os de jusante, de modo que a operação simulada a montante altere a afluência de jusante;

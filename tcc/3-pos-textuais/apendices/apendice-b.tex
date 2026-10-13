@@ -1,7 +1,7 @@
 \apendice{CONFIGURAÇÃO DOS TESTES CONTROLADOS}
 \label{ap:testes-controlados}
 
-Os casos controlados foram executados diretamente sobre a função \texttt{simular\_sistema\_n} do arquivo \texttt{backend/main.py}, na versão indicada no Apêndice \ref{ap:codigo-fonte}. Em todos os casos, a curva cota-área-volume fictícia possui dois pontos, (0 hm$^3$; $A$) e ($2V_{\max}$; $A$), de modo que a área é constante e igual a $A$; a afluência e a evaporação são constantes ao longo dos meses; e o volume mínimo é nulo. A Tabela \ref{tab:entradas-casos} apresenta as entradas completas.
+Os casos controlados foram executados diretamente sobre a função de simulação \texttt{simular\_sistema\_n}, definida no arquivo \texttt{backend/main.py} na versão indicada no Apêndice \ref{ap:codigo-fonte}. Em todos os casos, a curva cota-área-volume fictícia possui dois pontos, (0 hm$^3$; $A$) e ($2V_{\max}$; $A$), de modo que a área é constante e igual a $A$; a afluência e a evaporação são constantes ao longo dos meses; e o volume mínimo é nulo. A Tabela \ref{tab:entradas-casos} apresenta as entradas completas.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
@@ -9,7 +9,7 @@ Os casos controlados foram executados diretamente sobre a função \texttt{simul
     \label{tab:entradas-casos}
     \centering
     \scriptsize
-    \begin{tabular}{p{2.6cm}cp{1.3cm}p{2.0cm}ccp{1.6cm}p{3.0cm}}
+    \begin{tabular}{p{2.3cm}cp{1.3cm}p{2.0cm}ccp{1.6cm}p{2.9cm}}
         \toprule
         Caso & Meses & Modo & $V_{\max}$ e $V_0$ (hm$^3$) & $Q$ (m$^3$/s) & $e$ (mm) & Demanda (m$^3$/s) & Outros parâmetros \\
         \midrule

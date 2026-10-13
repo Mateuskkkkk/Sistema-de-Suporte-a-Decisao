@@ -24,7 +24,7 @@ O sistema desenvolvido neste trabalho está disponível em repositório público
     }
 \end{table}
 
-Todos os resultados do Capítulo \ref{chap:resultados} foram obtidos com a versão indicada na Tabela \ref{tab:identificacao-codigo} e com a base de dados \texttt{banco\_site.db} distribuída nessa versão. Recomenda-se preservar essa versão por meio de uma etiqueta de lançamento, por exemplo \texttt{v1.0-tcc}, antes do depósito definitivo do trabalho.
+Todos os resultados do Capítulo \ref{chap:resultados} foram obtidos com a versão indicada na Tabela \ref{tab:identificacao-codigo} e com a base de dados \texttt{banco\_site.db} distribuída nessa versão. Como o repositório continua em desenvolvimento, versões posteriores podem conter funcionalidades não descritas neste trabalho; a versão de referência permanece acessível pelo identificador do \textit{commit}, conforme o Código-fonte \ref{cod:execucao}.
 
 \section{Organização do repositório}
 
@@ -34,14 +34,14 @@ Os componentes principais do repositório e a função de cada um no sistema sã
     \captionsetup{width=15cm}
     \Caption{\label{tab:organizacao-repositorio}Componentes principais do repositório}
     \IBGEtab{}{
-        \begin{tabular}{p{5.0cm}p{9.2cm}}
+        \begin{tabular}{p{5.8cm}p{8.4cm}}
             \toprule
             Componente & Função no sistema \\
             \midrule \midrule
             \texttt{backend/main.py} & API, leitura dos dados, motor de simulação (\texttt{simular\_sistema\_n}) e montagem dos registros mensais \\
             \texttt{backend/optimizer\_engine.py} & rotinas numéricas compartilhadas, entre elas \texttt{interpola} e \texttt{dinamica\_mensal\_fast} \\
             \texttt{backend/banco\_site.db} & base SQLite com reservatórios, vazões, evaporação, curvas cota-área-volume, níveis meta e hidrossistemas \\
-            \texttt{backend/test\_simulator\_engine.py} & testes automatizados do motor de simulação \\
+            \texttt{backend/test\_simulator\_}\newline\texttt{engine.py} & testes automatizados do motor de simulação \\
             \texttt{frontend/src/} & interface em React para configuração, execução, visualização e exportação \\
             \texttt{README.md} & requisitos e instruções de instalação \\
             \bottomrule
