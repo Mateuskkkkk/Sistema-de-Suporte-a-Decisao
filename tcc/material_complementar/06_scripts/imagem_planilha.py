@@ -1,8 +1,8 @@
-"""Exporta para PDF um recorte da aba Verificacao da planilha preenchida (Mundaú, 500 L/s)."""
+"""Exporta para PDF um recorte da aba Verificacao da planilha preenchida (Flor do Campo, 110 L/s)."""
 import shutil, uno
 from com.sun.star.beans import PropertyValue
 from planilha_uno import conectar, prop
-SRC = "/tmp/lo_work/Verificacao_Mundau_500Ls.xlsx"; DST = "/tmp/lo_work/img_planilha.xlsx"; shutil.copy(SRC, DST)
+SRC = "/tmp/lo_work/Verificacao_Flor_do_Campo_110Ls_CAV_banco.xlsx"; DST = "/tmp/lo_work/img_planilha.xlsx"; shutil.copy(SRC, DST)
 proc, desktop = conectar()
 try:
     doc = desktop.loadComponentFromURL(uno.systemPathToFileUrl(DST), "_blank", 0, (prop("Hidden", True), prop("FilterName", "Calc MS Excel 2007 XML")))

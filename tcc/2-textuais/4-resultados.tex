@@ -1,7 +1,7 @@
 \chapter{Resultados e discussão}
 \label{chap:resultados}
 
-Este capítulo apresenta o sistema desenvolvido, os resultados da verificação numérica, dos casos controlados e da análise de sensibilidade e as aplicações a Mundaú, Carnaubal--Barragem do Batalhão e Fogareiro--Quixeramobim. Ao final, os principais indicadores são reunidos e as limitações do trabalho são registradas.
+Este capítulo apresenta o sistema desenvolvido, os resultados da verificação numérica, dos casos controlados e da análise de sensibilidade e as aplicações a Flor do Campo, Carnaubal--Barragem do Batalhão e Fogareiro--Quixeramobim. Ao final, os principais indicadores são reunidos e as limitações do trabalho são registradas.
 
 \section{Sistema de suporte à decisão desenvolvido}
 \label{sec:resultado-ssd}
@@ -25,37 +25,37 @@ A tela inicial do simulador é apresentada na Figura \ref{fig:sim-tela-inicial}.
     }
 \end{figure}
 
-A Figura \ref{fig:sim-config-mundau} mostra o painel de configuração preenchido para a aplicação de Mundaú, com a aba de níveis meta aberta. O gráfico de limites de ativação exibe as faixas mensais, e a tabela abaixo permite editar os limites e os percentuais de racionamento de cada faixa. As alterações podem ser aplicadas à sessão sem modificar o banco de dados, o que permite testar regras alternativas sem afetar a base compartilhada.
+A Figura \ref{fig:sim-config-flor} mostra o painel de configuração preenchido para a aplicação de Flor do Campo, com a aba de níveis meta aberta. Como esse reservatório não possui níveis meta no banco de dados, as faixas foram criadas na própria tela, com os botões ``Criar Faixa Manual'' e ``+ Faixa''. O gráfico de limites de ativação exibe as faixas mensais, e a tabela abaixo permite editar os limites e os percentuais de racionamento de cada faixa. As alterações são aplicadas à sessão sem modificar o banco de dados, o que permite testar regras alternativas sem afetar a base compartilhada.
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:sim-config-mundau}Painel de configuração com níveis meta, preenchido para a aplicação de Mundaú}
+    \Caption{\label{fig:sim-config-flor}Painel de configuração com níveis meta, preenchido para a aplicação de Flor do Campo}
     \UFCfig{}{
-        \includegraphics[width=0.98\textwidth]{figuras/sim-config-mundau.png}
+        \includegraphics[width=0.98\textwidth]{figuras/sim-config-flor.png}
     }{
         \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
 
-Após a execução, o painel de resultados apresenta uma linha de indicadores (frequência de falha sistêmica, atendimento médio, meses simulados, racionamento médio, evaporação e vertimento totais), o número de meses abastecidos por reservatório, a lista de meses com falha e os gráficos de volume armazenado, demanda solicitada e atendida, racionamento e afluências, conforme a Figura \ref{fig:sim-resultados-mundau}. No gráfico de volume, a cor da linha indica o estado operacional de cada mês.
+Após a execução, o painel de resultados apresenta uma linha de indicadores (frequência de falha sistêmica, atendimento médio, meses simulados, racionamento médio, evaporação e vertimento totais), o número de meses abastecidos por reservatório, a lista de meses com falha e os gráficos de volume armazenado, demanda solicitada e atendida, racionamento e afluências, conforme a Figura \ref{fig:sim-resultados-flor}. No gráfico de volume, a cor da linha indica o estado operacional de cada mês, e os meses com falha são destacados como ``Colapso''.
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:sim-resultados-mundau}Painel de resultados da aplicação de Mundaú}
+    \Caption{\label{fig:sim-resultados-flor}Painel de resultados da aplicação de Flor do Campo}
     \UFCfig{}{
-        \includegraphics[width=0.92\textwidth]{figuras/sim-resultados-mundau.png}
+        \includegraphics[width=0.92\textwidth]{figuras/sim-resultados-flor.png}
     }{
         \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
 
-A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, evaporação, volumes inicial e final, demandas solicitada e atendida, retirada total, racionamento, vertimento, falha e estado, conforme a Figura \ref{fig:sim-tabela-mundau}. A mesma tabela pode ser exportada em planilha eletrônica ou JSON pelos botões do cabeçalho, e foi a partir dessas exportações que se realizaram as conferências da Seção \ref{sec:resultado-verificacao}.
+A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, evaporação, volumes inicial e final, demandas solicitada e atendida, retirada total, racionamento, vertimento, falha e estado, conforme a Figura \ref{fig:sim-tabela-flor}. A mesma tabela pode ser exportada em planilha eletrônica ou JSON pelos botões do cabeçalho, e foi a partir dessas exportações que se realizaram as conferências da Seção \ref{sec:resultado-verificacao}.
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:sim-tabela-mundau}Tabela mensal do balanço hídrico, exportável, na aplicação de Mundaú}
+    \Caption{\label{fig:sim-tabela-flor}Tabela mensal do balanço hídrico, exportável, na aplicação de Flor do Campo}
     \UFCfig{}{
-        \includegraphics[width=0.92\textwidth]{figuras/sim-tabela-mundau.png}
+        \includegraphics[width=0.92\textwidth]{figuras/sim-tabela-flor.png}
     }{
         \Fonte{Elaborada pelo autor.}
     }
@@ -71,33 +71,33 @@ Os resultados são apresentados nas duas partes definidas na Seção \ref{sec:me
 \subsection{Verificação do balanço hídrico por cálculo independente}
 \label{subsec:resultado-verif-balanco}
 
-A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simulador para Mundaú nos dois casos de demanda. Os indicadores agregados coincidiram em todas as casas decimais apresentadas, e o número de meses com falha foi idêntico: 142 meses com 250 L/s e 594 meses com 500 L/s. Na comparação mês a mês, nenhum dos 1.332 meses apresentou divergência na indicação de falha.
+A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simulador para Flor do Campo nos dois casos de demanda. Os indicadores agregados coincidiram em todas as casas decimais apresentadas, e o número de meses com falha foi idêntico: 175 meses com 55 L/s e 297 meses com 110 L/s. Na comparação mês a mês, nenhum dos 1.332 meses apresentou divergência na indicação de falha.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Cálculo independente em planilha versus resultado do simulador para Mundaú (1911--2021, 1.332 meses)}
+    \caption{Cálculo independente em planilha versus resultado do simulador para Flor do Campo (1911--2021, 1.332 meses)}
     \label{tab:verificacao-planilha}
     \centering
     \footnotesize
     \begin{tabular}{lrrrr}
         \toprule
-         & \multicolumn{2}{c}{Demanda de 250 L/s} & \multicolumn{2}{c}{Demanda de 500 L/s} \\
+         & \multicolumn{2}{c}{Demanda de 55 L/s} & \multicolumn{2}{c}{Demanda de 110 L/s} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}
         Indicador & Planilha & Simulador & Planilha & Simulador \\
         \midrule
-        Afluência total (hm$^3$) & 1.207,647 & 1.207,647 & 1.207,647 & 1.207,647 \\
-        Retirada efetiva total (hm$^3$) & 792,120 & 792,120 & 1.115,198 & 1.115,198 \\
-        Evaporação total (hm$^3$) & 175,859 & 175,859 & 74,258 & 74,258 \\
-        Vertimento total (hm$^3$) & 240,337 & 240,337 & 28,841 & 28,841 \\
-        Atendimento (\%) & 91,77 & 91,77 & 64,60 & 64,60 \\
-        Meses com falha & 142 & 142 & 594 & 594 \\
+        Afluência total (hm$^3$) & 2.248,648 & 2.248,648 & 2.248,648 & 2.248,648 \\
+        Retirada efetiva total (hm$^3$) & 170,515 & 170,515 & 312,198 & 312,198 \\
+        Evaporação total (hm$^3$) & 1.871,776 & 1.871,776 & 1.747,393 & 1.747,393 \\
+        Vertimento total (hm$^3$) & 245,714 & 245,714 & 230,647 & 230,647 \\
+        Atendimento (\%) & 89,80 & 89,80 & 82,21 & 82,21 \\
+        Meses com falha & 175 & 175 & 297 & 297 \\
         Volume mínimo (hm$^3$) & 0,000 & 0,000 & 0,000 & 0,000 \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor.}
 \end{table}
 
-A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas foram nulas dentro da tolerância numérica de $10^{-9}$ hm$^3$ adotada na Seção \ref{sec:metodo-verificacao}: os maiores valores brutos encontrados, da ordem de $10^{-16}$ hm$^3$, correspondem apenas ao arredondamento da aritmética de ponto flutuante. O caso de 500 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses as diferenças permaneceram nulas.
+A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas foram nulas dentro da tolerância numérica de $10^{-9}$ hm$^3$ adotada na Seção \ref{sec:metodo-verificacao}: os maiores valores brutos encontrados, da ordem de $10^{-13}$ hm$^3$ nos volumes e de $10^{-17}$ hm$^3$ nos resíduos, correspondem apenas ao arredondamento da aritmética de ponto flutuante. O caso de 110 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses as diferenças permaneceram nulas.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
@@ -107,7 +107,7 @@ A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolu
     \footnotesize
     \begin{tabular}{lrr}
         \toprule
-        Grandeza & 250 L/s & 500 L/s \\
+        Grandeza & 55 L/s & 110 L/s \\
         \midrule
         Volume inicial & 0 & 0 \\
         Afluência & 0 & 0 \\
@@ -287,7 +287,7 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:sensibilidade}Sensibilidade dos indicadores ao volume inicial, à demanda e à evaporação (Mundaú) e ao gatilho e à vazão de transferência (Fogareiro--Quixeramobim)}
+    \Caption{\label{fig:sensibilidade}Sensibilidade dos indicadores ao volume inicial, à demanda e à evaporação (Flor do Campo) e ao gatilho e à vazão de transferência (Fogareiro--Quixeramobim)}
     \UFCfig{}{
         \includegraphics[width=\textwidth]{figuras/sensibilidade.png}
     }{
@@ -305,23 +305,23 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
         \toprule
         Parâmetro & Valor & Atendimento (\%) & Meses com falha & Déficit (hm$^3$) & Outro indicador \\
         \midrule
-        \multicolumn{6}{l}{\textit{Mundaú, Individual, sem racionamento (outro indicador: vertimento, hm$^3$)}} \\
-        Volume inicial & 0\% & 91,69 & 144 & 71,71 & 231,6 \\
-         & 25\% & 91,77 & 142 & 71,02 & 235,4 \\
-         & 50\% & 91,77 & 142 & 71,02 & 240,3 \\
-         & 75\% & 91,77 & 142 & 71,02 & 245,3 \\
-         & 100\% & 91,77 & 142 & 71,02 & 250,5 \\
-        Demanda & 150 L/s & 99,69 & 6 & 1,60 & 456,5 \\
-         & 200 L/s & 96,44 & 65 & 24,55 & 335,1 \\
-         & 250 L/s & 91,77 & 142 & 71,02 & 240,3 \\
-         & 300 L/s & 87,08 & 221 & 133,80 & 157,1 \\
-         & 350 L/s & 81,94 & 303 & 218,20 & 97,8 \\
-         & 400 L/s & 75,83 & 411 & 333,79 & 65,3 \\
-        Fator de evaporação & 0,8 & 92,49 & 127 & 64,83 & 264,3 \\
-         & 0,9 & 92,12 & 135 & 68,04 & 252,2 \\
-         & 1,0 & 91,77 & 142 & 71,02 & 240,3 \\
-         & 1,1 & 91,45 & 149 & 73,84 & 228,7 \\
-         & 1,2 & 91,13 & 154 & 76,53 & 217,2 \\
+        \multicolumn{6}{l}{\textit{Flor do Campo, Individual, sem racionamento (outro indicador: evaporação, hm$^3$)}} \\
+        Volume inicial & 0\% & 89,57 & 180 & 19,80 & 1.821,3 \\
+         & 25\% & 89,80 & 175 & 19,38 & 1.846,6 \\
+         & 50\% & 89,80 & 175 & 19,38 & 1.871,8 \\
+         & 75\% & 89,80 & 175 & 19,38 & 1.896,7 \\
+         & 100\% & 89,80 & 175 & 19,38 & 1.921,4 \\
+        Demanda & 25 L/s & 94,65 & 95 & 4,62 & 1.951,0 \\
+         & 40 L/s & 92,01 & 139 & 11,04 & 1.910,4 \\
+         & 55 L/s & 89,80 & 175 & 19,38 & 1.871,8 \\
+         & 70 L/s & 87,60 & 208 & 29,98 & 1.835,4 \\
+         & 85 L/s & 85,42 & 246 & 42,80 & 1.801,1 \\
+         & 100 L/s & 83,43 & 281 & 57,20 & 1.768,4 \\
+        Fator de evaporação & 0,8 & 92,73 & 123 & 13,80 & 1.794,7 \\
+         & 0,9 & 91,25 & 149 & 16,62 & 1.836,3 \\
+         & 1,0 & 89,80 & 175 & 19,38 & 1.871,8 \\
+         & 1,1 & 88,25 & 201 & 22,32 & 1.903,3 \\
+         & 1,2 & 86,78 & 226 & 25,10 & 1.930,8 \\
         \midrule
         \multicolumn{6}{l}{\textit{Quixeramobim, Série com Fogareiro (outro indicador: volume mínimo, \% da capacidade)}} \\
         Gatilho & 10\% & 99,98 & 7 & 0,19 & 0,0 \\
@@ -342,30 +342,30 @@ A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às varia�
     \Fonte{Elaborada pelo autor.}
 \end{table}
 
-O volume inicial teve efeito praticamente nulo sobre o atendimento de Mundaú: entre 25\% e 100\% da capacidade, o número de falhas permaneceu em 142, e somente o reservatório inicialmente vazio produziu duas falhas adicionais. Isso ocorre porque o reservatório enche ainda nos primeiros anos da série, e a partir desse ponto as trajetórias convergem; o volume inicial afeta apenas o vertimento acumulado nos primeiros anos. O resultado indica que, para séries longas e reservatórios que se renovam com frequência, a escolha do volume inicial tem pouca influência sobre os indicadores de atendimento, o que não vale para análises de curto prazo.
+O volume inicial teve efeito praticamente nulo sobre o atendimento de Flor do Campo: entre 25\% e 100\% da capacidade, o número de falhas permaneceu em 175, e somente o reservatório inicialmente vazio produziu cinco falhas adicionais. Isso ocorre porque as trajetórias iniciadas com volumes diferentes convergem nos primeiros anos da série; o volume adicional armazenado no início é em grande parte perdido por evaporação, que cresceu de 1.821 para 1.921 hm$^3$ entre os volumes iniciais de 0\% e 100\%. O resultado indica que, para séries longas, a escolha do volume inicial tem pouca influência sobre os indicadores de atendimento, o que não vale para análises de curto prazo.
 
-A demanda foi o parâmetro de maior influência. Ao passar de 150 para 400 L/s, os meses com falha aumentaram de 6 para 411 e o déficit acumulado, de 1,6 para 333,8 hm$^3$. A relação é não linear: cada acréscimo de 50 L/s produziu aumento crescente do déficit, pois demandas maiores deplecionam o reservatório mais rapidamente e reduzem a capacidade de atravessar sequências secas. Em sentido oposto, o vertimento diminuiu, porque o reservatório passou a operar com volumes menores. O fator de evaporação teve efeito monótono e moderado: a variação de $\pm$20\% alterou as falhas de 142 para 127 e 154, coerentemente com a maior ou menor perda pelo espelho d'água.
+A demanda produziu resposta intensa e monótona. Ao passar de 25 para 100 L/s, os meses com falha aumentaram de 95 para 281 e o déficit acumulado, de 4,6 para 57,2 hm$^3$, com acréscimos crescentes do déficit a cada aumento de 15 L/s, pois demandas maiores deplecionam o reservatório mais rapidamente e reduzem a capacidade de atravessar sequências secas. Mesmo a menor demanda testada, 25 L/s, produziu 95 meses de falha, o que evidencia a baixa capacidade de regularização do reservatório. O fator de evaporação teve efeito ainda mais intenso em termos relativos: a variação de $\pm$10\% alterou as falhas de 175 para 149 e 201, ou cerca de 15\%, enquanto a variação de cerca de 27\% na demanda, de 55 para 40 ou 70 L/s, alterou-as em cerca de 20\%. Por unidade de variação relativa, portanto, a evaporação foi o parâmetro de maior influência sobre as falhas em Flor do Campo, o que é coerente com o fato de a evaporação consumir 83\% da afluência no período (Seção \ref{sec:aplicacao-flor}).
 
 Em Fogareiro--Quixeramobim, o gatilho e a vazão transferida controlam a segurança do receptor. Com gatilho de 10\%, a transferência começou tarde demais em alguns períodos, e Quixeramobim chegou a esvaziar-se, com 7 meses de falha; a partir de 20\%, não houve falhas, e o volume mínimo de Quixeramobim aumentou progressivamente com o gatilho, ao custo de mais meses com transferência (127 com 10\% e 389 com 50\%). Na vazão transferida, observa-se um limiar: abaixo de 400 L/s, o volume transferido durante as secas não compensa a retirada de 342 L/s de Quixeramobim somada às suas perdas por evaporação, e ocorrem falhas; a partir de 400 L/s, as falhas desaparecem. O número de meses com transferência diminuiu com o aumento da vazão, porque transferências maiores recolocam Quixeramobim acima do gatilho mais rapidamente. Em todos os casos, Fogareiro não apresentou falhas, e seu volume mínimo variou apenas entre 24,3\% e 27,4\% da capacidade, indicando que, na configuração estudada, as transferências têm efeito pequeno sobre o reservatório fornecedor.
 
 Em todos os parâmetros, a direção da resposta foi a esperada fisicamente: mais demanda ou mais evaporação produziram mais falhas; mais transferência ou gatilho mais alto produziram menos falhas no receptor. Essa coerência reforça os resultados da verificação, mas não substitui uma análise global, pois os parâmetros foram variados isoladamente.
 
-\section{Aplicação em Mundaú}
-\label{sec:aplicacao-mundau}
+\section{Aplicação em Flor do Campo}
+\label{sec:aplicacao-flor}
 
-A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-config-mundau}: modo Individual, volume inicial de 50\% (10,65 hm$^3$), demanda de 250 L/s, período de 1911 a 2021 e curvas-guia da Tabela \ref{tab:curvas-mundau}. A evolução histórica do volume e do estado operacional é apresentada na Figura \ref{fig:mundau-volume}, e os indicadores, na Tabela \ref{tab:mundau-indicadores}.
+A configuração da aplicação de Flor do Campo é mostrada na Figura \ref{fig:sim-config-flor}: modo Individual, volume inicial de 50\% (52,50 hm$^3$), demanda de 55 L/s no estado Normal, período de 1911 a 2021 e curvas-guia da Tabela \ref{tab:curvas-flor}. A evolução histórica do volume e do estado operacional é apresentada na Figura \ref{fig:flor-volume}, e os indicadores, na Tabela \ref{tab:flor-indicadores}.
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:mundau-volume}Resultados de Mundaú exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado}
+    \Caption{\label{fig:flor-volume}Resultados de Flor do Campo exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado}
     \UFCfig{}{
         \parbox{\textwidth}{\centering\footnotesize
         \textbf{(a) Volume armazenado (\% da capacidade)}\par\smallskip
-        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-volume.png}\par\medskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-volume.png}\par\medskip
         \textbf{(b) Demanda solicitada e atendida (m$^3$/s)}\par\smallskip
-        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-demanda.png}\par\medskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-demanda.png}\par\medskip
         \textbf{(c) Racionamento mensal (\%)}\par\smallskip
-        \includegraphics[width=0.97\textwidth]{figuras/exp-mundau-racionamento.png}\par\medskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-racionamento.png}\par\medskip
         }
     }{
         \Fonte{Elaborada pelo autor (gráficos exportados pelo simulador).}
@@ -374,8 +374,8 @@ A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-co
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Indicadores da aplicação de Mundaú}
-    \label{tab:mundau-indicadores}
+    \caption{Indicadores da aplicação de Flor do Campo}
+    \label{tab:flor-indicadores}
     \centering
     \footnotesize
     \begin{tabular}{lrr}
@@ -383,29 +383,32 @@ A configuração da aplicação de Mundaú é mostrada na Figura \ref{fig:sim-co
         Indicador & Com curvas-guia & Sem racionamento \\
         \midrule
         Meses simulados & 1.332 & 1.332 \\
-        Meses com falha & 0 & 142 \\
-        Atendimento da demanda aplicada (\%) & 100,00 & 91,77 \\
-        Atendimento da demanda solicitada (\%) & 85,54 & 91,77 \\
-        Déficit acumulado (hm$^3$) & 0,00 & 71,02 \\
-        Volume não fornecido por racionamento (hm$^3$) & 124,80 & --- \\
-        Meses com racionamento & 332 & 0 \\
-        Volume mínimo (hm$^3$) & 1,57 (7,4\%) & 0,00 (0\%) \\
-        Volume médio (\% da capacidade) & 64,8 & --- \\
-        Vertimento total (hm$^3$) & 252,74 & 240,34 \\
-        Evaporação total (hm$^3$) & 212,13 & 175,86 \\
+        Meses com falha & 112 & 175 \\
+        Atendimento da demanda aplicada (\%) & 95,00 & 89,80 \\
+        Atendimento da demanda solicitada (\%) & 64,68 & 89,80 \\
+        Retirada efetiva total (hm$^3$) & 122,81 & 170,51 \\
+        Déficit acumulado (hm$^3$) & 6,47 & 19,38 \\
+        Volume não fornecido por racionamento (hm$^3$) & 60,61 & --- \\
+        Meses com racionamento & 1.066 & 0 \\
+        Volume mínimo (hm$^3$) & 0,00 (0\%) & 0,00 (0\%) \\
+        Volume médio (\% da capacidade) & 22,4 & 22,0 \\
+        Vertimento total (hm$^3$) & 247,88 & 245,71 \\
+        Evaporação total (hm$^3$) & 1.916,54 & 1.871,78 \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor. A coluna ``Sem racionamento'' corresponde à referência da análise de sensibilidade.}
 \end{table}
 
-Com as curvas-guia, o reservatório não apresentou nenhuma falha no período: em todos os meses, a demanda aplicada foi integralmente atendida. Esse resultado foi obtido à custa de 332 meses com racionamento, nos quais a retirada foi reduzida para 125 L/s (199 meses em Seca) ou 75 L/s (133 meses em Seca Severa). No total, 124,80 hm$^3$ deixaram de ser fornecidos por decisão operacional, e o atendimento em relação à demanda solicitada foi de 85,54\%. Na mesma série, sem racionamento, ocorreriam 142 meses de falha e o reservatório se esvaziaria; com a regra, o volume mínimo foi de 1,57 hm$^3$ (7,4\% da capacidade), em dezembro de 1932. A comparação ilustra o compromisso discutido na Seção \ref{sec:regras-operacao}: a regra troca falhas imprevistas, concentradas no fim das secas, por reduções antecipadas e previsíveis da retirada. Ela também mostra por que o número de falhas, isoladamente, não descreve a política, pois a ausência de falhas convive com 25\% dos meses sob restrição.
+Com as curvas-guia, o número de meses com falha caiu de 175 para 112, uma redução de 36\%, e o déficit acumulado nos meses com falha, de 19,38 para 6,47 hm$^3$. A regra, contudo, não evitou o colapso: todas as 112 falhas ocorreram em Seca Severa, com o reservatório esvaziado, a primeira em novembro de 1938, distribuídas em 21 episódios, dos quais os mais longos foram de abril de 2013 a fevereiro de 2014 (11 meses), de maio de 1983 a fevereiro de 1984 (10 meses) e de junho de 1953 a fevereiro de 1954 (9 meses). A redução das falhas foi obtida à custa de racionamento em 1.066 meses, 80\% do período: 60,61 hm$^3$ deixaram de ser fornecidos por decisão operacional, e o atendimento em relação à demanda solicitada caiu de 89,80\% para 64,68\%.
 
-As permanências operacionais foram de 734 meses em Normal (55,1\%), 266 em Alerta (20,0\%), 199 em Seca (14,9\%) e 133 em Seca Severa (10,0\%). A Tabela \ref{tab:mundau-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 13,5\% a 20,7\% dos meses de junho a outubro, quando os limites das curvas são mais altos e não há recarga, e em apenas 1,8\% a 4,5\% dos meses de fevereiro a maio, período da estação chuvosa em que os limites diminuem e as afluências elevam o armazenamento. A frequência do estado Normal, por sua vez, é máxima em abril e maio, ao final da estação chuvosa.
+O balanço hídrico explica esse resultado. Das afluências de 2.248,6 hm$^3$ no período, 1.871,8 hm$^3$, ou 83\%, evaporaram na simulação sem racionamento. Com a lâmina anual de 2.904 mm da estação de Crateús e área de cerca de 18,4 km$^2$ com o reservatório cheio, a evaporação potencial é da ordem de 54 hm$^3$ por ano, mais que o dobro da afluência média anual, de 20,3 hm$^3$. Com as curvas, a retirada total diminuiu 47,70 hm$^3$, mas a evaporação aumentou 44,77 hm$^3$, o vertimento, 2,16 hm$^3$, e o volume ao final da série, 0,77 hm$^3$: cerca de 94\% da água poupada pelo racionamento foi perdida por evaporação, porque permaneceu armazenada em um reservatório de grande área de espelho em relação ao volume. A comparação ilustra o compromisso discutido na Seção \ref{sec:regras-operacao} e mostra por que o número de falhas, isoladamente, não descreve a política: em reservatórios dominados pela evaporação, reter água tem eficiência limitada, e a redução das falhas depende de aceitar perdas maiores para a atmosfera.
+
+As permanências operacionais foram de 266 meses em Normal (20,0\%), 199 em Alerta (14,9\%), 262 em Seca (19,7\%) e 605 em Seca Severa (45,4\%). A Tabela \ref{tab:flor-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 46,8\% a 49,5\% dos meses de julho a março e em 28,8\% a 40,5\% dos meses de abril a junho, ao final da estação chuvosa, quando as afluências elevam o armazenamento e os limites das curvas são mais baixos. A frequência do estado Normal, por sua vez, é máxima em maio e junho, com 34,2\% dos meses.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Distribuição dos estados operacionais de Mundaú por mês do ano (\% dos meses)}
-    \label{tab:mundau-estados-mes}
+    \caption{Distribuição dos estados operacionais de Flor do Campo por mês do ano (\% dos meses)}
+    \label{tab:flor-estados-mes}
     \centering
     \scriptsize
     \resizebox{\textwidth}{!}{%
@@ -413,16 +416,16 @@ As permanências operacionais foram de 734 meses em Normal (55,1\%), 266 em Aler
         \toprule
         Estado & JAN & FEV & MAR & ABR & MAI & JUN & JUL & AGO & SET & OUT & NOV & DEZ \\
         \midrule
-        Normal & 52,3 & 55,9 & 56,8 & 62,2 & 64,9 & 51,4 & 52,3 & 53,2 & 53,2 & 53,2 & 53,2 & 53,2 \\
-        Alerta & 26,1 & 21,6 & 25,2 & 20,7 & 20,7 & 13,5 & 17,1 & 18,0 & 18,0 & 18,9 & 18,9 & 20,7 \\
-        Seca & 13,5 & 18,0 & 16,2 & 14,4 & 12,6 & 14,4 & 13,5 & 12,6 & 15,3 & 14,4 & 17,1 & 17,1 \\
-        Seca Severa & 8,1 & 4,5 & 1,8 & 2,7 & 1,8 & 20,7 & 17,1 & 16,2 & 13,5 & 13,5 & 10,8 & 9,0 \\
+        Normal & 17,1 & 17,1 & 18,0 & 21,6 & 34,2 & 34,2 & 16,2 & 16,2 & 16,2 & 16,2 & 16,2 & 16,2 \\
+        Alerta & 15,3 & 16,2 & 16,2 & 16,2 & 11,7 & 15,3 & 14,4 & 14,4 & 14,4 & 14,4 & 15,3 & 15,3 \\
+        Seca & 18,0 & 18,0 & 18,9 & 21,6 & 20,7 & 21,6 & 19,8 & 19,8 & 19,8 & 19,8 & 18,9 & 18,9 \\
+        Seca Severa & 49,5 & 48,6 & 46,8 & 40,5 & 33,3 & 28,8 & 49,5 & 49,5 & 49,5 & 49,5 & 49,5 & 49,5 \\
         \bottomrule
     \end{tabular}}
     \Fonte{Elaborada pelo autor a partir da tabela mensal exportada pelo simulador.}
 \end{table}
 
-A interpretação hidrológica da Figura \ref{fig:mundau-volume} evidencia três padrões. O primeiro é a alternância entre anos de enchimento, nos quais o reservatório verte (120 meses com vertimento), e esvaziamentos plurianuais. O segundo é a concentração das restrições em longos períodos secos: entre 1930 e 1961, a série apresenta sequências de afluências reduzidas em que o reservatório permanece predominantemente em Seca e Seca Severa; o episódio mais longo de Seca Severa ocorreu de abril de 1932 a abril de 1933 (13 meses), seguido de maio de 1954 a abril de 1955 (12 meses). O terceiro é a resposta aos eventos mais recentes, como os de 1981--1984 e 2012--2018, em que o estado chegou a Seca Severa por períodos mais curtos, de até oito meses consecutivos. Em todos esses eventos, a redução antecipada da retirada desacelerou o esvaziamento e permitiu que o reservatório atravessasse as secas sem colapso.
+A interpretação hidrológica da Figura \ref{fig:flor-volume} evidencia três padrões. O primeiro é a raridade dos enchimentos: o reservatório verteu em apenas 17 meses, distribuídos em 7 anos, e o volume médio foi de 22,4\% da capacidade. O segundo é a longa permanência em Seca Severa, com episódios de julho de 2011 a abril de 2019 (94 meses), de julho de 1951 a abril de 1957 (70 meses) e de julho de 1957 a março de 1963 (69 meses). O terceiro é a concentração das falhas nas secas de 1951 a 1960 (42 meses), de 1981 a 1984 (20 meses) e de 2012 a 2018 (35 meses), quando, mesmo com a retirada reduzida a 29,7 L/s, as afluências não compensaram a evaporação e o reservatório esvaziou.
 
 \section{Aplicação em Carnaubal--Barragem do Batalhão}
 \label{sec:aplicacao-carnaubal}
@@ -592,22 +595,22 @@ A Tabela \ref{tab:sintese} reúne os principais indicadores das três aplicaçõ
     \scriptsize
     \begin{tabular}{p{3.4cm}p{3.2cm}p{3.6cm}p{3.6cm}}
         \toprule
-        Indicador & Mundaú (Individual) & Carnaubal--Batalhão (Paralelo) & Fogareiro--Quixeramobim (Série) \\
+        Indicador & Flor do Campo (Individual) & Carnaubal--Batalhão (Paralelo) & Fogareiro--Quixeramobim (Série) \\
         \midrule
         Meses simulados & 1.332 & 1.332 & 1.308 \\
-        Atendimento da demanda aplicada & 100,00\% & 97,57\% (conjunta) & 100,00\% / 100,00\% \\
-        Meses com falha & 0 & 42 (Carnaubal) & 0 / 0 \\
-        Déficit acumulado & 0,00 hm$^3$ & 13,42 hm$^3$ & 0,00 hm$^3$ \\
-        Volume mínimo & 7,4\% & 0,0\% / 2,2\% & 24,8\% / 17,2\% \\
-        Vertimento & 252,7 hm$^3$ & 2.686 / 13.805 hm$^3$ & 24.356 / 28.776 hm$^3$ \\
-        Permanência Normal/Alerta/Seca/Seca Severa & 55,1/20,0/14,9/10,0\% & sem regras & 87,5/7,0/3,4/2,1\% \\
+        Atendimento da demanda aplicada & 95,00\% & 97,57\% (conjunta) & 100,00\% / 100,00\% \\
+        Meses com falha & 112 & 42 (Carnaubal) & 0 / 0 \\
+        Déficit acumulado & 6,47 hm$^3$ & 13,42 hm$^3$ & 0,00 hm$^3$ \\
+        Volume mínimo & 0,0\% & 0,0\% / 2,2\% & 24,8\% / 17,2\% \\
+        Vertimento & 247,9 hm$^3$ & 2.686 / 13.805 hm$^3$ & 24.356 / 28.776 hm$^3$ \\
+        Permanência Normal/Alerta/Seca/Seca Severa & 20,0/14,9/19,7/45,4\% & sem regras & 87,5/7,0/3,4/2,1\% \\
         Meses com transferência ou mudança de responsável & --- & 130 & 257 \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor. Nos hidrossistemas, os pares referem-se à primeira e à segunda unidade de cada nome.}
 \end{table}
 
-Em conjunto, as aplicações exercitaram todas as funcionalidades implementadas: o balanço individual com curvas-guia e racionamento em Mundaú; a redistribuição de uma demanda conjunta em Carnaubal--Barragem do Batalhão; e a transferência acionada por gatilho, com estado do sistema definido por um reservatório controlador, em Fogareiro--Quixeramobim. Em todas, o resíduo de conservação de massa calculado sobre as saídas foi nulo dentro da tolerância de $10^{-9}$ hm$^3$. As análises realizadas, como a identificação dos meses em que a demanda conjunta não pôde ser deslocada ou do comportamento liga-desliga da transferência, dependeram do acesso aos registros mensais, e não apenas aos indicadores agregados, o que reforça a importância da tabela exportável do sistema.
+Em conjunto, as aplicações exercitaram todas as funcionalidades implementadas: o balanço individual com curvas-guia e racionamento em Flor do Campo; a redistribuição de uma demanda conjunta em Carnaubal--Barragem do Batalhão; e a transferência acionada por gatilho, com estado do sistema definido por um reservatório controlador, em Fogareiro--Quixeramobim. Em todas, o resíduo de conservação de massa calculado sobre as saídas foi nulo dentro da tolerância de $10^{-9}$ hm$^3$. As análises realizadas, como a identificação dos meses em que a demanda conjunta não pôde ser deslocada ou do comportamento liga-desliga da transferência, dependeram do acesso aos registros mensais, e não apenas aos indicadores agregados, o que reforça a importância da tabela exportável do sistema.
 
 \section{Limitações}
 \label{sec:limitacoes}

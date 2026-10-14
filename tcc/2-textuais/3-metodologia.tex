@@ -47,7 +47,7 @@ Foram definidos três estudos de aplicação, cada um destinado a um modo de ope
         \toprule
         Aplicação & Reservatório & Código & Capacidade (hm$^3$) & Modo \\
         \midrule
-        Operação individual & Mundaú & 61 & 21,30 & Individual \\
+        Operação individual & Flor do Campo & 172 & 105,00 & Individual \\
         Hidrossistema paralelo & Carnaubal & 53 & 46,62 & Paralelo \\
          & Barragem do Batalhão & 202 & 1,64 & Paralelo \\
         Hidrossistema em série & Fogareiro & 119 & 118,00 & Série \\
@@ -295,11 +295,11 @@ O cálculo independente foi realizado em planilha eletrônica. A planilha, elabo
 
 A planilha foi construída para refazer, sem programação, o mesmo cálculo mensal do simulador, e funciona em quatro etapas. Na primeira, a série de vazões médias mensais do reservatório é colada na aba \texttt{Vazoes\_COLAR}, com um ano por linha e um mês por coluna. Na segunda, o reservatório é escolhido pelo nome na célula \texttt{B6} da aba \texttt{Verificacao}; a partir dele, funções de busca (\texttt{INDEX} e \texttt{MATCH}) recuperam, na aba \texttt{Dados\_Acudes}, o código, a capacidade, a estação de evaporação e a posição da curva cota-área-volume na aba \texttt{Dados\_CAV}, e a aba \texttt{Aux\_CAV} copia somente a curva do reservatório escolhido, em hm$^3$ e km$^2$. Na terceira, o usuário informa o volume inicial, em percentual da capacidade (\texttt{B10}), e a demanda constante, em m$^3$/s (\texttt{B12}).
 
-Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; a demanda solicitada é informada em m$^3$/s (J) e convertida em volume (K); calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade e convertida em demanda atendida (R), da qual resulta o déficit (S); o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Mundaú com demanda de 500 L/s: no alto, os parâmetros, o quadro de controle e a descrição da lógica reproduzida; abaixo, as primeiras linhas mensais do cálculo.
+Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; a demanda solicitada é informada em m$^3$/s (J) e convertida em volume (K); calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade e convertida em demanda atendida (R), da qual resulta o déficit (S); o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Flor do Campo com demanda de 110 L/s: no alto, os parâmetros, o quadro de controle e a descrição da lógica reproduzida; abaixo, as primeiras linhas mensais do cálculo.
 
 \begin{figure}[!htbp]
     \centering
-    \Caption{\label{fig:planilha-verificacao}Aba de cálculo da planilha de verificação preenchida para Mundaú (demanda de 500 L/s)}
+    \Caption{\label{fig:planilha-verificacao}Aba de cálculo da planilha de verificação preenchida para Flor do Campo (demanda de 110 L/s)}
     \UFCfig{}{
         \includegraphics[width=\textwidth]{figuras/planilha-verificacao.png}
     }{
@@ -348,7 +348,7 @@ W25 =IF(D25="","",U25-(H25+E25-Q25-O25-T25))
 
 No topo da aba, um quadro de controle resume a execução: número de meses calculados, meses com falha, atendimento global, vertimento e evaporação totais, resíduo máximo, volumes mínimo e máximo e contagem de volumes negativos. O quadro indica ``OK'' quando o resíduo máximo é inferior a $10^{-8}$ hm$^3$ e não há volumes negativos. Esse limite é apenas um aviso interno da planilha; o critério adotado na comparação com o simulador é a tolerância mais rigorosa de $10^{-9}$ hm$^3$, definida a seguir. A descrição completa das abas e das colunas e um exemplo de cálculo manual constam no Apêndice \ref{ap:memoria-calculo}.
 
-O reservatório Mundaú foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 250 L/s e de 500 L/s. O segundo caso foi incluído para produzir esvaziamentos frequentes e exercitar o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc \cite{libreoffice}; os mesmos parâmetros foram executados no simulador. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento, já que a ordem das operações não é a mesma nos dois cálculos \cite{goldberg1991}. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. A comparação foi automatizada em Python, conforme o Código-fonte \ref{cod:verif-planilha}: a função \texttt{ler\_planilha} lê as linhas mensais calculadas pela planilha, e a função \texttt{comparar} conta os meses em que algum componente difere em mais que a tolerância ou em que a indicação de falha não coincide. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
+O reservatório Flor do Campo foi simulado no modo Individual, sem racionamento, entre janeiro de 1911 e dezembro de 2021 (1.332 meses), com volume inicial de 50\% da capacidade, em dois casos: demanda de 55 L/s, a vazão do estado Normal adotada na aplicação da Seção \ref{sec:estudos-aplicacao}, e de 110 L/s. O segundo caso foi incluído para aumentar a frequência de esvaziamentos e exercitar repetidamente o ramo de cálculo em que a retirada é limitada pela disponibilidade. A série foi colada na planilha, que foi recalculada no LibreOffice Calc \cite{libreoffice}; os mesmos parâmetros foram executados no simulador. Como a curva cota-área-volume de Flor do Campo cadastrada nas abas de dados da planilha diferia da curva do banco do sistema, ela foi substituída pela curva do banco, procedimento também adotado para Canoas na comparação descrita a seguir, de modo que os dois cálculos partissem dos mesmos dados. Para cada mês, compararam-se volume inicial, afluência, evaporação, retirada efetiva, vertimento, volume final e indicação de falha, registrando-se a máxima diferença absoluta. Como os dois cálculos operam em aritmética de ponto flutuante de dupla precisão, com cerca de 16 algarismos significativos, diferenças da ordem de $10^{-13}$ hm$^3$ ou menores resultam apenas de arredondamento, já que a ordem das operações não é a mesma nos dois cálculos \cite{goldberg1991}. Por isso, adotou-se a tolerância de $10^{-9}$ hm$^3$, equivalente a 1 litro, abaixo da qual uma diferença ou um resíduo é considerado nulo. A comparação foi automatizada em Python, conforme o Código-fonte \ref{cod:verif-planilha}: a função \texttt{ler\_planilha} lê as linhas mensais calculadas pela planilha, e a função \texttt{comparar} conta os meses em que algum componente difere em mais que a tolerância ou em que a indicação de falha não coincide. A estrutura da planilha e a memória de cálculo de meses selecionados constam no Apêndice \ref{ap:memoria-calculo}.
 
 O mesmo procedimento foi então estendido ao reservatório principal de cada um dos 25 hidrossistemas da matriz de verificação utilizada neste trabalho, que reúne reservatórios contemplados por planos de gestão proativa de secas no Ceará, a exemplo dos elaborados para os hidrossistemas Fogareiro--Quixeramobim e Mundaú (Companhia de Gestão dos Recursos Hídricos, \citeyear{pgpsFogareiroQuixeramobim2023}, \citeyear{pgpsMundau2026}). Para cada reservatório, a planilha e o simulador foram executados no modo Individual, sem racionamento, com volume inicial de 50\% da capacidade, demanda constante igual à vazão do estado Normal indicada na matriz e o período nela definido. Para os dois hidrossistemas sem período definido na matriz, Joaquim Távora (Feiticeiro) e Santo Antônio de Russas, adotou-se o período de janeiro de 1911 a dezembro de 2017. Em todos os casos, os dados de reservatório, evaporação e curva cota-área-volume foram lidos pela própria planilha em suas abas de dados, que reproduzem o cadastro do banco do sistema.
 
@@ -479,7 +479,7 @@ Para facilitar o cálculo manual, adotaram-se, conforme o caso, afluência nula,
 \section{Análise de sensibilidade}
 \label{sec:metodo-sensibilidade}
 
-A análise de sensibilidade foi realizada pela variação de um parâmetro por vez em torno de configurações de referência, mantendo os demais constantes \cite{pianosi2016}. Para os parâmetros de um reservatório isolado, utilizou-se Mundaú no modo Individual, sem racionamento, com volume inicial de 50\%, demanda de 250 L/s e período de 1911 a 2021. Para os parâmetros de transferência, utilizou-se a configuração de Fogareiro--Quixeramobim descrita na Seção \ref{sec:estudos-aplicacao}. As faixas de variação constam na Tabela \ref{tab:sensibilidade-config}. O fator de evaporação multiplica todas as lâminas mensais da estação associada.
+A análise de sensibilidade foi realizada pela variação de um parâmetro por vez em torno de configurações de referência, mantendo os demais constantes \cite{pianosi2016}. Para os parâmetros de um reservatório isolado, utilizou-se Flor do Campo no modo Individual, sem racionamento, com volume inicial de 50\%, demanda de 55 L/s e período de 1911 a 2021. Para os parâmetros de transferência, utilizou-se a configuração de Fogareiro--Quixeramobim descrita na Seção \ref{sec:estudos-aplicacao}. As faixas de variação constam na Tabela \ref{tab:sensibilidade-config}. O fator de evaporação multiplica todas as lâminas mensais da estação associada.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
@@ -491,9 +491,9 @@ A análise de sensibilidade foi realizada pela variação de um parâmetro por v
         \toprule
         Parâmetro & Valores & Referência & Sistema \\
         \midrule
-        Volume inicial & 0; 25; 50; 75; 100\% & 50\% & Mundaú (Individual) \\
-        Demanda & 150 a 400 L/s, passo 50 & 250 L/s & Mundaú (Individual) \\
-        Evaporação & fator 0,8 a 1,2, passo 0,1 & 1,0 & Mundaú (Individual) \\
+        Volume inicial & 0; 25; 50; 75; 100\% & 50\% & Flor do Campo (Individual) \\
+        Demanda & 25 a 100 L/s, passo 15 & 55 L/s & Flor do Campo (Individual) \\
+        Evaporação & fator 0,8 a 1,2, passo 0,1 & 1,0 & Flor do Campo (Individual) \\
         Gatilho de transferência & 10 a 50\%, passo 10 & 30\% & Fogareiro--Quixeramobim \\
         Vazão transferida (estado Normal) & 0 a 700 L/s, passo 100 & 500 L/s & Fogareiro--Quixeramobim \\
         \bottomrule
@@ -516,27 +516,27 @@ As configurações dos três estudos de aplicação são resumidas na Tabela \re
     \footnotesize
     \begin{tabular}{p{3.0cm}p{3.6cm}p{3.6cm}p{3.8cm}}
         \toprule
-        Parâmetro & Mundaú & Carnaubal--Batalhão & Fogareiro--Quixeramobim \\
+        Parâmetro & Flor do Campo & Carnaubal--Batalhão & Fogareiro--Quixeramobim \\
         \midrule
         Modo & Individual & Paralelo & Série (configuração específica) \\
         Período & jan./1911--dez./2021 & jan./1911--dez./2021 & jan./1911--dez./2019 \\
         Meses & 1.332 & 1.332 & 1.308 \\
         Volume inicial & 50\% & 50\% em cada unidade & 100\% em cada unidade \\
-        Demandas & 250 L/s & locais nulas; conjunta de 160 L/s & Fogareiro 272 L/s; Quixeramobim 342 L/s (estado Normal) \\
+        Demandas & 55 L/s (estado Normal) & locais nulas; conjunta de 160 L/s & Fogareiro 272 L/s; Quixeramobim 342 L/s (estado Normal) \\
         Ordem/gatilho & --- & Carnaubal, gatilho 10\%; Batalhão & gatilho de Quixeramobim 30\% \\
         Transferência & --- & --- & 500 L/s no estado Normal \\
-        Regras & curvas-guia com racionamento 0/0/50/70\% & sem racionamento & estado definido por Fogareiro \\
+        Regras & curvas-guia com racionamento 0/18,73/41,82/46,00\% & sem racionamento & estado definido por Fogareiro \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor.}
 \end{table}
 
-Em Mundaú, foram empregadas as curvas-guia mensais publicadas no plano de gestão proativa de secas do hidrossistema \cite{pgpsMundau2026}, reproduzidas na Tabela \ref{tab:curvas-mundau}, com atendimento integral nos estados Normal e Alerta e racionamentos de 50\% e 70\% nos estados Seca e Seca Severa, o que corresponde a retiradas de 250, 250, 125 e 75 L/s. As curvas foram utilizadas como dado de entrada para demonstrar a funcionalidade de racionamento; os resultados não são comparados com os do plano.
+Em Flor do Campo, reservatório de 105 hm$^3$ localizado em Novo Oriente, na região de Crateús, foram empregadas as curvas-guia mensais do Cenário 3 fornecidas pelo orientador, reproduzidas na Tabela \ref{tab:curvas-flor}. Essas curvas foram obtidas com o módulo de otimização de níveis meta do próprio sistema, que não integra o escopo de avaliação deste trabalho, e são utilizadas aqui apenas como dado de entrada. A demanda do estado Normal é de 55 L/s, e as vazões dos estados Alerta, Seca e Seca Severa são de 44,7, 32,0 e 29,7 L/s, o que corresponde a racionamentos de 18,73\%, 41,82\% e 46,00\%. A aplicação tem a finalidade de demonstrar a funcionalidade de racionamento em um reservatório em que a evaporação é a principal saída do balanço; não se propõe aqui uma regra de operação para o reservatório.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Curvas-guia adotadas na aplicação de Mundaú (\% da capacidade)}
-    \label{tab:curvas-mundau}
+    \caption{Curvas-guia adotadas na aplicação de Flor do Campo (\% da capacidade)}
+    \label{tab:curvas-flor}
     \centering
     \scriptsize
     \resizebox{\textwidth}{!}{%
@@ -544,12 +544,12 @@ Em Mundaú, foram empregadas as curvas-guia mensais publicadas no plano de gest�
         \toprule
         Limite superior da faixa & JAN & FEV & MAR & ABR & MAI & JUN & JUL & AGO & SET & OUT & NOV & DEZ \\
         \midrule
-        Alerta (racionamento 0\%) & 55 & 52 & 50 & 51 & 54 & 79 & 78 & 75 & 71 & 67 & 63 & 59 \\
-        Seca (racionamento 50\%) & 35 & 32 & 30 & 31 & 35 & 58 & 57 & 54 & 50 & 47 & 43 & 39 \\
-        Seca Severa (racionamento 70\%) & 21 & 18 & 16 & 17 & 21 & 43 & 42 & 39 & 36 & 32 & 28 & 25 \\
+        Alerta (racionamento 18,73\%) & 37,3 & 35,2 & 33,9 & 33,1 & 32,6 & 31,6 & 60,4 & 57,0 & 53,0 & 49,0 & 44,5 & 40,5 \\
+        Seca (racionamento 41,82\%) & 22,3 & 20,8 & 19,9 & 19,4 & 19,1 & 18,4 & 39,9 & 37,2 & 34,2 & 31,1 & 27,7 & 24,7 \\
+        Seca Severa (racionamento 46,00\%) & 6,7 & 5,9 & 5,4 & 5,3 & 5,3 & 5,0 & 16,4 & 14,8 & 13,1 & 11,4 & 9,6 & 8,0 \\
         \bottomrule
     \end{tabular}}
-    \Fonte{Elaborada pelo autor com base em \citeonline{pgpsMundau2026}.}
+    \Fonte{Elaborada pelo autor com base nas curvas do Cenário 3 fornecidas pelo orientador.}
 \end{table}
 
 Em Carnaubal--Barragem do Batalhão, a configuração foi definida para demonstrar o modo Paralelo: a demanda conjunta de 160 L/s é inicialmente atribuída a Carnaubal e pode ser deslocada para a Barragem do Batalhão quando Carnaubal fica abaixo de 10\% da capacidade.

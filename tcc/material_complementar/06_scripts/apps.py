@@ -1,28 +1,47 @@
 from simlib import *
 import json
 out = {}
-# --- Mundaú: Individual com níveis meta do Cenário 1 do PGPS como dado de entrada
-vm1=[55,52,50,51,54,79,78,75,71,67,63,59]; vm2=[35,32,30,31,35,58,57,54,50,47,43,39]; vm3=[21,18,16,17,21,43,42,39,36,32,28,25]
-d = simular([res(61, 50, 250, plano=faixas(vm1, vm2, vm3))], niveis_meta=True)["Mundaú"]
-d.to_csv("mundau.csv", index=False)
-ind = indicadores(d, 21.3); ind["res"] = float(residuo(d).abs().max())
-dmin = d.loc[d["Armazenamento Final"].idxmin(), "Data"]
-# episódios de seca severa (sequências)
-ss = (d["Modo Operação"] == "Seca Severa").astype(int).values
-eps = []; i = 0
-while i < len(ss):
-    if ss[i]:
-        j = i
-        while j < len(ss) and ss[j]: j += 1
-        eps.append((d.Data[i], d.Data[j-1], j-i)); i = j
-    else: i += 1
-eps.sort(key=lambda e: -e[2])
-ind["data_vmin"] = dmin; ind["episodios_ss_top"] = eps[:5]; ind["n_episodios_ss"] = len(eps)
-ind["meses_rac"] = int((d["Racionamento (%)"] > 0).sum())
-# meses em que a vazão atendida foi 250/125/75
-ind["vazoes"] = d["Demanda Atendida (m³/s)"].round(4).value_counts().to_dict()
-ind["meses_cheio"] = int((d["Vertimento (hm³)"] > 0).sum())
-out["mundau"] = ind
+# --- Flor do Campo: Individual com as curvas-guia do Cenário 3 fornecidas pelo orientador como dado de entrada
+VM1 = [37.3, 35.2, 33.9, 33.1, 32.6, 31.6, 60.4, 57.0, 53.0, 49.0, 44.5, 40.5]
+VM2 = [22.3, 20.8, 19.9, 19.4, 19.1, 18.4, 39.9, 37.2, 34.2, 31.1, 27.7, 24.7]
+VM3 = [6.7, 5.9, 5.4, 5.3, 5.3, 5.0, 16.4, 14.8, 13.1, 11.4, 9.6, 8.0]
+RAC = (18.73, 41.82, 46.00)  # 55 L/s -> 44,7 / 32,0 / 29,7 L/s
+COD, Q, CAP = 172, 55, 105.0
+def episodios(serie_bool, datas):
+    eps = []; i = 0; v = serie_bool.values
+    while i < len(v):
+        if v[i]:
+            j = i
+            while j < len(v) and v[j]: j += 1
+            eps.append((datas[i], datas[j-1], j-i)); i = j
+        else: i += 1
+    return sorted(eps, key=lambda e: -e[2])
+d = simular([res(COD, 50, Q, plano=faixas(VM1, VM2, VM3, rac=RAC))], niveis_meta=True)["Flor do Campo"]
+d.to_csv("flor_curvas.csv", index=False)
+s = simular([res(COD, 50, Q)])["Flor do Campo"]; s.to_csv("flor_sem.csv", index=False)
+for nome, df in [("curvas", d), ("sem", s)]:
+    ind = indicadores(df, CAP); ind["res"] = float(residuo(df).abs().max())
+    ind["data_vmin"] = df.loc[df["Armazenamento Final"].idxmin(), "Data"]
+    ind["meses_rac"] = int((df["Racionamento (%)"] > 0).sum())
+    ind["vazoes"] = (df["Demanda Solicitada (m³/s)"]*(1-df["Racionamento (%)"]/100)).round(5).value_counts().to_dict()
+    ind["meses_vert"] = int((df["Vertimento (hm³)"] > 0).sum())
+    ind["meses_vazio"] = int((df["Armazenamento Final"] < 1e-6).sum())
+    falha = df["Falha"] == "Sim"
+    ind["episodios_falha_top"] = episodios(falha, df.Data)[:6]; ind["n_episodios_falha"] = len(episodios(falha, df.Data))
+    ind["falhas_por_estado"] = df.loc[falha, "Modo Operação"].value_counts().to_dict()
+    ind["episodios_ss_top"] = episodios(df["Modo Operação"] == "Seca Severa", df.Data)[:5]
+    ind["afl_hm3"] = float(df["Afluências (hm³/mês)"].sum())
+    ind["ret_hm3"] = float((df["Demanda Atendida (m³/s)"]*K).sum())
+    ind["deficit_nominal_hm3"] = float(((df["Demanda Solicitada (m³/s)"]-df["Demanda Atendida (m³/s)"]).clip(lower=0)*K).sum())
+    ind["nao_fornecido_rac_hm3"] = float((df["Demanda Solicitada (m³/s)"]*df["Racionamento (%)"]/100*K).sum())
+    # falhas por década
+    ind["falhas_decada"] = df.loc[falha, "Ano"].floordiv(10).mul(10).value_counts().sort_index().to_dict()
+    out["flor_" + nome] = ind
+# distribuição de estados por mês do ano
+d["mes"] = d["Ordem_Mês"] if "Ordem_Mês" in d else d.index % 12 + 1
+tab = pd.crosstab(d["Modo Operação"], d["mes"], normalize="columns").mul(100).round(1)
+out["estados_mes"] = tab.to_dict()
+
 # --- Carnaubal–Barragem do Batalhão: Paralelo
 r1 = res(53, 50, 0, gatilho=10); r2 = res(202, 50, 0, gatilho=0)
 dd = simular([r1, r2], modo="Paralelo", conjunta_lps=160)
