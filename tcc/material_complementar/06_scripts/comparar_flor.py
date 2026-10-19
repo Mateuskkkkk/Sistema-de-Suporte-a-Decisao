@@ -2,7 +2,7 @@ from simlib import *
 from verificacao import ler_planilha, ler_simulador, comparar
 import json, openpyxl
 out = {}
-for q in (55, 110):
+for q in (60, 120):
     sim = simular([res(172, 50, q)])["Flor do Campo"]
     sim.to_csv(f"flor_sem_{q}.csv", index=False)
     pl = ler_planilha(f"/tmp/lo_work/Verificacao_Flor_do_Campo_{q}Ls_CAV_banco.xlsx"); si = ler_simulador(sim)

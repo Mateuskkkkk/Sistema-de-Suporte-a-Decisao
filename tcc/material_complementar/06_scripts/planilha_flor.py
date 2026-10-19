@@ -3,7 +3,7 @@ import json, os, shutil, uno, sqlite3, sys
 from planilha_uno import conectar, prop, SRC
 OUT = "/tmp/lo_work"; os.makedirs(OUT, exist_ok=True)
 DB = os.environ.get("SSD_DB")
-ANO_AMOSTRA = int(os.environ.get("ANO_AMOSTRA", "1953"))
+ANO_AMOSTRA = int(os.environ.get("ANO_AMOSTRA", "1932"))
 db = sqlite3.connect(DB)
 serie = {}
 for n, a, m, q in db.execute('select * from vazoes where nome_reservatorio = ?', ("Flor do Campo",)):
@@ -13,7 +13,7 @@ for n, a, m, q in db.execute('select * from vazoes where nome_reservatorio = ?',
 print("meses na série:", len(serie))
 proc, desktop = conectar(); res = {}
 try:
-    for q_lps in (55, 110):
+    for q_lps in (60, 120):
         dst = os.path.join(OUT, f"Verificacao_Flor_do_Campo_{q_lps}Ls_CAV_banco.xlsx"); shutil.copy(SRC, dst)
         doc = desktop.loadComponentFromURL(uno.systemPathToFileUrl(dst), "_blank", 0, (prop("Hidden", True), prop("FilterName", "Calc MS Excel 2007 XML")))
         # curva cota-área-volume do banco do sistema (a da planilha original difere para o código 172)

@@ -3,9 +3,9 @@ from playwright.sync_api import sync_playwright
 CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
 OUT = sys.argv[1]
 MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"]
-FAIXAS = [("Seca Severa", "46", [6.7,5.9,5.4,5.3,5.3,5.0,16.4,14.8,13.1,11.4,9.6,8.0]),
-          ("Seca", "41.82", [22.3,20.8,19.9,19.4,19.1,18.4,39.9,37.2,34.2,31.1,27.7,24.7]),
-          ("Alerta", "18.73", [37.3,35.2,33.9,33.1,32.6,31.6,60.4,57.0,53.0,49.0,44.5,40.5]),
+FAIXAS = [("Seca Severa", "55", [6.7,5.9,5.4,5.3,5.3,5.0,16.4,14.8,13.1,11.4,9.6,8.0]),
+          ("Seca", "33.33", [22.3,20.8,19.9,19.4,19.1,18.4,40.0,37.3,34.2,31.1,27.7,24.7]),
+          ("Alerta", "8.33", [37.2,35.2,33.8,33.0,32.5,31.5,60.3,56.8,52.9,48.9,44.4,40.5]),
           ("Normal", "0", [100]*12)]
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path=CHROME)
@@ -25,7 +25,7 @@ with sync_playwright() as p:
     # volume inicial e demanda: primeiros dois campos do cartão do reservatório
     card_inputs = pg.locator("input[type=number]")
     vals = [card_inputs.nth(i).input_value() for i in range(min(6, card_inputs.count()))]; print("valores:", vals)
-    card_inputs.nth(1).fill("55")
+    card_inputs.nth(1).fill("60")
     anos = pg.get_by_placeholder("Ano"); anos.nth(0).fill("1911"); anos.nth(1).fill("2021")
     pg.get_by_role("button", name="Simulação com Níveis Meta").click(); pg.wait_for_timeout(1200)
     pg.get_by_role("button", name="Criar Faixa Manual").click(); pg.wait_for_timeout(300)

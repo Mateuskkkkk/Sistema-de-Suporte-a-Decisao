@@ -1,0 +1,17 @@
+\babel@toc {brazil}{}\relax 
+\contentsline {figure}{\numberline {1}{\ignorespaces Arquitetura do sistema de suporte à decisão desenvolvido}}{32}{figure.caption.15}%
+\contentsline {figure}{\numberline {2}{\ignorespaces Fluxograma de funcionamento do sistema de suporte à decisão}}{33}{figure.caption.16}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Aba de cálculo da planilha de verificação preenchida para Flor do Campo (demanda de 120 L/s)}}{41}{figure.caption.17}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Tela inicial do simulador}}{50}{figure.caption.23}%
+\contentsline {figure}{\numberline {5}{\ignorespaces Painel de configuração com níveis meta, preenchido para a aplicação de Flor do Campo}}{50}{figure.caption.24}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Painel de resultados da aplicação de Flor do Campo}}{51}{figure.caption.25}%
+\contentsline {figure}{\numberline {7}{\ignorespaces Tabela mensal do balanço hídrico, exportável, na aplicação de Flor do Campo}}{52}{figure.caption.26}%
+\contentsline {figure}{\numberline {8}{\ignorespaces Verificação numérica nos 25 hidrossistemas: (a) meses com falha e (b) atendimento da demanda calculados pela planilha e pelo simulador}}{54}{figure.caption.30}%
+\contentsline {figure}{\numberline {9}{\ignorespaces Sensibilidade dos indicadores ao volume inicial, à demanda e à evaporação (Flor do Campo) e ao gatilho e à vazão de transferência (Fogareiro--Quixeramobim)}}{57}{figure.caption.34}%
+\contentsline {figure}{\numberline {10}{\ignorespaces Resultados de Flor do Campo exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado}}{60}{figure.caption.36}%
+\contentsline {figure}{\numberline {11}{\ignorespaces Configuração do modo Paralelo para Carnaubal--Barragem do Batalhão}}{63}{figure.caption.40}%
+\contentsline {figure}{\numberline {12}{\ignorespaces Indicadores, meses abastecidos e lista de falhas na aplicação de Carnaubal--Barragem do Batalhão}}{64}{figure.caption.41}%
+\contentsline {figure}{\numberline {13}{\ignorespaces Resultados de Carnaubal--Barragem do Batalhão exportados pelo simulador (1911--2021): volumes e demanda conjunta solicitada e atendida em cada unidade}}{65}{figure.caption.42}%
+\contentsline {figure}{\numberline {14}{\ignorespaces Configuração do modo Série para Fogareiro--Quixeramobim, com as curvas-guia de Fogareiro}}{67}{figure.caption.44}%
+\contentsline {figure}{\numberline {15}{\ignorespaces Indicadores e meses abastecidos na aplicação de Fogareiro--Quixeramobim}}{68}{figure.caption.45}%
+\contentsline {figure}{\numberline {16}{\ignorespaces Resultados de Fogareiro--Quixeramobim exportados pelo simulador (1911--2019): volumes coloridos pelo estado do sistema e vazão transferida}}{68}{figure.caption.46}%

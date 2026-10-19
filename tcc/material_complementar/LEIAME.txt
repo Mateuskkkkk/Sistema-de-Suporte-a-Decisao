@@ -7,7 +7,7 @@ Versão de referência: commit 447b33b528541ba5b1edaa3c0b7c61149449c73f
 
 01_planilha_verificacao/
    Planilha_Verificacao_Simulador_em_branco.xlsx  planilha independente (Seção 3.9.1, Apêndice C)
-   Verificacao_Flor_do_Campo_55Ls.xlsx / _110Ls.xlsx  planilhas preenchidas para Flor do Campo (Tabelas 7 e 8),
+   Verificacao_Flor_do_Campo_60Ls.xlsx / _120Ls.xlsx  planilhas preenchidas para Flor do Campo (Tabelas 7 e 8),
                                                   com a curva cota-área-volume do banco do sistema
    preenchidas_25_hidrossistemas/                 planilhas preenchidas dos 25 hidrossistemas (Tabela 9)
 02_matriz_verificacao/

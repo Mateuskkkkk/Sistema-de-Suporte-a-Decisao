@@ -1,12 +1,12 @@
 from simlib import *
 import json
 out = {}
-# --- Flor do Campo: Individual com as curvas-guia do Cenário 3 fornecidas pelo orientador como dado de entrada
-VM1 = [37.3, 35.2, 33.9, 33.1, 32.6, 31.6, 60.4, 57.0, 53.0, 49.0, 44.5, 40.5]
-VM2 = [22.3, 20.8, 19.9, 19.4, 19.1, 18.4, 39.9, 37.2, 34.2, 31.1, 27.7, 24.7]
+# --- Flor do Campo: Individual com a Regra 2 da 3ª oficina do hidrossistema (curvas do Cenário 1)
+VM1 = [37.2, 35.2, 33.8, 33.0, 32.5, 31.5, 60.3, 56.8, 52.9, 48.9, 44.4, 40.5]
+VM2 = [22.3, 20.8, 19.9, 19.4, 19.1, 18.4, 40.0, 37.3, 34.2, 31.1, 27.7, 24.7]
 VM3 = [6.7, 5.9, 5.4, 5.3, 5.3, 5.0, 16.4, 14.8, 13.1, 11.4, 9.6, 8.0]
-RAC = (18.73, 41.82, 46.00)  # 55 L/s -> 44,7 / 32,0 / 29,7 L/s
-COD, Q, CAP = 172, 55, 105.0
+RAC = (8.33, 33.33, 55.00)  # Regra 2: 60 L/s -> 55 / 40 / 27 L/s no açude
+COD, Q, CAP = 172, 60, 105.0
 def episodios(serie_bool, datas):
     eps = []; i = 0; v = serie_bool.values
     while i < len(v):
