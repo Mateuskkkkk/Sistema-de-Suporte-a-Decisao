@@ -1,10 +1,10 @@
 from simlib import *
 import json
 out = {}
-# --- Flor do Campo: Individual com a Regra 2 da 3ª oficina do hidrossistema (curvas do Cenário 1)
-VM1 = [37.2, 35.2, 33.8, 33.0, 32.5, 31.5, 60.3, 56.8, 52.9, 48.9, 44.4, 40.5]
-VM2 = [22.3, 20.8, 19.9, 19.4, 19.1, 18.4, 40.0, 37.3, 34.2, 31.1, 27.7, 24.7]
-VM3 = [6.7, 5.9, 5.4, 5.3, 5.3, 5.0, 16.4, 14.8, 13.1, 11.4, 9.6, 8.0]
+# --- Flor do Campo: Individual com a Regra 2 da 3ª oficina do hidrossistema (curvas do Cenário 1, 60 L/s)
+VM1 = [36.6, 34.6, 33.3, 32.5, 32.0, 30.9, 59.7, 56.2, 52.3, 48.3, 43.9, 39.9]
+VM2 = [22.2, 20.7, 19.7, 19.2, 19.0, 18.3, 39.9, 37.2, 34.1, 31.0, 27.6, 24.6]
+VM3 = [7.9, 7.0, 6.5, 6.3, 6.3, 5.9, 18.3, 16.6, 14.8, 12.9, 11.0, 9.2]
 RAC = (8.33, 33.33, 55.00)  # Regra 2: 60 L/s -> 55 / 40 / 27 L/s no açude
 COD, Q, CAP = 172, 60, 105.0
 def episodios(serie_bool, datas):

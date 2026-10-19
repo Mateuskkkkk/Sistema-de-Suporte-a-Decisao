@@ -3,9 +3,9 @@ from playwright.sync_api import sync_playwright
 CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
 OUT = sys.argv[1]
 MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"]
-FAIXAS = [("Seca Severa", "55", [6.7,5.9,5.4,5.3,5.3,5.0,16.4,14.8,13.1,11.4,9.6,8.0]),
-          ("Seca", "33.33", [22.3,20.8,19.9,19.4,19.1,18.4,40.0,37.3,34.2,31.1,27.7,24.7]),
-          ("Alerta", "8.33", [37.2,35.2,33.8,33.0,32.5,31.5,60.3,56.8,52.9,48.9,44.4,40.5]),
+FAIXAS = [("Seca Severa", "55", [7.9,7.0,6.5,6.3,6.3,5.9,18.3,16.6,14.8,12.9,11.0,9.2]),
+          ("Seca", "33.33", [22.2,20.7,19.7,19.2,19.0,18.3,39.9,37.2,34.1,31.0,27.6,24.6]),
+          ("Alerta", "8.33", [36.6,34.6,33.3,32.5,32.0,30.9,59.7,56.2,52.3,48.3,43.9,39.9]),
           ("Normal", "0", [100]*12)]
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path=CHROME)
