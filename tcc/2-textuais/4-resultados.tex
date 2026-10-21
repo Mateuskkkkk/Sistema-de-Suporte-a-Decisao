@@ -403,11 +403,11 @@ Com as curvas-guia e a Regra 2, o número de meses com falha caiu de 188 para 10
 
 O balanço hídrico explica esse resultado. Das afluências de 2.248,6 hm$^3$ no período, 1.859,4 hm$^3$, ou 83\%, evaporaram na simulação sem racionamento. Com a lâmina anual de 2.904 mm da estação de Crateús e área de cerca de 18,4 km$^2$ com o reservatório cheio, a evaporação potencial é da ordem de 54 hm$^3$ por ano, mais que o dobro da afluência média anual, de 20,3 hm$^3$. Com as curvas, a retirada total diminuiu 51,37 hm$^3$, mas a evaporação aumentou 48,46 hm$^3$, o vertimento, 2,22 hm$^3$, e o volume ao final da série, 0,69 hm$^3$: cerca de 94\% da água poupada pelo racionamento foi perdida por evaporação, porque permaneceu armazenada em um reservatório de grande área de espelho em relação ao volume. A comparação ilustra o compromisso discutido na Seção \ref{sec:regras-operacao} e mostra por que o número de falhas, isoladamente, não descreve a política: em reservatórios dominados pela evaporação, reter água tem eficiência limitada, e a redução das falhas depende de aceitar perdas maiores para a atmosfera. O resultado é coerente com a observação registrada na oficina de que o reservatório pode secar por evaporação mesmo sem retiradas \cite{oficinaFlorDoCampo2026}.
 
-As permanências operacionais foram de 266 meses em Normal (20,0\%), 201 em Alerta (15,1\%), 239 em Seca (17,9\%) e 626 em Seca Severa (47,0\%), dos quais 106 com o reservatório em colapso (8,0\%). Em termos acumulados, o reservatório esteve em Normal em 20,0\% dos meses, em Alerta ou melhor em 35,1\%, em Seca ou melhor em 53,0\% e em Seca Severa sem colapso ou melhor em 92,0\%, valores que atendem às permanências exigidas na obtenção das curvas. A Tabela \ref{tab:flor-oficina} compara essas permanências com as apresentadas na oficina para a Regra 2: as diferenças foram inferiores a 0,1 ponto percentual em todos os estados, o que indica que a configuração do simulador reproduz a regra discutida com os tomadores de decisão.
+As permanências operacionais foram de 266 meses em Normal (20,0\%), 201 em Alerta (15,1\%), 239 em Seca (17,9\%) e 626 em Seca Severa (47,0\%), dos quais 106 com o reservatório em colapso (8,0\%). Em termos acumulados, o reservatório esteve em Normal em 20,0\% dos meses, em Alerta ou melhor em 35,1\%, em Seca ou melhor em 53,0\% e em Seca Severa sem colapso ou melhor em 92,0\%, valores que atendem às permanências exigidas na obtenção das curvas. A Tabela \ref{tab:flor-oficina} compara essas permanências com as do plano para a Regra 2, apresentadas na terceira oficina: as diferenças foram inferiores a 0,1 ponto percentual em todos os estados, o que indica que a configuração do simulador reproduz a regra discutida com os tomadores de decisão.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
-    \caption{Permanência nos estados operacionais de Flor do Campo: simulador e oficina (Regra 2, \% dos meses)}
+    \caption{Permanência nos estados operacionais de Flor do Campo: simulador e plano de secas (Regra 2, \% dos meses)}
     \label{tab:flor-oficina}
     \centering
     \footnotesize
@@ -416,10 +416,10 @@ As permanências operacionais foram de 266 meses em Normal (20,0\%), 201 em Aler
         Origem & Normal & Alerta & Seca & Seca Severa & Colapso \\
         \midrule
         Simulador (este trabalho) & 20,0 & 15,1 & 17,9 & 39,0 & 8,0 \\
-        Oficina & 20 & 15 & 18 & 39 & 8 \\
+        Plano de secas & 20 & 15 & 18 & 39 & 8 \\
         \bottomrule
     \end{tabular}
-    \Fonte{Elaborada pelo autor com base em \citeonline{oficinaFlorDoCampo2026}. Na linha do simulador, a Seca Severa exclui os meses de colapso.}
+    \Fonte{Elaborada pelo autor com base em \citeonline{pgpsFlorDoCampo2026} e \citeonline{oficinaFlorDoCampo2026}. Na linha do simulador, a Seca Severa exclui os meses de colapso.}
 \end{table}
 
 A Tabela \ref{tab:flor-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 48,6\% a 50,5\% dos meses de julho a março e em 33,3\% a 43,2\% dos meses de abril a junho, ao final da estação chuvosa, quando as afluências elevam o armazenamento e os limites das curvas são mais baixos. A frequência do estado Normal, por sua vez, é máxima em maio e junho, com 34,2\% dos meses.
@@ -641,7 +641,7 @@ Os resultados apresentados devem ser interpretados à luz das seguintes limitaç
     \item \textbf{ausência de imputação automática de lacunas}: registros ausentes são desconsiderados, e a execução de hidrossistemas exige séries com os mesmos meses; a qualidade das séries depende de verificação externa ao sistema;
     \item \textbf{dependência das séries cadastradas}: as afluências são as séries mensais cadastradas no banco de dados, cuja procedência não foi reavaliada neste trabalho, e a evaporação é representada por médias mensais repetidas em todos os anos; os resultados são condicionados a essa versão da base;
     \item \textbf{balanço sem precipitação direta, infiltração e volume morto}: a chuva sobre o espelho d'água e as perdas por infiltração não são representadas, e o volume mínimo operacional é nulo; a primeira omissão tende a superestimar as perdas líquidas na estação chuvosa, e a última, a superestimar o volume disponível para retirada;
-    \item \textbf{fontes complementares não representadas}: o simulador considera apenas os reservatórios; em Flor do Campo, os poços previstos na regra da oficina não entram no balanço, e o volume racionado é tratado como não fornecido;
+    \item \textbf{fontes complementares não representadas}: o simulador considera apenas os reservatórios; em Flor do Campo, os poços previstos na regra do plano não entram no balanço, e o volume racionado é tratado como não fornecido;
     \item \textbf{simplificação das transferências}: a transferência é um volume mensal único, instantâneo, sem separação entre volume liberado, perdas em trânsito e volume recebido, exceto pelo percentual agregado de atendimento;
     \item \textbf{acoplamento simplificado entre reservatórios em cascata}: o reservatório de jusante utiliza a série de afluência total, que já incorpora a contribuição de montante sob uma operação de referência; assim, a operação simulada no reservatório de montante não altera a afluência de jusante, e o único acoplamento representado é a transferência;
     \item \textbf{ausência de representação hidráulica do percurso}: não são representados tempo de percurso, capacidade de condução, custo energético ou fenômenos transitórios; e
