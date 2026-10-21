@@ -66,7 +66,7 @@ A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, ev
 \section{Verificação numérica}
 \label{sec:resultado-verificacao}
 
-Os resultados são apresentados nas duas partes definidas na Seção \ref{sec:metodo-verificacao}: a comparação do balanço hídrico com a planilha independente e a conferência das regras de níveis meta e racionamento.
+Os resultados são apresentados nas três partes definidas na Seção \ref{sec:metodo-verificacao}: a comparação do balanço hídrico com a planilha independente, a conferência das regras de níveis meta e racionamento e o recálculo independente dos modos Série e Paralelo.
 
 \subsection{Verificação do balanço hídrico por cálculo independente}
 \label{subsec:resultado-verif-balanco}
@@ -249,10 +249,38 @@ A conferência das regras de níveis meta e racionamento abrangeu os mesmos 25 h
 
 Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu abaixo da tolerância de $10^{-9}$ hm$^3$, e nenhuma das demais conferências apontou divergência. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
 
+\subsection{Verificação dos modos Série e Paralelo}
+\label{subsec:resultado-verif-multi}
+
+A Tabela \ref{tab:verif-multi} apresenta a comparação entre o recálculo independente e o simulador nas duas aplicações com múltiplos reservatórios. Nos 5.280 balanços mensais comparados, nenhum mês apresentou diferença acima da tolerância, e as maiores diferenças brutas foram da ordem de $10^{-13}$ hm$^3$. O recálculo reproduziu também os resultados das regras: em Carnaubal--Barragem do Batalhão, os mesmos 130 meses com o Batalhão responsável pela demanda conjunta; em Fogareiro--Quixeramobim, o mesmo estado do sistema em todos os 1.308 meses e os mesmos 257 meses com transferência, que somam 301,58 hm$^3$.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Recálculo independente versus simulador nos modos Série e Paralelo}
+    \label{tab:verif-multi}
+    \centering
+    \footnotesize
+    \begin{tabular}{llrrr}
+        \toprule
+        Hidrossistema (modo) & Reservatório & Meses & Meses divergentes & Máx. diferença (hm$^3$) \\
+        \midrule
+        Carnaubal--Batalhão (Paralelo) & Carnaubal & 1.332 & 0 & $6\times10^{-14}$ \\
+         & Barragem do Batalhão & 1.332 & 0 & $9\times10^{-14}$ \\
+        Fogareiro--Quixeramobim (Série) & Fogareiro & 1.308 & 0 & $5\times10^{-13}$ \\
+         & Quixeramobim & 1.308 & 0 & $2\times10^{-13}$ \\
+        \midrule
+        Total & & 5.280 & 0 & \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. Componentes comparados: volumes inicial e final, evaporação, retirada efetiva e vertimento; em Fogareiro--Quixeramobim, também o estado do sistema e o volume transferido.}
+\end{table}
+
+As séries históricas não exercitaram três situações previstas nas regras: Fogareiro nunca ficou sem volume para transferir, pois seu volume mínimo nos meses com transferência foi de 29,25 hm$^3$; Quixeramobim nunca verteu em um mês com transferência; e o Batalhão nunca deixou de atender à demanda conjunta enquanto era o responsável. Essas situações foram verificadas pelos casos controlados apresentados na Seção \ref{sec:resultado-casos}.
+
 \section{Resultados dos casos controlados}
 \label{sec:resultado-casos}
 
-A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resultado esperado pelo cálculo manual, o resultado obtido pelo simulador e a situação do teste. Todos os nove casos foram aprovados.
+A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resultado esperado pelo cálculo manual, o resultado obtido pelo simulador e a situação do teste. Todos os doze casos foram aprovados.
 
 \begin{table}[!htbp]
     \captionsetup{width=15cm}
@@ -273,12 +301,17 @@ A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resu
         Fronteira de nível meta & 60\% $-\epsilon$: Alerta; 60\%: Alerta; 60\% $+\epsilon$: Normal & Alerta; Alerta; Normal & Aprovado \\
         Transferência (Série) & sem transferência no mês 1; 100 L/s a partir do mês 2 & 0; 100; 100; 100 L/s & Aprovado \\
         Demanda conjunta (Paralelo) & R1 nos meses 1--2; R2 a partir do mês 3 & R1, R1, R2, R2, R2 & Aprovado \\
+        Transferência limitada (Série) & $T$ = 0,1000 hm$^3$ no mês 1 e 0 no mês 2; fornecedor com $V=0$; receptor com $V=2{,}1000$ hm$^3$ & $T$ = 0,1000; 0,0000 hm$^3$; fornecedor 0,0000 hm$^3$; receptor 2,1000 hm$^3$ & Aprovado \\
+        Transferência com vertimento (Série) & $T=2{,}592$ hm$^3$; receptor com $V=1{,}000$ e $S=1{,}792$ hm$^3$; fornecedor com 37,408 hm$^3$; mês 2 sem transferência & $T$ = 2,592; 0 hm$^3$; $V$ = 1,000; $S$ = 1,792; fornecedor 37,408 hm$^3$ & Aprovado \\
+        Segunda unidade sem volume (Paralelo) & R1 responsável: $R$ = 0,2592; 0,0408; 0 hm$^3$; falhas nos meses 2 e 3; R2 sem retirada & $R$ = 0,2592; 0,0408; 0,0000 hm$^3$; falhas: não, sim, sim; R2 com 0,1000 hm$^3$ & Aprovado \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor. Entradas completas no Apêndice \ref{ap:testes-controlados}.}
 \end{table}
 
 Os testes confirmam os comportamentos de fronteira mais sujeitos a erro. No caso de falha, o segundo mês dispunha de 0,2408 hm$^3$ para uma demanda de 0,2592 hm$^3$; o simulador forneceu exatamente o volume disponível, registrou a falha e encerrou o mês com volume nulo, sem produzir armazenamento negativo. No teste de fronteira, um volume exatamente igual ao limite de 60\% foi classificado na faixa mais restritiva, conforme a regra $p_t \leq$ limite descrita na Seção \ref{sec:regras-racionamento}. No modo Série, o receptor iniciou com 35\% da capacidade e, após o primeiro mês de retirada, ficou abaixo do gatilho de 30\%, o que ativou a transferência a partir do segundo mês; o resíduo de conservação de massa calculado separadamente para receptor e fornecedor foi nulo, confirmando que o volume transferido saiu de um balanço e entrou no outro. No modo Paralelo, o reservatório prioritário iniciou com 2,5 hm$^3$ e gatilho de 2,0 hm$^3$; após dois meses de atendimento, seu volume de 1,9816 hm$^3$ ficou abaixo do gatilho e a responsabilidade foi transferida no terceiro mês, como esperado.
+
+Os três últimos casos cobrem as situações de borda dos modos Série e Paralelo que não ocorreram nas aplicações. Com o fornecedor dispondo de apenas 0,1 hm$^3$, a transferência foi reduzida a esse volume, e o fornecedor terminou vazio, sem armazenamento negativo. Com uma transferência de 2,592 hm$^3$ para um receptor de 1 hm$^3$, o excedente de 1,792 hm$^3$ foi registrado como vertimento do receptor, e o resíduo de conservação de massa de ambos os reservatórios foi nulo. Quando a segunda unidade do modo Paralelo não tinha volume para o mês inteiro, a responsabilidade permaneceu com a primeira, que forneceu o que restava e registrou as falhas.
 
 \section{Análise de sensibilidade}
 \label{sec:resultado-sensibilidade}

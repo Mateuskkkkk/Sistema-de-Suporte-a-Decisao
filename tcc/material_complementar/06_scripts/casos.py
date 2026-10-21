@@ -72,6 +72,29 @@ s = main.simular_sistema_n([serie(5), serie(5)], [par(10, 2.5, 0.0, gat=20, cod=
 resp = ["R1" if s[0]["demanda_atendida"][t] > 0 else "R2" for t in range(5)]
 caso("Redistribuição da demanda conjunta (Paralelo)", "R1: 10 hm³, V0 = 25%, gatilho 20%; R2: 10 hm³, V0 = 80%; Dconj = 100 L/s",
      "R1 atende nos meses 1–2; R2 assume no mês 3", "responsável: " + ", ".join(resp), resp == ["R1", "R1", "R2", "R2", "R2"])
-json.dump(dict(casos=C, eps_serie=eps_serie), open("casos.json", "w"), ensure_ascii=False, indent=1)
+# 9 transferência limitada pela disponibilidade do fornecedor
+s = main.simular_sistema_n([serie(2), serie(2)], [par(10, 2.0, 0.0, gat=30, cod="A"), par(50, 0.1, 0.0, cod="B")], "Série", 0.1)
+env = s[1]["transferencia_enviada"] * K
+caso("Transferência limitada pelo fornecedor (Série)", "Receptor: 10 hm³, V0 = 20%, gatilho 30%; fornecedor: 50 hm³, V0 = 0,1 hm³; T = 100 L/s (0,2592 hm³/mês)",
+     "T = 0,1000 hm³ no mês 1 e 0 no mês 2; fornecedor com V = 0; receptor com V = 2,1000 hm³",
+     f"T = {env[0]:.4f}; {env[1]:.4f} hm³; V fornecedor = {s[1]['armazenamento_final'][-1]:.4f}; V receptor = {s[0]['armazenamento_final'][-1]:.4f} hm³",
+     np.allclose(env, [0.1, 0.0], atol=1e-12) and abs(s[1]["armazenamento_final"][-1]) < tol and abs(s[0]["armazenamento_final"][-1] - 2.1) < 1e-12)
+eps9 = max(float(np.abs(s[i]["armazenamento_final"] - (s[i]["armazenamento_inicial"] + (s[i]["transferencia_recebida"] - s[i]["transferencia_enviada"]) * K - s[i]["demanda_atendida"] * K - s[i]["vertimento_hm3"])).max()) for i in range(2))
+# 10 transferência que provoca vertimento no receptor
+s = main.simular_sistema_n([serie(2), serie(2)], [par(1.0, 0.2, 0.0, gat=30, cod="A"), par(50, 40, 0.0, cod="B")], "Série", 1.0)
+caso("Transferência com vertimento no receptor (Série)", "Receptor: 1 hm³, V0 = 20%, gatilho 30%; fornecedor: 50 hm³, V0 = 40 hm³; T = 1 m³/s (2,592 hm³/mês)",
+     "mês 1: T = 2,592 hm³, receptor cheio (1,000 hm³) e S = 1,792 hm³; fornecedor com 37,408 hm³; mês 2 sem transferência",
+     f"T = {s[1]['transferencia_enviada'][0]*K:.3f}; {s[1]['transferencia_enviada'][1]*K:.3f} hm³; V receptor = {s[0]['armazenamento_final'][0]:.3f}; S = {s[0]['vertimento_hm3'][0]:.3f}; V fornecedor = {s[1]['armazenamento_final'][0]:.3f} hm³",
+     abs(s[1]['transferencia_enviada'][0]*K - 2.592) < 1e-12 and abs(s[1]['transferencia_enviada'][1]) < tol and abs(s[0]['armazenamento_final'][0] - 1.0) < tol
+     and abs(s[0]['vertimento_hm3'][0] - 1.792) < 1e-12 and abs(s[1]['armazenamento_final'][0] - 37.408) < 1e-12)
+eps10 = max(float(np.abs(s[i]["armazenamento_final"] - (s[i]["armazenamento_inicial"] + (s[i]["transferencia_recebida"] - s[i]["transferencia_enviada"]) * K - s[i]["demanda_atendida"] * K - s[i]["vertimento_hm3"])).max()) for i in range(2))
+# 11 paralelo sem volume na segunda unidade
+s = main.simular_sistema_n([serie(3), serie(3)], [par(10, 0.3, 0.0, gat=20, cod="A"), par(10, 0.1, 0.0, cod="B")], "Paralelo", 0.1)
+r1 = s[0]["demanda_atendida"] * K; r2 = s[1]["demanda_atendida"] * K
+caso("Segunda unidade sem volume (Paralelo)", "R1: 10 hm³, V0 = 0,3 hm³ (3%), gatilho 20%; R2: 10 hm³, V0 = 0,1 hm³; Dconj = 100 L/s (0,2592 hm³/mês)",
+     "R1 permanece responsável: R = 0,2592; 0,0408; 0 hm³, com falha nos meses 2 e 3; R2 sem retirada e com V = 0,1 hm³",
+     f"R1 = {r1[0]:.4f}; {r1[1]:.4f}; {r1[2]:.4f} hm³; falhas R1 = {list(s[0]['falha'])}; R2 retirada = {r2.sum():.4f}; V R2 = {s[1]['armazenamento_final'][-1]:.4f} hm³",
+     np.allclose(r1, [0.2592, 0.0408, 0.0], atol=1e-12) and list(s[0]['falha']) == ['Não', 'Sim', 'Sim'] and abs(r2.sum()) < tol and abs(s[1]['armazenamento_final'][-1] - 0.1) < tol)
+json.dump(dict(casos=C, eps_serie=eps_serie, eps_limitada=eps9, eps_vertimento=eps10), open("casos.json", "w"), ensure_ascii=False, indent=1)
 for c in C: print(c)
-print("eps série", eps_serie)
+print("eps série", eps_serie, eps9, eps10)

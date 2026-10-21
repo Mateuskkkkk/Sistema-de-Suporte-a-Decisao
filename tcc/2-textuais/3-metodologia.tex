@@ -312,7 +312,7 @@ Os limites e percentuais podem ser carregados do banco de dados ou editados na i
 \section{Verificação numérica}
 \label{sec:metodo-verificacao}
 
-A verificação numérica foi organizada em duas partes complementares. A primeira confere o cálculo do balanço hídrico, comparando o simulador com um cálculo independente em planilha. A segunda confere a aplicação das regras de níveis meta e de racionamento, que a planilha não representa, por meio de conferências independentes sobre as saídas mensais do simulador. A primeira responde se a conta está correta; a segunda, se a regra é aplicada como especificada.
+A verificação numérica foi organizada em três partes complementares. A primeira confere o cálculo do balanço hídrico, comparando o simulador com um cálculo independente em planilha. A segunda confere a aplicação das regras de níveis meta e de racionamento, que a planilha não representa, por meio de conferências independentes sobre as saídas mensais do simulador. A terceira estende a verificação aos modos Série e Paralelo, recalculando de forma independente as duas aplicações com múltiplos reservatórios. A primeira responde se a conta está correta; a segunda, se a regra é aplicada como especificada; a terceira, se as transferências e a troca de responsabilidade entre reservatórios seguem as regras descritas.
 
 \subsection{Verificação do balanço hídrico por cálculo independente}
 \label{subsec:metodo-verif-balanco}
@@ -476,6 +476,41 @@ def conferir_regras(df, faixas, cap):
 
 
 
+\subsection{Verificação dos modos Série e Paralelo}
+\label{subsec:metodo-verif-multi}
+
+A planilha e a conferência de regras tratam apenas do modo Individual. Para verificar os modos Série e Paralelo, as duas aplicações com múltiplos reservatórios descritas na Seção \ref{sec:estudos-aplicacao} foram recalculadas por um script próprio, escrito a partir da descrição apresentada neste capítulo e dos dados do banco, sem importar nenhuma função do simulador. O script implementa novamente o balanço das Seções \ref{sec:modelo-simulacao} e \ref{subsec:evaporacao}; a regra de transferência por gatilho da Seção \ref{subsec:operacao-serie}, com o estado do sistema definido pelas curvas-guia de Fogareiro e as retiradas e transferências da Tabela \ref{tab:fq-regras}; e a regra de troca de responsabilidade da Seção \ref{subsec:operacao-paralelo}. Em cada mês e em cada reservatório, compararam-se com a tabela exportada pelo simulador o volume inicial, o volume final, a evaporação, a retirada efetiva e o vertimento e, em Fogareiro--Quixeramobim, também o estado do sistema e o volume transferido, com a tolerância de $10^{-9}$ hm$^3$ adotada na Seção \ref{subsec:metodo-verif-balanco}. O Código-fonte \ref{cod:verif-serie} reproduz o cálculo de um mês no modo Série.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    columns=fullflexible,
+    keepspaces=true,
+    captionpos=t,
+    caption={Recálculo independente de um mês no modo Série},
+    label={cod:verif-serie}
+]
+p = 100 * Vf_ / f["cap"]                     # estado definido pelo volume de Fogareiro
+estado = "Normal"
+for nome in ("Seca Severa", "Seca", "Alerta"):
+    if p <= LIM[nome][m]:
+        estado = nome
+        break
+Df, Dq = DEM_F[estado] / 1000 * K, DEM_Q[estado] / 1000 * K
+T = 0.0
+if Vq + Iq - evap(q, Vq, Iq, 0.0, 0.0, e) < gat:   # receptor abaixo do gatilho
+    disp = max(0.0, Vf_ + If - Df - evap(f, Vf_, If, 0.0, Df, e))
+    T = min(TRF[estado] / 1000 * K, disp)         # limitada ao fornecedor
+for r, V, I, Tt, D, out in ((f, Vf_, If, -T, Df, rf), (q, Vq, Iq, T, Dq, rq)):
+    Vn, R, S, E = balanco(r, V, I, Tt, D, e)       # Equacoes 3.2 a 3.6
+\end{lstlisting}
+\Fonte{Elaborada pelo autor.}
+\end{minipage}
+\par\medskip
+
+Como o recálculo segue a mesma especificação do simulador, ele detecta erros de implementação, mas não erros da própria especificação. Além disso, só exercita as situações que ocorreram nas séries históricas. Por isso, as situações previstas nas regras que não ocorreram nas aplicações, como a transferência limitada pela disponibilidade do fornecedor, a transferência que provoca vertimento no receptor e a segunda unidade sem volume no modo Paralelo, foram cobertas por casos controlados específicos (Seção \ref{sec:metodo-casos}).
+
 \section{Casos controlados}
 \label{sec:metodo-casos}
 
@@ -500,6 +535,9 @@ Os casos controlados são testes funcionais com entradas sintéticas para as qua
         Fronteira de nível meta & mudança de estado exatamente no limite \\
         Ativação de transferência & início da transferência no mês em que o gatilho é atingido \\
         Redistribuição da demanda conjunta & mudança da unidade responsável no modo Paralelo \\
+        Transferência limitada pelo fornecedor & transferência reduzida ao volume disponível no fornecedor, sem volume negativo \\
+        Transferência com vertimento no receptor & excedente transferido registrado como vertimento no receptor, com conservação de massa \\
+        Segunda unidade sem volume (Paralelo) & permanência da responsabilidade na primeira unidade e registro da falha \\
         \bottomrule
     \end{tabular}
     \Fonte{Elaborada pelo autor.}

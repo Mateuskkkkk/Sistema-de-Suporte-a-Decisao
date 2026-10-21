@@ -17,7 +17,7 @@ Versão de referência: commit 447b33b528541ba5b1edaa3c0b7c61149449c73f
    *_tabela_mensal.xlsx                           tabelas mensais de Flor do Campo, Carnaubal–Batalhão e Fogareiro–Quixeramobim
    graficos_exportados_simulador/                 gráficos exportados pela interface (Figuras das aplicações)
 05_casos_controlados_e_sensibilidade/             resultados das Tabelas de casos controlados e de sensibilidade
-06_scripts/                                       scripts Python das análises (verificacao.py = Códigos-fonte 4 e 5)
+06_scripts/                                       scripts Python das análises (verificacao.py = Códigos-fonte 4 e 5; verificacao_multirreservatorios.py = Código-fonte 6; casos.py = Tabela 14)
 
 As planilhas abrem no LibreOffice Calc ou no Microsoft Excel. Os scripts usam o motor do
 repositório (backend/main.py); os caminhos de arquivos no início de cada script devem ser
