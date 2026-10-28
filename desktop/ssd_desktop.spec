@@ -9,6 +9,7 @@ raiz = Path(SPECPATH).parent
 datas = [
     (str(raiz / "frontend" / "dist"), "frontend/dist"),
     (str(raiz / "backend" / "banco_site.db"), "backend"),
+    (str(raiz / "backend" / "data" / "coordenadas_acudes.csv"), "backend/data"),
 ]
 binaries = []
 hiddenimports = ["main", "simulador", "optimizer_engine", "otimizador_pareto", "forecast_engine"]

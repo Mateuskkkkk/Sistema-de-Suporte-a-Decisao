@@ -1951,7 +1951,7 @@ function ComparacaoCenarios({ cenarioA, resultados, simMeta }) {
 const ITEM_VAZIO = {nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0.5,demanda:0.5,gatilho:30}
 const TIPO_ARQUIVO_CONFIG = 'ssd-reservatorios-configuracao'
 
-function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, onPresetApply, appliedCurvas, obterExtrasConfig, onAbrirConfig }) {
+function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onReset, onPresetApply, appliedCurvas, acudeInicial, obterExtrasConfig, onAbrirConfig }) {
   const [items,setItems]=useState([{nome:'',cod:'',capacidade:0,est_evap:'',volPct:50,vol_inicial:0,demanda1:0,demanda:0,gatilho:10}])
   const [modo,setModo]=useState('Individual')
   const [modoLocked,setModoLocked]=useState(false)
@@ -1992,6 +1992,21 @@ function ConfigPanel({ resList, presets, onSimulate, loading, onResChange, onRes
     onResChange&&onResChange([item])
     onReset&&onReset({ keepCurvas: true })
   }, [appliedCurvas?.id, resList])
+
+  // reservatório escolhido no mapa da tela inicial
+  useEffect(() => {
+    if (!acudeInicial?.cod || !resList.length) return
+    const f = resList.find(r => String(r.COD) === String(acudeInicial.cod)) || resList.find(r => r.CORPO === acudeInicial.nome)
+    if (!f) return
+    const capacidade = getCapacidadeHm3(f)
+    const item = { nome: f.CORPO, cod: f.COD, capacidade, est_evap: f['Est. Evap.'] || '', volPct: 50, vol_inicial: capacidade * 0.5, demanda1: 0, demanda: 0, gatilho: 10 }
+    setPresetSel('')
+    setCenarioHidrossistema(null)
+    setModo('Individual')
+    setModoLocked(false)
+    setItems([item])
+    onResChange&&onResChange([item])
+  }, [acudeInicial?.id, resList])
 
   const validacao = useMemo(() => validarConfiguracao({
     items, modo, mesIni, anoIni, mesFim, anoFim, cenarioHidrologico, fatorAfluencia, secaAnoIni, secaAnoFim,
@@ -2272,7 +2287,7 @@ const PainelResultados = React.memo(function PainelResultados({ resultados, simM
   )
 })
 
-export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = false, onOpenOtimizador }) {
+export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, acudeInicial, darkMode = false, onOpenOtimizador }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [resList,setResList]=useState([])
   const [presets,setPresets]=useState([])
@@ -2461,7 +2476,7 @@ export default function SimuladorHidrico({ apiUrl, curvasOtimizadas, darkMode = 
 
       <div className="sim-layout">
 
-        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} onPresetApply={handlePresetApply} appliedCurvas={curvasOtimizadas} obterExtrasConfig={obterExtrasConfig} onAbrirConfig={handleAbrirConfig}/>
+        <ConfigPanel resList={resList} presets={presets} onSimulate={handleSimulate} loading={loading} onResChange={setActiveRes} onReset={handleReset} onPresetApply={handlePresetApply} appliedCurvas={curvasOtimizadas} acudeInicial={acudeInicial} obterExtrasConfig={obterExtrasConfig} onAbrirConfig={handleAbrirConfig}/>
 
         <div style={{display:'flex',flexDirection:'column',gap:12,minWidth:0}}>
 

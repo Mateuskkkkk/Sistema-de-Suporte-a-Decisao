@@ -315,6 +315,97 @@ def listar_reservatorios():
     return registros
 
 
+def caminho_coordenadas() -> Path:
+    """Tabela de coordenadas dos açudes, ao lado do banco (também na versão desktop)."""
+    return Path(DB_PATH).resolve().parent / "data" / "coordenadas_acudes.csv"
+
+
+def ler_coordenadas() -> Dict[str, dict]:
+    caminho = caminho_coordenadas()
+    if not caminho.exists():
+        return {}
+    tabela = pd.read_csv(caminho, dtype={"cod": str})
+    return {
+        str(linha.cod): {
+            "lat": float(linha.latitude),
+            "lon": float(linha.longitude),
+            "aproximada": str(linha.fonte) != "Wikidata",
+            "fonte": str(linha.fonte),
+        }
+        for linha in tabela.itertuples()
+    }
+
+
+@app.get("/api/mapa/acudes")
+def listar_acudes_mapa():
+    """Açudes com coordenadas para a tela inicial em mapa."""
+    conexao = get_db_connection()
+    try:
+        linhas = conexao.execute('SELECT CORPO, COD, "CAPAC (m³)", MUNICIPIO, "Est. Evap." FROM acudes').fetchall()
+        hidrossistemas = conexao.execute('SELECT hidrossistema, "operação", cod_acude FROM hidrossistemas').fetchall()
+        com_niveis = {
+            str(c) for (c,) in conexao.execute("SELECT DISTINCT COD FROM plano_secas WHERE lower(Faixa) <> 'normal'")
+        }
+    finally:
+        conexao.close()
+    sistemas: Dict[str, List[dict]] = {}
+    for nome, operacao, cod in hidrossistemas:
+        sistemas.setdefault(str(cod), []).append({
+            "nome": corrigir_mojibake(nome),
+            "operacao": corrigir_mojibake(str(operacao)),
+        })
+    coordenadas = ler_coordenadas()
+    registros = []
+    for corpo, cod, capac, municipio, est_evap in linhas:
+        cod = str(cod)
+        coord = coordenadas.get(cod)
+        if coord is None:
+            continue
+        lista_sistemas = sistemas.get(cod, [])
+        registros.append({
+            "cod": cod,
+            "nome": corrigir_mojibake(corpo),
+            "municipio": corrigir_mojibake(municipio),
+            "capacidade_hm3": float(capac) / 1e6 if capac is not None else None,
+            "est_evap": str(est_evap),
+            "lat": coord["lat"],
+            "lon": coord["lon"],
+            "posicao_aproximada": coord["aproximada"],
+            "hidrossistemas": lista_sistemas,
+            "multirreservatorio": any(s["operacao"].lower() != "individual" for s in lista_sistemas),
+            "niveis_meta": cod in com_niveis,
+        })
+    return registros
+
+
+@app.get("/api/acudes/{cod}/detalhes")
+def detalhes_acude(cod: str):
+    """Evaporação mensal da estação de referência e série mensal de afluências de um açude."""
+    conexao = get_db_connection()
+    try:
+        linha = conexao.execute(
+            'SELECT CORPO, MUNICIPIO, "CAPAC (m³)", "Est. Evap." FROM acudes WHERE COD = ?', (str(cod),)
+        ).fetchone()
+        if linha is None:
+            raise HTTPException(status_code=404, detail=f"Açude {cod} não encontrado.")
+        corpo, municipio, capac, est_evap = linha
+        estacao = conexao.execute("SELECT MUNICIPIO FROM evaporacao WHERE COD = ?", (str(est_evap),)).fetchone()
+        evaporacao = ler_evaporacao_mensal(conexao, est_evap)
+        vazoes = ler_vazoes_brutas(conexao, resolver_nome_reservatorio(conexao, corpo))
+    finally:
+        conexao.close()
+    serie = [{"ano": ano, "mes": mes, "vazao_m3s": vazoes[(ano, mes)]} for ano, mes in sorted(vazoes)]
+    return {
+        "cod": str(cod),
+        "nome": corrigir_mojibake(corpo),
+        "municipio": corrigir_mojibake(municipio),
+        "capacidade_hm3": float(capac) / 1e6 if capac is not None else None,
+        "estacao_evaporacao": corrigir_mojibake(estacao[0]) if estacao else str(est_evap),
+        "evaporacao_mm": [float(v) for v in evaporacao],
+        "afluencias": serie,
+    }
+
+
 @app.get("/api/presets")
 def listar_presets():
     conexao = get_db_connection()

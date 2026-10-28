@@ -205,7 +205,7 @@ function exportPrevisao(previsao, reservatorio, importancia) {
   XLSX.writeFile(wb, `previsao_afluencia_${String(reservatorio || 'reservatorio').replace(/\s+/g, '_')}.xlsx`)
 }
 
-export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' }) {
+export default function PrevisaoVazoes({ apiUrl, acudeInicial, darkMode = false, mode = 'qxx' }) {
   const base = apiBase(apiUrl)
   const [reservatorios, setReservatorios] = useState([])
   const [query, setQuery] = useState('')
@@ -236,9 +236,10 @@ export default function PrevisaoVazoes({ apiUrl, darkMode = false, mode = 'qxx' 
       .then(data => {
         const lista = (Array.isArray(data) ? data : []).map(r => r.CORPO).filter(Boolean)
         setReservatorios(lista)
-        if (lista[0]) {
-          setReservatorio(lista[0])
-          setQuery(lista[0])
+        const inicial = lista.includes(acudeInicial?.nome) ? acudeInicial.nome : lista[0]
+        if (inicial) {
+          setReservatorio(inicial)
+          setQuery(inicial)
         }
       })
       .catch(e => setMsg({ type: 'error', text: e.message }))

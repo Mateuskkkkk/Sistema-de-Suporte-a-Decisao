@@ -482,7 +482,7 @@ function MetricasSolucao({ s }) {
   )
 }
 
-export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false }) {
+export default function OtimizadorMeta({ apiUrl, onApplyCurvas, acudeInicial, darkMode = false }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [lista, setLista] = useState([])
   const [reservatorio, setReservatorio] = useState('')
@@ -557,7 +557,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       .then(data => {
         const itens = data.lista || []
         setLista(itens)
-        setReservatorio(prev => prev || itens[0] || '')
+        const doMapa = itens.includes(acudeInicial?.nome) ? acudeInicial.nome : ''
+        setReservatorio(prev => doMapa || prev || itens[0] || '')
       })
       .catch(e => setMsg({ type: 'error', text: e.message }))
   }, [api])
