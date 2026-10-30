@@ -28,7 +28,7 @@ A base utilizada pelo sistema é um banco relacional SQLite \cite{sqlite} organi
 
 Os dados provêm de três fontes. Os dados dos reservatórios, isto é, código de identificação, capacidade máxima, em metros cúbicos, e curvas cota-área-volume, foram obtidos no Portal Hidrológico do Ceará, mantido pela Companhia de Gestão dos Recursos Hídricos (COGERH) e pela Fundação Cearense de Meteorologia e Recursos Hídricos (FUNCEME) \cite{portalHidrologico}. As curvas cota-área-volume fornecem os pares de volume e área superficial usados no cálculo das perdas por evaporação. As séries de vazão afluente correspondem às vazões oficiais definidas no Projeto Gerenciamento de Risco, Alocação e Operação do Sistema de Recursos Hídricos \cite{ceara2021aloca}, que estimou, por modelagem hidrológica chuva-vazão e regionalização de parâmetros, as afluências mensais aos açudes estratégicos monitorados pela COGERH no período de 1910 a 2017. O estudo fornece as séries na forma de afluência incremental, que considera apenas a área não controlada a montante de cada reservatório, e na forma de afluência total, obtida pela soma da afluência incremental com os vertimentos dos reservatórios imediatamente a montante, simulados com retirada constante \cite{ceara2021aloca}. A série utilizada neste trabalho, estendida até dezembro de 2021, foi fornecida pela FUNCEME em planilha eletrônica\footnote{Planilha eletrônica com as séries mensais de vazões afluentes aos açudes monitorados pela COGERH, de outubro de 1910 a dezembro de 2021, fornecida por pesquisador da Fundação Cearense de Meteorologia e Recursos Hídricos (dados não publicados).}. As séries são médias mensais, em m$^3$/s, e abrangem, em geral, de outubro de 1910 a dezembro de 2021, totalizando 1.335 meses por reservatório. A taxa de evaporação de referência, considerada fixa para cada mês do ano, foi definida pela evaporação calculada na estação meteorológica de referência de cada reservatório, estabelecida pela COGERH. A evaporação é, portanto, representada por lâminas médias mensais, em milímetros, e o mesmo valor de cada mês é repetido em todos os anos da simulação. A base contém 14 estações de referência, cujas lâminas são apresentadas na Tabela \ref{tab:evaporacao}; nos estudos de aplicação, Flor do Campo, Carnaubal e a Barragem do Batalhão estão vinculados à estação de Crateús, e Fogareiro e Quixeramobim, à estação de Quixeramobim. As demandas são informadas pelo usuário, em L/s, para cada execução.
 
-\begin{table}[!htbp]
+\begin{table}[H]
     \captionsetup{width=15cm}
     \caption{Lâminas médias mensais de evaporação das estações de referência (mm)}
     \label{tab:evaporacao}
@@ -95,7 +95,7 @@ A estrutura do sistema segue os componentes de dados, modelos e interação disc
 
 A comunicação entre as camadas ocorre por requisições \textit{Hypertext Transfer Protocol} (HTTP) com corpo em formato \textit{JavaScript Object Notation} (JSON). A interface envia a configuração da simulação, isto é, reservatórios, volumes iniciais, demandas, gatilhos, modo de operação, período e, quando houver, níveis meta. A API consulta as séries e os parâmetros físicos no banco SQLite, executa o simulador e devolve os registros mensais de cada reservatório, que são transformados pela interface em indicadores, gráficos e tabelas e podem ser exportados em planilha ou JSON. Essa organização separa a apresentação das regras de cálculo e permite que as mesmas rotinas sejam utilizadas por diferentes telas \cite{martins2026software}.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \Caption{\label{fig:arquitetura-ssd}Arquitetura do sistema de suporte à decisão desenvolvido}
     \UFCfig{}{
@@ -108,7 +108,11 @@ A comunicação entre as camadas ocorre por requisições \textit{Hypertext Tran
 \section{Interface e fluxo de utilização}
 \label{sec:interface-fluxo}
 
-\begin{figure}[!p]
+O funcionamento do sistema é sintetizado no fluxograma da Figura \ref{fig:fluxo-interface}, que separa as ações do usuário, realizadas na interface web, das etapas executadas pelo sistema. Do lado do usuário, a análise segue seis passos. Primeiro, escolhe-se um hidrossistema pré-configurado ou monta-se manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Em seguida, escolhe-se o modo de operação e informam-se volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, cenário hidrológico e período. Opcionalmente, na aba de níveis meta, os limites mensais e os percentuais de racionamento de cada faixa podem ser editados e aplicados à sessão, sem alterar o banco de dados. Ao acionar ``Gerar Simulação'', a configuração é enviada ao sistema.
+
+Do lado do sistema, a API valida a configuração, lê no banco as séries de vazão, a evaporação, as curvas cota-área-volume e as regras e executa o simulador. Para cada mês, o simulador determina o estado operacional e o racionamento, aplica a regra do modo de operação, calcula o balanço hídrico e registra o resultado, repetindo o ciclo até o último mês do período. Os registros mensais retornam à interface, onde são apresentados como indicadores agregados, gráficos de volume, demanda, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Se a configuração não for satisfatória, o usuário altera os dados e executa nova simulação; caso contrário, exporta os registros em planilha eletrônica ou JSON e os gráficos em \textit{Portable Network Graphics} (PNG) ou \textit{Scalable Vector Graphics} (SVG).
+
+\begin{figure}[H]
     \centering
     \Caption{\label{fig:fluxo-interface}Fluxograma de funcionamento do sistema de suporte à decisão}
     \UFCfig{}{
@@ -117,12 +121,6 @@ A comunicação entre as camadas ocorre por requisições \textit{Hypertext Tran
         \Fonte{Elaborada pelo autor.}
     }
 \end{figure}
-
-O funcionamento do sistema é sintetizado no fluxograma da Figura \ref{fig:fluxo-interface}, que separa as ações do usuário, realizadas na interface web, das etapas executadas pelo sistema. Do lado do usuário, a análise segue seis passos. Primeiro, escolhe-se um hidrossistema pré-configurado ou monta-se manualmente a lista de reservatórios; a ordem da lista define a prioridade nos modos Série e Paralelo. Em seguida, escolhe-se o modo de operação e informam-se volumes iniciais, demandas, gatilhos, vazão conjunta ou de transferência, cenário hidrológico e período. Opcionalmente, na aba de níveis meta, os limites mensais e os percentuais de racionamento de cada faixa podem ser editados e aplicados à sessão, sem alterar o banco de dados. Ao acionar ``Gerar Simulação'', a configuração é enviada ao sistema.
-
-Do lado do sistema, a API valida a configuração, lê no banco as séries de vazão, a evaporação, as curvas cota-área-volume e as regras e executa o simulador. Para cada mês, o simulador determina o estado operacional e o racionamento, aplica a regra do modo de operação, calcula o balanço hídrico e registra o resultado, repetindo o ciclo até o último mês do período. Os registros mensais retornam à interface, onde são apresentados como indicadores agregados, gráficos de volume, demanda, racionamento, afluências e transferências, lista de meses com falha e tabela mensal do balanço. Se a configuração não for satisfatória, o usuário altera os dados e executa nova simulação; caso contrário, exporta os registros em planilha eletrônica ou JSON e os gráficos em \textit{Portable Network Graphics} (PNG) ou \textit{Scalable Vector Graphics} (SVG).
-
-
 
 \section{Modelo de simulação hidrológica}
 \label{sec:modelo-simulacao}
@@ -631,7 +629,7 @@ Em Carnaubal--Barragem do Batalhão, a configuração foi definida para demonstr
 
 Em Fogareiro--Quixeramobim, empregou-se a configuração específica descrita na Seção \ref{subsec:operacao-serie}. As retiradas e transferências por estado são apresentadas na Tabela \ref{tab:fq-regras}; as curvas-guia de Fogareiro, convertidas para percentual da capacidade de 118 hm$^3$, aparecem na Figura \ref{fig:sim-config-fq} do Capítulo \ref{chap:resultados}.
 
-\begin{table}[!htbp]
+\begin{table}[H]
     \captionsetup{width=15cm}
     \caption[Retiradas e transferências por estado em Fogareiro--Quixeramobim]{Retiradas e transferências por estado na configuração de Fogareiro--Quixeramobim}
     \label{tab:fq-regras}

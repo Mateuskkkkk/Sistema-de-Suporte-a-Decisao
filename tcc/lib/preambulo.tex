@@ -85,7 +85,7 @@
 \usepackage{microtype}                              % Para melhorias de justificação?
 \usepackage[portuguese,ruled,lined]{algorithm2e}    % Escrever algoritmos
 \usepackage{algorithmic}                            % Criar Algoritmos  
-%\usepackage{float}                                % Utilizado para criação de floats
+%\usepackage{float}                                % Carregado após lib/ufcTex (ver abaixo)
 \usepackage{amsgen}
 \usepackage{lipsum}                                 % Usar a simulação de texto Lorem Ipsum
 %\usepackage{titlesec}                              % Permite alterar os títulos do documento
@@ -118,6 +118,7 @@
 \usepackage{appendix}         % Gerar o apendice no final do documento
 \usepackage{paracol}          % Criar paragrafos sem identacao
 \usepackage{lib/ufcTex}	      % Biblioteca com as normas da UFC para trabalhos academicos
+\usepackage{float}            % Posição [H]; depois de ufcTex, que define \newfloat com outra sintaxe
 \usepackage{pdfpages}         % Incluir pdf no documento
 \usepackage{amsmath}          % Usar equacoes matematicas
 \usepackage{placeins}         % Impedir que figuras e tabelas ultrapassem pontos de controle
