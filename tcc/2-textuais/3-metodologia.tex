@@ -326,13 +326,19 @@ O cálculo independente foi realizado em planilha eletrônica. A planilha, elabo
 
 A planilha foi construída para refazer, sem programação, o mesmo cálculo mensal do simulador, e funciona em quatro etapas. Na primeira, a série de vazões médias mensais do reservatório é colada na aba \texttt{Vazoes\_COLAR}, com um ano por linha e um mês por coluna. Na segunda, o reservatório é escolhido pelo nome na célula \texttt{B6} da aba \texttt{Verificacao}; a partir dele, funções de busca (\texttt{INDEX} e \texttt{MATCH}) recuperam, na aba \texttt{Dados\_Acudes}, o código, a capacidade, a estação de evaporação e a posição da curva cota-área-volume na aba \texttt{Dados\_CAV}, e a aba \texttt{Aux\_CAV} copia somente a curva do reservatório escolhido, em hm$^3$ e km$^2$. Na terceira, o usuário informa o volume inicial, em percentual da capacidade (\texttt{B10}), e a demanda constante, em m$^3$/s (\texttt{B12}).
 
-Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; a demanda solicitada é informada em m$^3$/s (J) e convertida em volume (K); calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade e convertida em demanda atendida (R), da qual resulta o déficit (S); o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Flor do Campo com demanda de 120 L/s: no alto, os parâmetros, o quadro de controle e a descrição da lógica reproduzida; abaixo, as primeiras linhas mensais do cálculo.
+Na quarta etapa, cada linha da aba \texttt{Verificacao}, a partir da linha 24, representa um mês, e o cálculo começa automaticamente no primeiro mês com vazão. As colunas reproduzem, em sequência, as etapas descritas na Seção \ref{sec:modelo-simulacao}: a vazão do mês (D) é convertida em afluência (E); a lâmina de evaporação da estação (F, G) é buscada pelo mês; o volume inicial (H) é o volume final do mês anterior; a área inicial (I) é interpolada linearmente na curva, com o intervalo localizado em uma coluna auxiliar; a demanda solicitada é informada em m$^3$/s (J) e convertida em volume (K); calculam-se a estimativa preliminar do volume (L), a área correspondente (M), a área média (N), a evaporação (O) e o saldo do mês (P); a retirada efetiva (Q) é limitada pela disponibilidade e convertida em demanda atendida (R), da qual resulta o déficit (S); o excedente sobre a capacidade é registrado como vertimento (T); e o volume final (U) é limitado entre zero e a capacidade. As últimas colunas indicam a falha (V) e o resíduo de conservação de massa (W). A Figura \ref{fig:planilha-verificacao} mostra a aba \texttt{Verificacao} preenchida para Flor do Campo com demanda de 120 L/s: na parte (a), os parâmetros e o quadro de controle; na parte (b), os seis primeiros meses do cálculo, com as colunas divididas em três blocos para facilitar a leitura.
 
 \begin{figure}[!htbp]
     \centering
     \Caption{\label{fig:planilha-verificacao}Aba de cálculo da planilha de verificação preenchida para Flor do Campo (demanda de 120 L/s)}
     \UFCfig{}{
-        \includegraphics[width=\textwidth]{figuras/planilha-verificacao.png}
+        \begin{minipage}{\textwidth}
+            \centering
+            {\footnotesize (a) Parâmetros e quadro de controle}\\[2pt]
+            \includegraphics[width=0.68\textwidth]{figuras/planilha-verificacao-quadro.png}\\[8pt]
+            {\footnotesize (b) Seis primeiros meses do cálculo}\\[2pt]
+            \includegraphics[width=\textwidth]{figuras/planilha-verificacao-tabela.png}
+        \end{minipage}
     }{
         \Fonte{Elaborada pelo autor.}
     }
