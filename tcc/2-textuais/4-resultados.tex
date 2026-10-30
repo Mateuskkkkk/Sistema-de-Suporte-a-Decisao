@@ -1,0 +1,683 @@
+\chapter{Resultados e discussão}
+\label{chap:resultados}
+
+Este capítulo apresenta o sistema desenvolvido, os resultados da verificação numérica, dos casos controlados e da análise de sensibilidade e as aplicações a Flor do Campo, Carnaubal--Barragem do Batalhão e Fogareiro--Quixeramobim. Ao final, os principais indicadores são reunidos e as limitações do trabalho são registradas.
+
+\section{Sistema de suporte à decisão desenvolvido}
+\label{sec:resultado-ssd}
+
+O resultado computacional do trabalho é uma aplicação web composta por uma interface em React, uma API em FastAPI e um motor de simulação em Python que compartilham uma base SQLite com 155 reservatórios do Ceará. O simulador implementa o balanço hídrico mensal com evaporação por área média, os modos Individual, Série e Paralelo, as regras de racionamento por curvas-guia mensais e a configuração específica do hidrossistema Fogareiro--Quixeramobim. Cada execução devolve os registros mensais completos de cada reservatório, a partir dos quais a interface calcula os indicadores e compõe os gráficos e as tabelas.
+
+A separação entre interface, API e motor de cálculo permitiu que as mesmas rotinas fossem executadas tanto pela interface quanto pelos scripts de verificação e de sensibilidade, sem duplicação de código. Essa característica é relevante para a avaliação apresentada nas seções seguintes: os testes foram aplicados à mesma função utilizada pela interface, e não a uma reimplementação. O código-fonte e a versão de referência estão identificados no Apêndice \ref{ap:codigo-fonte}.
+
+\section{Interface e funcionalidades}
+\label{sec:resultado-interface}
+
+A tela inicial do simulador é apresentada na Figura \ref{fig:sim-tela-inicial}. O painel lateral concentra a configuração, e a área principal recebe os resultados. A seleção entre ``Simulação Padrão'' e ``Simulação com Níveis Meta'' define se as regras de racionamento serão aplicadas.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-tela-inicial}Tela inicial do simulador}
+    \UFCfig{}{
+        \includegraphics[width=0.95\textwidth]{figuras/sim-tela-inicial.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+A Figura \ref{fig:sim-config-flor} mostra o painel de configuração preenchido para a aplicação de Flor do Campo, com a aba de níveis meta aberta. Como esse reservatório não possui níveis meta no banco de dados, as faixas foram criadas na própria tela, com os botões ``Criar Faixa Manual'' e ``+ Faixa''. O gráfico de limites de ativação exibe as faixas mensais, e a tabela abaixo permite editar os limites e os percentuais de racionamento de cada faixa. As alterações são aplicadas à sessão sem modificar o banco de dados, o que permite testar regras alternativas sem afetar a base compartilhada.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-config-flor}Painel de configuração com níveis meta, preenchido para a aplicação de Flor do Campo}
+    \UFCfig{}{
+        \includegraphics[width=0.98\textwidth]{figuras/sim-config-flor.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+Após a execução, o painel de resultados apresenta uma linha de indicadores (frequência de falha sistêmica, atendimento médio, meses simulados, racionamento médio, evaporação e vertimento totais), o número de meses abastecidos por reservatório, a lista de meses com falha e os gráficos de volume armazenado, demanda solicitada e atendida, racionamento e afluências, conforme a Figura \ref{fig:sim-resultados-flor}. No gráfico de volume, a cor da linha indica o estado operacional de cada mês, e os meses com falha são destacados como ``Colapso''.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-resultados-flor}Painel de resultados da aplicação de Flor do Campo}
+    \UFCfig{}{
+        \includegraphics[width=0.92\textwidth]{figuras/sim-resultados-flor.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+A aba ``Balanço Hídrico'' apresenta a tabela mensal com vazão, afluência, evaporação, volumes inicial e final, demandas solicitada e atendida, retirada total, racionamento, vertimento, falha e estado, conforme a Figura \ref{fig:sim-tabela-flor}. A mesma tabela pode ser exportada em planilha eletrônica ou JSON pelos botões do cabeçalho, e foi a partir dessas exportações que se realizaram as conferências da Seção \ref{sec:resultado-verificacao}.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-tabela-flor}Tabela mensal do balanço hídrico, exportável, na aplicação de Flor do Campo}
+    \UFCfig{}{
+        \includegraphics[width=0.92\textwidth]{figuras/sim-tabela-flor.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\FloatBarrier
+
+\section{Verificação numérica}
+\label{sec:resultado-verificacao}
+
+Os resultados são apresentados nas três partes definidas na Seção \ref{sec:metodo-verificacao}: a comparação do balanço hídrico com a planilha independente, a conferência das regras de níveis meta e racionamento e o recálculo independente dos modos Série e Paralelo.
+
+\subsection{Verificação do balanço hídrico por cálculo independente}
+\label{subsec:resultado-verif-balanco}
+
+A Tabela \ref{tab:verificacao-planilha} compara a planilha independente e o simulador para Flor do Campo nos dois casos de demanda. Os indicadores agregados coincidiram em todas as casas decimais apresentadas, e o número de meses com falha foi idêntico: 188 meses com 60 L/s e 316 meses com 120 L/s. Na comparação mês a mês, nenhum dos 1.332 meses apresentou divergência na indicação de falha.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Cálculo independente em planilha versus resultado do simulador para Flor do Campo (1911--2021, 1.332 meses)}
+    \label{tab:verificacao-planilha}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrrrr}
+        \toprule
+         & \multicolumn{2}{c}{Demanda de 60 L/s} & \multicolumn{2}{c}{Demanda de 120 L/s} \\
+        \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+        Indicador & Planilha & Simulador & Planilha & Simulador \\
+        \midrule
+        Afluência total (hm$^3$) & 2.248,648 & 2.248,648 & 2.248,648 & 2.248,648 \\
+        Retirada efetiva total (hm$^3$) & 184,496 & 184,496 & 335,791 & 335,791 \\
+        Evaporação total (hm$^3$) & 1.859,386 & 1.859,386 & 1.726,893 & 1.726,893 \\
+        Vertimento total (hm$^3$) & 244,328 & 244,328 & 227,954 & 227,954 \\
+        Atendimento (\%) & 89,06 & 89,06 & 81,05 & 81,05 \\
+        Meses com falha & 188 & 188 & 316 & 316 \\
+        Volume mínimo (hm$^3$) & 0,000 & 0,000 & 0,000 & 0,000 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+A Tabela \ref{tab:verificacao-residuos} apresenta as máximas diferenças absolutas mensais entre os dois cálculos e o máximo resíduo de conservação de massa. Todas foram nulas dentro da tolerância numérica de $10^{-9}$ hm$^3$ adotada na Seção \ref{sec:metodo-verificacao}: os maiores valores brutos encontrados, da ordem de $10^{-13}$ hm$^3$ nos volumes e de $10^{-17}$ hm$^3$ nos resíduos, correspondem apenas ao arredondamento da aritmética de ponto flutuante. O caso de 120 L/s exercitou repetidamente os ramos em que a retirada é limitada pela disponibilidade e o reservatório se esvazia, e mesmo nesses meses as diferenças permaneceram nulas.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Máximas diferenças absolutas mensais entre planilha e simulador e resíduo de conservação de massa (hm$^3$)}
+    \label{tab:verificacao-residuos}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrr}
+        \toprule
+        Grandeza & 60 L/s & 120 L/s \\
+        \midrule
+        Volume inicial & 0 & 0 \\
+        Afluência & 0 & 0 \\
+        Evaporação & 0 & 0 \\
+        Retirada efetiva & 0 & 0 \\
+        Vertimento & 0 & 0 \\
+        Volume final & 0 & 0 \\
+        Resíduo $|\varepsilon_t|$ máximo na planilha & 0 & 0 \\
+        Resíduo $|\varepsilon_t|$ máximo no simulador & 0 & 0 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. Valores inferiores à tolerância de $10^{-9}$ hm$^3$ são apresentados como zero.}
+\end{table}
+
+A extensão da comparação ao reservatório principal de cada um dos 25 hidrossistemas é apresentada na Tabela \ref{tab:verificacao-planilha-25} e na Figura \ref{fig:verificacao-25}. No total, foram comparados 33.108 balanços mensais. Em todos os hidrossistemas, a planilha e o simulador produziram o mesmo número de meses com falha e o mesmo atendimento, e nenhum mês apresentou diferença acima da tolerância em volume, afluência, evaporação, retirada, vertimento ou indicação de falha. A coincidência abrangeu reservatórios sem falhas, como Pedras Brancas, Trussu, Aracoiaba, Batente e Umari, e reservatórios com esvaziamentos frequentes, como Poço Verde, com 382 meses de falha, Acarape do Meio, com 272, e Jenipapo, com 204.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Cálculo independente em planilha versus simulador nos 25 hidrossistemas (modo Individual, sem racionamento, volume inicial de 50\%)}
+    \label{tab:verificacao-planilha-25}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lcrrrrrrr}
+        \toprule
+         & & & & \multicolumn{2}{c}{Meses com falha} & \multicolumn{2}{c}{Atendimento (\%)} & Meses \\
+        \cmidrule(lr){5-6}\cmidrule(lr){7-8}
+        Reservatório & Período & Meses & $Q$ (L/s) & Planilha & Simulador & Planilha & Simulador & divergentes \\
+        \midrule
+        Acarape do Meio & 1911--2021 & 1.332 & 748 & 272 & 272 & 83,17 & 83,17 & 0 \\
+        Angicos & 1911--2021 & 1.332 & 300 & 64 & 64 & 95,88 & 95,88 & 0 \\
+        Arneiroz II & 1911--2021 & 1.332 & 700 & 26 & 26 & 98,53 & 98,53 & 0 \\
+        Catucinzenta & 1911--2021 & 1.332 & 87 & 13 & 13 & 99,34 & 99,34 & 0 \\
+        Pedras Brancas & 1911--2017 & 1.284 & 415 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Riacho do Sangue & 1911--2021 & 1.332 & 320 & 108 & 108 & 93,34 & 93,34 & 0 \\
+        Trussu & 1911--2021 & 1.332 & 500 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Ubaldinho & 1911--2021 & 1.332 & 150 & 14 & 14 & 99,09 & 99,09 & 0 \\
+        Aracoiaba & 1911--2021 & 1.332 & 432 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Batente & 1911--2021 & 1.332 & 170 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        Benguê & 1911--2021 & 1.332 & 75 & 2 & 2 & 99,89 & 99,89 & 0 \\
+        Cachoeira & 1911--2021 & 1.332 & 120 & 53 & 53 & 96,75 & 96,75 & 0 \\
+        Canoas & 1911--2021 & 1.332 & 190 & 37 & 37 & 97,70 & 97,70 & 0 \\
+        Castro & 1911--2021 & 1.332 & 150 & 24 & 24 & 98,47 & 98,47 & 0 \\
+        Forquilha & 1911--2021 & 1.332 & 120 & 28 & 28 & 98,52 & 98,52 & 0 \\
+        Jenipapo & 1911--2021 & 1.332 & 55 & 204 & 204 & 87,80 & 87,80 & 0 \\
+        Joaquim Távora & 1911--2017$^{*}$ & 1.284 & 105 & 186 & 186 & 87,74 & 87,74 & 0 \\
+        Mundaú & 1911--2021 & 1.332 & 250 & 142 & 142 & 91,77 & 91,77 & 0 \\
+        Olho D'Água & 1911--2021 & 1.332 & 100 & 137 & 137 & 91,95 & 91,95 & 0 \\
+        Pesqueiro & 1911--2021 & 1.332 & 33 & 35 & 35 & 97,87 & 97,87 & 0 \\
+        Poço Verde & 1911--2021 & 1.332 & 105 & 382 & 382 & 74,88 & 74,88 & 0 \\
+        Rosário & 1911--2021 & 1.332 & 350 & 58 & 58 & 96,69 & 96,69 & 0 \\
+        Santo Antônio de Russas & 1911--2017$^{*}$ & 1.284 & 112 & 22 & 22 & 98,77 & 98,77 & 0 \\
+        São José II & 1911--2017 & 1.284 & 105 & 16 & 16 & 99,09 & 99,09 & 0 \\
+        Umari & 1911--2021 & 1.332 & 65 & 0 & 0 & 100,00 & 100,00 & 0 \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{Elaborada pelo autor. $^{*}$Período não definido na matriz de verificação; adotou-se 1911--2017. Meses divergentes: meses com diferença superior a $10^{-9}$ hm$^3$ em algum componente do balanço ou com indicação de falha diferente.}
+\end{table}
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:verificacao-25}Verificação numérica nos 25 hidrossistemas: (a) meses com falha e (b) atendimento da demanda calculados pela planilha e pelo simulador}
+    \UFCfig{}{
+        \includegraphics[width=\textwidth]{figuras/verificacao-25.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Verificação das regras de níveis meta e racionamento}
+\label{subsec:resultado-verif-regras}
+
+A conferência das regras de níveis meta e racionamento abrangeu os mesmos 25 hidrossistemas, agora simulados com as curvas-guia e os racionamentos da matriz, totalizando 33.108 meses. As configurações e os resultados de cada um são apresentados na Tabela \ref{tab:verificacao-25}, e o resumo das conferências independentes, na Tabela \ref{tab:verificacao-25-resumo}.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Hidrossistemas utilizados na verificação das regras de níveis meta e racionamento}
+    \label{tab:verificacao-25}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lcrrrcrrrrr}
+        \toprule
+        Reservatório & Período & Meses & Cap. (hm$^3$) & $Q$ (L/s) & Racion. (\%) & Falhas & Normal & Alerta & Seca & S. Severa \\
+        \midrule
+        Acarape do Meio & 1911--2021 & 1.332 & 29,60 & 748 & 45/50/52 & 131 & 891 & 73 & 65 & 303 \\
+        Angicos & 1911--2021 & 1.332 & 56,05 & 300 & 60/80/90 & 0 & 1122 & 73 & 40 & 97 \\
+        Arneiroz II & 1911--2021 & 1.332 & 187,70 & 700 & 27/68/80 & 0 & 1183 & 37 & 58 & 54 \\
+        Catucinzenta & 1911--2021 & 1.332 & 24,90 & 87 & 20/30/40 & 0 & 1196 & 65 & 24 & 47 \\
+        Pedras Brancas & 1911--2017 & 1.284 & 456,00 & 415 & 30/45/67 & 0 & 1091 & 89 & 58 & 46 \\
+        Riacho do Sangue & 1911--2021 & 1.332 & 58,43 & 320 & 20/50/90 & 0 & 1044 & 62 & 56 & 170 \\
+        Trussu & 1911--2021 & 1.332 & 268,80 & 500 & 30/60/80 & 0 & 1197 & 69 & 39 & 27 \\
+        Ubaldinho & 1911--2021 & 1.332 & 31,80 & 150 & 37/60/76 & 0 & 1064 & 138 & 117 & 13 \\
+        Aracoiaba & 1911--2021 & 1.332 & 162,00 & 432 & 10/17/40 & 0 & 1199 & 67 & 40 & 26 \\
+        Batente & 1911--2021 & 1.332 & 37,00 & 170 & 22/44/74 & 0 & 1263 & 23 & 34 & 12 \\
+        Benguê & 1911--2021 & 1.332 & 18,43 & 75 & 0/34/68 & 0 & 1162 & 79 & 58 & 33 \\
+        Cachoeira & 1911--2021 & 1.332 & 34,33 & 120 & 29/53/64 & 4 & 599 & 396 & 267 & 70 \\
+        Canoas & 1911--2021 & 1.332 & 69,25 & 190 & 16/40/80 & 0 & 841 & 179 & 169 & 143 \\
+        Castro & 1911--2021 & 1.332 & 62,31 & 150 & 20/40/70 & 0 & 930 & 213 & 106 & 83 \\
+        Forquilha & 1911--2021 & 1.332 & 50,13 & 120 & 23/53/83 & 0 & 1132 & 68 & 59 & 73 \\
+        Jenipapo & 1911--2021 & 1.332 & 4,94 & 55 & 0/60/76 & 0 & 778 & 118 & 300 & 136 \\
+        Joaquim Távora & 1911--2017$^{*}$ & 1.284 & 26,77 & 105 & 10/27/65 & 68 & 829 & 97 & 27 & 331 \\
+        Mundaú & 1911--2021 & 1.332 & 21,30 & 250 & 0/50/70 & 0 & 734 & 266 & 199 & 133 \\
+        Olho D'Água & 1911--2021 & 1.332 & 19,00 & 100 & 5/29/59 & 30 & 715 & 243 & 142 & 232 \\
+        Pesqueiro & 1911--2021 & 1.332 & 9,03 & 33 & 9/21/58 & 6 & 1132 & 68 & 64 & 68 \\
+        Poço Verde & 1911--2021 & 1.332 & 12,43 & 105 & 23/70/80 & 89 & 492 & 92 & 205 & 543 \\
+        Rosário & 1911--2021 & 1.332 & 47,22 & 350 & 43/66/89 & 0 & 1061 & 146 & 66 & 59 \\
+        Santo Antônio de Russas & 1911--2017$^{*}$ & 1.284 & 24,00 & 112 & 20/50/90 & 0 & 952 & 68 & 132 & 132 \\
+        São José II & 1911--2017 & 1.284 & 21,00 & 105 & 14/28/84 & 0 & 1128 & 103 & 10 & 43 \\
+        Umari & 1911--2021 & 1.332 & 30,00 & 65 & 5/8/31 & 0 & 1267 & 26 & 27 & 12 \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{Elaborada pelo autor a partir das saídas do simulador. Racionamentos dos estados Alerta, Seca e Seca Severa, arredondados. $^{*}$Período não definido na matriz; adotou-se 1911--2017.}
+\end{table}
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Resumo das conferências das regras de níveis meta e racionamento nos 25 hidrossistemas (33.108 meses)}
+    \label{tab:verificacao-25-resumo}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{6.0cm}p{4.4cm}p{3.2cm}}
+        \toprule
+        Conferência & Critério & Resultado \\
+        \midrule
+        Resíduo de conservação de massa & $|\varepsilon_t|\leq10^{-9}$ hm$^3$ & 0 violações \\
+        Continuidade entre meses & $V^{ini}_{t+1}=V^{fin}_{t}$ & diferença máx. 0 \\
+        Limites físicos & $0\leq V\leq V_{\max}$ & 0 violações \\
+        Estado operacional & igual ao obtido pelas curvas & 0 divergências \\
+        Percentual de racionamento & igual ao do estado & 0 divergências \\
+        Demanda atendida & $\leq$ demanda aplicada & 0 violações \\
+        Indicação de falha & coerente com atendida e aplicada & 0 divergências \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+Em todos os 25 hidrossistemas, o resíduo de conservação de massa permaneceu abaixo da tolerância de $10^{-9}$ hm$^3$, e nenhuma das demais conferências apontou divergência. Os meses com falha observados em Acarape do Meio, Cachoeira, Joaquim Távora, Olho D'Água, Pesqueiro e Poço Verde não indicam erro de implementação: neles, a regra de racionamento informada não foi suficiente para evitar o esvaziamento, e as falhas foram registradas de forma coerente com a demanda aplicada.
+
+\subsection{Verificação dos modos Série e Paralelo}
+\label{subsec:resultado-verif-multi}
+
+A Tabela \ref{tab:verif-multi} apresenta a comparação entre o recálculo independente e o simulador nas duas aplicações com múltiplos reservatórios. Nos 5.280 balanços mensais comparados, nenhum mês apresentou diferença acima da tolerância, e as maiores diferenças brutas foram da ordem de $10^{-13}$ hm$^3$. O recálculo reproduziu também os resultados das regras: em Carnaubal--Barragem do Batalhão, os mesmos 130 meses com o Batalhão responsável pela demanda conjunta; em Fogareiro--Quixeramobim, o mesmo estado do sistema em todos os 1.308 meses e os mesmos 257 meses com transferência, que somam 301,58 hm$^3$.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Recálculo independente versus simulador nos modos Série e Paralelo}
+    \label{tab:verif-multi}
+    \centering
+    \footnotesize
+    \begin{tabular}{llrrr}
+        \toprule
+        Hidrossistema (modo) & Reservatório & Meses & Meses divergentes & Máx. diferença (hm$^3$) \\
+        \midrule
+        Carnaubal--Batalhão (Paralelo) & Carnaubal & 1.332 & 0 & $6\times10^{-14}$ \\
+         & Barragem do Batalhão & 1.332 & 0 & $9\times10^{-14}$ \\
+        Fogareiro--Quixeramobim (Série) & Fogareiro & 1.308 & 0 & $5\times10^{-13}$ \\
+         & Quixeramobim & 1.308 & 0 & $2\times10^{-13}$ \\
+        \midrule
+        Total & & 5.280 & 0 & \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. Componentes comparados: volumes inicial e final, evaporação, retirada efetiva e vertimento; em Fogareiro--Quixeramobim, também o estado do sistema e o volume transferido.}
+\end{table}
+
+As séries históricas não exercitaram três situações previstas nas regras: Fogareiro nunca ficou sem volume para transferir, pois seu volume mínimo nos meses com transferência foi de 29,25 hm$^3$; Quixeramobim nunca verteu em um mês com transferência; e o Batalhão nunca deixou de atender à demanda conjunta enquanto era o responsável. Essas situações foram verificadas pelos casos controlados apresentados na Seção \ref{sec:resultado-casos}.
+
+\section{Resultados dos casos controlados}
+\label{sec:resultado-casos}
+
+A Tabela \ref{tab:casos-resultados} apresenta, para cada caso controlado, o resultado esperado pelo cálculo manual, o resultado obtido pelo simulador e a situação do teste. Todos os doze casos foram aprovados.
+
+\begin{table}[H]
+    \captionsetup{width=15cm}
+    \caption{Resultados dos casos controlados}
+    \label{tab:casos-resultados}
+    \centering
+    \scriptsize
+    \begin{tabular}{p{2.8cm}p{4.3cm}p{4.6cm}p{1.4cm}}
+        \toprule
+        Teste & Esperado & Obtido & Situação \\
+        \midrule
+        Volume constante & $V_t = 5{,}000$ hm$^3$ nos 12 meses & máx. $|V_t-5| = 0$ & Aprovado \\
+        Demanda isolada & redução de 0,2592 hm$^3$/mês; $V_{12}=1{,}8896$ hm$^3$ & $V_{12}=1{,}8896$ hm$^3$; desvio máx. 0 & Aprovado \\
+        Evaporação com área constante & $E=0{,}2000$ hm$^3$; $V=4{,}8000$ hm$^3$ & $E=0{,}2000$ hm$^3$; $V=4{,}8000$ hm$^3$ & Aprovado \\
+        Vertimento & $S=2{,}592$ hm$^3$/mês; $V=10$ hm$^3$ & $S=2{,}592$ hm$^3$/mês; $V=10{,}000$ hm$^3$ & Aprovado \\
+        Falha por falta de volume & $R$ = 0,2592; 0,2408; 0 hm$^3$; falhas nos meses 2 e 3; $V\geq0$ & $R$ = 0,2592; 0,2408; 0,0000 hm$^3$; falhas: não, sim, sim & Aprovado \\
+        Racionamento & Normal 100; Alerta 80; Seca 50; Seca Severa 20 L/s & Normal 100; Alerta 80; Seca 50; Seca Severa 20 L/s & Aprovado \\
+        Fronteira de nível meta & 60\% $-\epsilon$: Alerta; 60\%: Alerta; 60\% $+\epsilon$: Normal & Alerta; Alerta; Normal & Aprovado \\
+        Transferência (Série) & sem transferência no mês 1; 100 L/s a partir do mês 2 & 0; 100; 100; 100 L/s & Aprovado \\
+        Demanda conjunta (Paralelo) & R1 nos meses 1--2; R2 a partir do mês 3 & R1, R1, R2, R2, R2 & Aprovado \\
+        Transferência limitada (Série) & $T$ = 0,1000 hm$^3$ no mês 1 e 0 no mês 2; fornecedor com $V=0$; receptor com $V=2{,}1000$ hm$^3$ & $T$ = 0,1000; 0,0000 hm$^3$; fornecedor 0,0000 hm$^3$; receptor 2,1000 hm$^3$ & Aprovado \\
+        Transferência com vertimento (Série) & $T=2{,}592$ hm$^3$; receptor com $V=1{,}000$ e $S=1{,}792$ hm$^3$; fornecedor com 37,408 hm$^3$; mês 2 sem transferência & $T$ = 2,592; 0 hm$^3$; $V$ = 1,000; $S$ = 1,792; fornecedor 37,408 hm$^3$ & Aprovado \\
+        Segunda unidade sem volume (Paralelo) & R1 responsável: $R$ = 0,2592; 0,0408; 0 hm$^3$; falhas nos meses 2 e 3; R2 sem retirada & $R$ = 0,2592; 0,0408; 0,0000 hm$^3$; falhas: não, sim, sim; R2 com 0,1000 hm$^3$ & Aprovado \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. Entradas completas no Apêndice \ref{ap:testes-controlados}.}
+\end{table}
+
+Os testes confirmam os comportamentos de fronteira mais sujeitos a erro. No caso de falha, o segundo mês dispunha de 0,2408 hm$^3$ para uma demanda de 0,2592 hm$^3$; o simulador forneceu exatamente o volume disponível, registrou a falha e encerrou o mês com volume nulo, sem produzir armazenamento negativo. No teste de fronteira, um volume exatamente igual ao limite de 60\% foi classificado na faixa mais restritiva, conforme a regra $p_t \leq$ limite descrita na Seção \ref{sec:regras-racionamento}. No modo Série, o receptor iniciou com 35\% da capacidade e, após o primeiro mês de retirada, ficou abaixo do gatilho de 30\%, o que ativou a transferência a partir do segundo mês; o resíduo de conservação de massa calculado separadamente para receptor e fornecedor foi nulo, confirmando que o volume transferido saiu de um balanço e entrou no outro. No modo Paralelo, o reservatório prioritário iniciou com 2,5 hm$^3$ e gatilho de 2,0 hm$^3$; após dois meses de atendimento, seu volume de 1,9816 hm$^3$ ficou abaixo do gatilho e a responsabilidade foi transferida no terceiro mês, como esperado.
+
+Os três últimos casos cobrem as situações de borda dos modos Série e Paralelo que não ocorreram nas aplicações. Com o fornecedor dispondo de apenas 0,1 hm$^3$, a transferência foi reduzida a esse volume, e o fornecedor terminou vazio, sem armazenamento negativo. Com uma transferência de 2,592 hm$^3$ para um receptor de 1 hm$^3$, o excedente de 1,792 hm$^3$ foi registrado como vertimento do receptor, e o resíduo de conservação de massa de ambos os reservatórios foi nulo. Quando a segunda unidade do modo Paralelo não tinha volume para o mês inteiro, a responsabilidade permaneceu com a primeira, que forneceu o que restava e registrou as falhas.
+
+\section{Análise de sensibilidade}
+\label{sec:resultado-sensibilidade}
+
+A Figura \ref{fig:sensibilidade} apresenta a resposta dos indicadores às variações dos parâmetros, e a Tabela \ref{tab:sensibilidade} reúne os valores numéricos.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sensibilidade}Sensibilidade dos indicadores ao volume inicial, à demanda e à evaporação (Flor do Campo) e ao gatilho e à vazão de transferência (Fogareiro--Quixeramobim)}
+    \UFCfig{}{
+        \includegraphics[width=\textwidth]{figuras/sensibilidade.png}
+    }{
+        \Fonte{Elaborada pelo autor a partir de 29 execuções do simulador.}
+    }
+\end{figure}
+
+\begin{table}[H]
+    \captionsetup{width=15cm}
+    \caption{Resultados da análise de sensibilidade}
+    \label{tab:sensibilidade}
+    \centering
+    \scriptsize
+    \begin{tabular}{llrrrr}
+        \toprule
+        Parâmetro & Valor & Atendimento (\%) & Meses com falha & Déficit (hm$^3$) & Outro indicador \\
+        \midrule
+        \multicolumn{6}{l}{\textit{Flor do Campo, Individual, sem racionamento (outro indicador: evaporação, hm$^3$)}} \\
+        Volume inicial & 0\% & 88,81 & 195 & 23,18 & 1.809,0 \\
+         & 25\% & 89,06 & 188 & 22,66 & 1.834,2 \\
+         & 50\% & 89,06 & 188 & 22,66 & 1.859,4 \\
+         & 75\% & 89,06 & 188 & 22,66 & 1.884,3 \\
+         & 100\% & 89,06 & 188 & 22,66 & 1.909,0 \\
+        Demanda & 30 L/s & 93,71 & 111 & 6,52 & 1.937,2 \\
+         & 45 L/s & 91,24 & 148 & 13,61 & 1.897,3 \\
+         & 60 L/s & 89,06 & 188 & 22,66 & 1.859,4 \\
+         & 75 L/s & 86,86 & 225 & 34,03 & 1.823,7 \\
+         & 90 L/s & 84,74 & 261 & 47,41 & 1.790,0 \\
+         & 105 L/s & 82,81 & 291 & 62,31 & 1.757,8 \\
+        Fator de evaporação & 0,8 & 92,12 & 132 & 16,33 & 1.782,3 \\
+         & 0,9 & 90,55 & 162 & 19,58 & 1.823,7 \\
+         & 1,0 & 89,06 & 188 & 22,66 & 1.859,4 \\
+         & 1,1 & 87,44 & 218 & 26,02 & 1.891,1 \\
+         & 1,2 & 85,94 & 239 & 29,12 & 1.918,9 \\
+        \midrule
+        \multicolumn{6}{l}{\textit{Quixeramobim, Série com Fogareiro (outro indicador: volume mínimo, \% da capacidade)}} \\
+        Gatilho & 10\% & 99,98 & 7 & 0,19 & 0,0 \\
+         & 20\% & 100,00 & 0 & 0,00 & 9,3 \\
+         & 30\% & 100,00 & 0 & 0,00 & 17,2 \\
+         & 40\% & 100,00 & 0 & 0,00 & 20,6 \\
+         & 50\% & 100,00 & 0 & 0,00 & 25,4 \\
+        Vazão transferida & 0 L/s & 89,39 & 181 & 120,65 & 0,0 \\
+         & 100 L/s & 94,45 & 128 & 62,87 & 0,0 \\
+         & 200 L/s & 97,91 & 79 & 23,57 & 0,0 \\
+         & 300 L/s & 99,84 & 18 & 1,79 & 0,0 \\
+         & 400 L/s & 100,00 & 0 & 0,00 & 8,2 \\
+         & 500 L/s & 100,00 & 0 & 0,00 & 17,2 \\
+         & 600 L/s & 100,00 & 0 & 0,00 & 19,1 \\
+         & 700 L/s & 100,00 & 0 & 0,00 & 19,4 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+O volume inicial teve efeito praticamente nulo sobre o atendimento de Flor do Campo: entre 25\% e 100\% da capacidade, o número de falhas permaneceu em 188, e somente o reservatório inicialmente vazio produziu sete falhas adicionais. Isso ocorre porque as trajetórias iniciadas com volumes diferentes convergem nos primeiros anos da série; o volume adicional armazenado no início é em grande parte perdido por evaporação, que cresceu de 1.809 para 1.909 hm$^3$ entre os volumes iniciais de 0\% e 100\%. O resultado indica que, para séries longas, a escolha do volume inicial tem pouca influência sobre os indicadores de atendimento, o que não vale para análises de curto prazo.
+
+A demanda produziu resposta intensa e monótona. Ao passar de 30 para 105 L/s, os meses com falha aumentaram de 111 para 291 e o déficit acumulado, de 6,5 para 62,3 hm$^3$, com acréscimos crescentes do déficit a cada aumento de 15 L/s, pois demandas maiores deplecionam o reservatório mais rapidamente e reduzem a capacidade de atravessar sequências secas. Mesmo a menor demanda testada, 30 L/s, produziu 111 meses de falha, o que evidencia a baixa capacidade de regularização do reservatório. Entre 30 e 45 L/s, a frequência de falhas passou de 8,3\% para 11,1\% dos meses, de modo que a vazão com 90\% de garantia fica nesse intervalo, próxima ao valor de 38 L/s informado na oficina do hidrossistema \cite{oficinaFlorDoCampo2026}; a demanda de 60 L/s, por sua vez, supera essa vazão em cerca de 60\%. O fator de evaporação teve efeito ainda mais intenso em termos relativos: a variação de $\pm$10\% alterou as falhas de 188 para 162 e 218, ou cerca de 15\%, enquanto a variação de 25\% na demanda, de 60 para 45 ou 75 L/s, alterou-as em cerca de 20\%. Por unidade de variação relativa, portanto, a evaporação foi o parâmetro de maior influência sobre as falhas em Flor do Campo, o que é coerente com o fato de a evaporação consumir 83\% da afluência no período (Seção \ref{sec:aplicacao-flor}).
+
+Em Fogareiro--Quixeramobim, o gatilho e a vazão transferida controlam a segurança do receptor. Com gatilho de 10\%, a transferência começou tarde demais em alguns períodos, e Quixeramobim chegou a esvaziar-se, com 7 meses de falha; a partir de 20\%, não houve falhas, e o volume mínimo de Quixeramobim aumentou progressivamente com o gatilho, ao custo de mais meses com transferência (127 com 10\% e 389 com 50\%). Na vazão transferida, observa-se um limiar: abaixo de 400 L/s, o volume transferido durante as secas não compensa a retirada de 342 L/s de Quixeramobim somada às suas perdas por evaporação, e ocorrem falhas; a partir de 400 L/s, as falhas desaparecem. O número de meses com transferência diminuiu com o aumento da vazão, porque transferências maiores recolocam Quixeramobim acima do gatilho mais rapidamente. Em todos os casos, Fogareiro não apresentou falhas, e seu volume mínimo variou apenas entre 24,3\% e 27,4\% da capacidade, indicando que, na configuração estudada, as transferências têm efeito pequeno sobre o reservatório fornecedor.
+
+Em todos os parâmetros, a direção da resposta foi a esperada fisicamente: mais demanda ou mais evaporação produziram mais falhas; mais transferência ou gatilho mais alto produziram menos falhas no receptor. Essa coerência reforça os resultados da verificação, mas não substitui uma análise global, pois os parâmetros foram variados isoladamente.
+
+\section{Aplicação em Flor do Campo}
+\label{sec:aplicacao-flor}
+
+A configuração da aplicação de Flor do Campo é mostrada na Figura \ref{fig:sim-config-flor}: modo Individual, volume inicial de 50\% (52,50 hm$^3$), demanda de 60 L/s no estado Normal, período de 1911 a 2021 e curvas-guia da Tabela \ref{tab:curvas-flor}, com as vazões do açude da Regra 2. A evolução histórica do volume e do estado operacional é apresentada na Figura \ref{fig:flor-volume}, e os indicadores, na Tabela \ref{tab:flor-indicadores}.
+
+\begin{figure}[H]
+    \centering
+    \Caption{\label{fig:flor-volume}Resultados de Flor do Campo exportados pelo simulador (1911--2021): volume armazenado colorido pelo estado operacional, demanda solicitada e atendida e racionamento aplicado}
+    \UFCfig{}{
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-volume.png}\par\medskip
+        \textbf{(b) Demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-demanda.png}\par\medskip
+        \textbf{(c) Racionamento mensal (\%)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-flor-racionamento.png}\par\medskip
+        }
+    }{
+        \Fonte{Elaborada pelo autor (gráficos exportados pelo simulador).}
+    }
+\end{figure}
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Indicadores da aplicação de Flor do Campo}
+    \label{tab:flor-indicadores}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrr}
+        \toprule
+        Indicador & Com curvas-guia & Sem racionamento \\
+        \midrule
+        Meses simulados & 1.332 & 1.332 \\
+        Meses com falha & 106 & 188 \\
+        Atendimento da demanda aplicada (\%) & 96,04 & 89,06 \\
+        Atendimento da demanda solicitada (\%) & 64,26 & 89,06 \\
+        Retirada efetiva total (hm$^3$) & 133,12 & 184,50 \\
+        Déficit acumulado (hm$^3$) & 5,49 & 22,66 \\
+        Volume não fornecido por racionamento (hm$^3$) & 68,54 & --- \\
+        Meses com racionamento & 1.066 & 0 \\
+        Volume mínimo (hm$^3$) & 0,00 (0\%) & 0,00 (0\%) \\
+        Volume médio (\% da capacidade) & 22,3 & 21,9 \\
+        Vertimento total (hm$^3$) & 246,55 & 244,33 \\
+        Evaporação total (hm$^3$) & 1.907,85 & 1.859,39 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. A coluna ``Sem racionamento'' corresponde à referência da análise de sensibilidade.}
+\end{table}
+
+Com as curvas-guia e a Regra 2, o número de meses com falha caiu de 188 para 106, uma redução de 44\%, e o déficit acumulado nos meses com falha, de 22,66 para 5,49 hm$^3$. A regra, contudo, não evitou o colapso: todas as 106 falhas ocorreram em Seca Severa, com o reservatório esvaziado, a primeira em novembro de 1938, distribuídas em 21 episódios, dos quais os mais longos foram de maio de 2013 a fevereiro de 2014 (10 meses), de junho de 1983 a fevereiro de 1984 (9 meses) e de julho de 1953 a fevereiro de 1954 (8 meses). A redução das falhas foi obtida à custa de racionamento em 1.066 meses, 80\% do período: 68,54 hm$^3$ deixaram de ser fornecidos pelo açude por decisão operacional, e o atendimento em relação à demanda solicitada caiu de 89,06\% para 64,26\%. Na operação real, parte desse volume seria suprida pelos poços previstos na Regra 2, que não integram a simulação.
+
+O balanço hídrico explica esse resultado. Das afluências de 2.248,6 hm$^3$ no período, 1.859,4 hm$^3$, ou 83\%, evaporaram na simulação sem racionamento. Com a lâmina anual de 2.904 mm da estação de Crateús e área de cerca de 18,4 km$^2$ com o reservatório cheio, a evaporação potencial é da ordem de 54 hm$^3$ por ano, mais que o dobro da afluência média anual, de 20,3 hm$^3$. Com as curvas, a retirada total diminuiu 51,37 hm$^3$, mas a evaporação aumentou 48,46 hm$^3$, o vertimento, 2,22 hm$^3$, e o volume ao final da série, 0,69 hm$^3$: cerca de 94\% da água poupada pelo racionamento foi perdida por evaporação, porque permaneceu armazenada em um reservatório de grande área de espelho em relação ao volume. A comparação ilustra o compromisso discutido na Seção \ref{sec:regras-operacao} e mostra por que o número de falhas, isoladamente, não descreve a política: em reservatórios dominados pela evaporação, reter água tem eficiência limitada, e a redução das falhas depende de aceitar perdas maiores para a atmosfera. O resultado é coerente com a observação registrada na oficina de que o reservatório pode secar por evaporação mesmo sem retiradas \cite{oficinaFlorDoCampo2026}.
+
+As permanências operacionais foram de 266 meses em Normal (20,0\%), 201 em Alerta (15,1\%), 239 em Seca (17,9\%) e 626 em Seca Severa (47,0\%), dos quais 106 com o reservatório em colapso (8,0\%). Em termos acumulados, o reservatório esteve em Normal em 20,0\% dos meses, em Alerta ou melhor em 35,1\%, em Seca ou melhor em 53,0\% e em Seca Severa sem colapso ou melhor em 92,0\%, valores que atendem às permanências exigidas na obtenção das curvas. A Tabela \ref{tab:flor-oficina} compara essas permanências com as do plano para a Regra 2, apresentadas na terceira oficina: as diferenças foram inferiores a 0,1 ponto percentual em todos os estados, o que indica que a regra do plano foi transcrita corretamente para o simulador.
+
+\begin{table}[H]
+    \captionsetup{width=15cm}
+    \caption{Permanência nos estados operacionais de Flor do Campo: simulador e plano de secas (Regra 2, \% dos meses)}
+    \label{tab:flor-oficina}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrrrrr}
+        \toprule
+        Origem & Normal & Alerta & Seca & Seca Severa & Colapso \\
+        \midrule
+        Simulador (este trabalho) & 20,0 & 15,1 & 17,9 & 39,0 & 8,0 \\
+        Plano de secas & 20 & 15 & 18 & 39 & 8 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor com base em \citeonline{pgpsFlorDoCampo2026} e \citeonline{oficinaFlorDoCampo2026}. Na linha do simulador, a Seca Severa exclui os meses de colapso.}
+\end{table}
+
+A Tabela \ref{tab:flor-estados-mes}, calculada a partir da tabela mensal exportada, mostra a distribuição dos estados por mês do ano. A Seca Severa ocorreu em 48,6\% a 50,5\% dos meses de julho a março e em 33,3\% a 43,2\% dos meses de abril a junho, ao final da estação chuvosa, quando as afluências elevam o armazenamento e os limites das curvas são mais baixos. A frequência do estado Normal, por sua vez, é máxima em maio e junho, com 34,2\% dos meses.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Distribuição dos estados operacionais de Flor do Campo por mês do ano (\% dos meses)}
+    \label{tab:flor-estados-mes}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lrrrrrrrrrrrr}
+        \toprule
+        Estado & JAN & FEV & MAR & ABR & MAI & JUN & JUL & AGO & SET & OUT & NOV & DEZ \\
+        \midrule
+        Normal & 17,1 & 17,1 & 18,0 & 21,6 & 34,2 & 34,2 & 16,2 & 16,2 & 16,2 & 16,2 & 16,2 & 16,2 \\
+        Alerta & 15,3 & 16,2 & 16,2 & 17,1 & 11,7 & 15,3 & 14,4 & 14,4 & 14,4 & 15,3 & 15,3 & 15,3 \\
+        Seca & 17,1 & 16,2 & 17,1 & 18,0 & 18,9 & 17,1 & 18,9 & 18,9 & 18,9 & 18,0 & 18,0 & 18,0 \\
+        Seca Severa & 50,5 & 50,5 & 48,6 & 43,2 & 35,1 & 33,3 & 50,5 & 50,5 & 50,5 & 50,5 & 50,5 & 50,5 \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{Elaborada pelo autor a partir da tabela mensal exportada pelo simulador.}
+\end{table}
+
+A interpretação hidrológica da Figura \ref{fig:flor-volume} evidencia três padrões. O primeiro é a raridade dos enchimentos: o reservatório verteu em apenas 17 meses, distribuídos em 7 anos, e o volume médio foi de 22,3\% da capacidade. O segundo é a longa permanência em Seca Severa, com episódios de julho de 2011 a abril de 2019 (94 meses), de julho de 1978 a maio de 1984 (71 meses) e de julho de 1951 a abril de 1957 (70 meses). O terceiro é a concentração das falhas nas secas de 1952 a 1961 (41 meses), de 1981 a 1984 (18 meses) e de 2013 a 2018 (34 meses), quando, mesmo com a retirada do açude reduzida a 27 L/s, as afluências não compensaram a evaporação e o reservatório esvaziou.
+
+\section{Aplicação em Carnaubal--Barragem do Batalhão}
+\label{sec:aplicacao-carnaubal}
+
+A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-carnaubal}: Carnaubal (46,62 hm$^3$) é o reservatório prioritário, com gatilho de 10\%, e a Barragem do Batalhão (1,64 hm$^3$) é a segunda unidade; a demanda conjunta é de 160 L/s (0,4147 hm$^3$/mês), sem demandas locais. A Figura \ref{fig:sim-resultados-carnaubal} mostra o painel de resultados da interface, e a Figura \ref{fig:carnaubal-batalhao}, os gráficos exportados pelo simulador com os volumes dos dois reservatórios e a demanda conjunta assumida por cada unidade; os períodos em que a Barragem do Batalhão é responsável aparecem como pulsos no painel (c), e as falhas, como quedas da demanda atendida no painel (b).
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-config-carnaubal}Configuração do modo Paralelo para Carnaubal--Barragem do Batalhão}
+    \UFCfig{}{
+        \includegraphics[width=0.36\textwidth]{figuras/sim-config-carnaubal.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-resultados-carnaubal}Indicadores, meses abastecidos e lista de falhas na aplicação de Carnaubal--Barragem do Batalhão}
+    \UFCfig{}{
+        \includegraphics[width=0.92\textwidth]{figuras/sim-resultados-carnaubal.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:carnaubal-batalhao}Resultados de Carnaubal--Barragem do Batalhão exportados pelo simulador (1911--2021): volumes e demanda conjunta solicitada e atendida em cada unidade}
+    \UFCfig{}{
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-volume.png}\par\medskip
+        \textbf{(b) Carnaubal: demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-demanda-carnaubal.png}\par\medskip
+        \textbf{(c) Barragem do Batalhão: demanda solicitada e atendida (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-carnaubal-demanda-batalhao.png}\par\medskip
+        }
+    }{
+        \Fonte{Elaborada pelo autor (gráficos exportados pelo simulador).}
+    }
+\end{figure}
+
+\FloatBarrier
+
+Os indicadores são apresentados na Tabela \ref{tab:carnaubal-indicadores}. Carnaubal foi responsável pela demanda conjunta em 1.202 meses e a Barragem do Batalhão, em 130 meses, distribuídos em 41 períodos, com 82 mudanças de responsabilidade. Os períodos mais longos sob responsabilidade do Batalhão ocorreram de fevereiro a setembro de 2016 (8 meses) e, com 7 meses cada, em 1955, entre 1960 e 1961 e em 2015. A demanda conjunta foi atendida em 97,57\% do volume solicitado.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Indicadores da aplicação de Carnaubal--Barragem do Batalhão}
+    \label{tab:carnaubal-indicadores}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrr}
+        \toprule
+        Indicador & Carnaubal & Barragem do Batalhão \\
+        \midrule
+        Meses como unidade responsável & 1.202 & 130 \\
+        Meses com falha & 42 & 0 \\
+        Déficit acumulado (hm$^3$) & 13,42 & 0,00 \\
+        Volume mínimo (\% da capacidade) & 0,0 & 2,2 \\
+        Volume médio (\% da capacidade) & 49,5 & 87,8 \\
+        Vertimento total (hm$^3$) & 2.686,06 & 13.805,09 \\
+        Evaporação total (hm$^3$) & 2.042,76 & 180,13 \\
+        \midrule
+        Atendimento da demanda conjunta (\%) & \multicolumn{2}{c}{97,57} \\
+        Meses com falha da demanda conjunta & \multicolumn{2}{c}{42} \\
+        Falhas sistêmicas (todas as unidades) & \multicolumn{2}{c}{0} \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+A análise mês a mês esclarece o funcionamento da regra. Carnaubal iniciou o mês abaixo do gatilho em 226 meses. Em 130 deles, a Barragem do Batalhão dispunha de volume suficiente para o mês e assumiu a demanda; nos outros 96, a condição de volume não foi satisfeita e a responsabilidade permaneceu com Carnaubal. Todas as 42 falhas ocorreram nesse segundo grupo, em meses nos quais Carnaubal estava vazio e o Batalhão não tinha volume para assumir a demanda, concentrando-se nas secas de 1953--1956, 1983--1984 e 2013--2018. Como o Batalhão não tinha demanda própria nesses meses, não falhou, e por isso nenhum mês foi classificado como falha sistêmica, embora a demanda conjunta não tenha sido atendida.
+
+Os resultados também revelam o contraste entre as unidades. A Barragem do Batalhão tem capacidade pequena, mas recebe afluências elevadas em relação ao volume armazenável, o que explica o volume médio de 87,8\% e o vertimento acumulado de 13.805 hm$^3$; ela se recupera rapidamente, mas não sustenta a demanda por muitos meses quando as afluências cessam. Carnaubal, com capacidade 28 vezes maior, exibe oscilações plurianuais e longos períodos de baixo armazenamento. Na configuração estudada, o Batalhão funciona como reserva de curto prazo que adia o colapso de Carnaubal em parte das secas, mas não o evita nas secas mais longas. A aplicação demonstra o funcionamento do modo Paralelo e a utilidade da tabulação dos períodos de mudança de responsabilidade; não se propõe aqui uma regra de operação para o hidrossistema.
+
+\section{Aplicação em Fogareiro--Quixeramobim}
+\label{sec:aplicacao-fq}
+
+A configuração do modo Série é apresentada na Figura \ref{fig:sim-config-fq}. Fogareiro é o reservatório controlador, com as curvas-guia mensais exibidas no gráfico e na tabela de níveis meta; Quixeramobim é o receptor, com gatilho de 30\% (2,364 hm$^3$). Os indicadores obtidos na interface são mostrados na Figura \ref{fig:sim-resultados-fq}, e a evolução dos volumes e das transferências, na Figura \ref{fig:fogareiro-quixeramobim}.
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-config-fq}Configuração do modo Série para Fogareiro--Quixeramobim, com as curvas-guia de Fogareiro}
+    \UFCfig{}{
+        \includegraphics[width=0.98\textwidth]{figuras/sim-config-fq.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:sim-resultados-fq}Indicadores e meses abastecidos na aplicação de Fogareiro--Quixeramobim}
+    \UFCfig{}{
+        \includegraphics[width=0.92\textwidth]{figuras/sim-resultados-fq.png}
+    }{
+        \Fonte{Elaborada pelo autor.}
+    }
+\end{figure}
+
+\begin{figure}[!htbp]
+    \centering
+    \Caption{\label{fig:fogareiro-quixeramobim}Resultados de Fogareiro--Quixeramobim exportados pelo simulador (1911--2019): volumes coloridos pelo estado do sistema e vazão transferida}
+    \UFCfig{}{
+        \parbox{\textwidth}{\centering\footnotesize
+        \textbf{(a) Fogareiro: volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-volume-fogareiro.png}\par\medskip
+        \textbf{(b) Quixeramobim: volume armazenado (\% da capacidade)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-volume-quixeramobim.png}\par\medskip
+        \textbf{(c) Transferência enviada por Fogareiro (m$^3$/s)}\par\smallskip
+        \includegraphics[width=0.97\textwidth]{figuras/exp-fq-transferencias.png}\par\medskip
+        }
+    }{
+        \Fonte{Elaborada pelo autor (gráficos exportados pelo simulador).}
+    }
+\end{figure}
+
+\FloatBarrier
+
+Os indicadores constam na Tabela \ref{tab:fq-indicadores}. Nenhum dos reservatórios apresentou falha no período: as demandas aplicadas a cada estado foram integralmente atendidas. Em relação às demandas do estado Normal, o atendimento foi de 94,94\% em Fogareiro e de 96,22\% em Quixeramobim, diferença que corresponde às reduções previstas para os estados Alerta, Seca e Seca Severa.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Indicadores da aplicação de Fogareiro--Quixeramobim (1.308 meses)}
+    \label{tab:fq-indicadores}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrr}
+        \toprule
+        Indicador & Fogareiro & Quixeramobim \\
+        \midrule
+        Meses com falha & 0 & 0 \\
+        Atendimento da demanda aplicada (\%) & 100,00 & 100,00 \\
+        Atendimento em relação à demanda do estado Normal (\%) & 94,94 & 96,22 \\
+        Volume mínimo & 29,25 hm$^3$ (24,8\%) & 1,36 hm$^3$ (17,2\%) \\
+        Volume médio (\% da capacidade) & 82,7 & 62,3 \\
+        Vertimento total (hm$^3$) & 24.356,40 & 28.776,00 \\
+        Evaporação total (hm$^3$) & 3.511,04 & 448,12 \\
+        Meses com transferência & 257 (enviada) & 257 (recebida) \\
+        Volume transferido (hm$^3$) & \multicolumn{2}{c}{301,58} \\
+        \midrule
+        Permanência do sistema: Normal / Alerta & \multicolumn{2}{c}{1.145 (87,5\%) / 91 (7,0\%)} \\
+        Permanência do sistema: Seca / Seca Severa & \multicolumn{2}{c}{44 (3,4\%) / 28 (2,1\%)} \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+O gatilho de transferência foi ativado em 257 meses, distribuídos em 86 dos 109 anos simulados, totalizando 301,58 hm$^3$ transferidos. Segundo o estado do sistema no mês, foram 178 meses com 500 L/s (Normal), 58 com 400 L/s (Alerta), 11 com 300 L/s (Seca) e 10 com 85 L/s (Seca Severa). Os anos com mais meses de transferência foram 1919, 1932, 1942, 1958 e 1993, com 10 meses cada, seguidos de 1915 e 2012, com 9. A maior sequência contínua de transferência teve 9 meses.
+
+Um comportamento relevante observado na Figura \ref{fig:fogareiro-quixeramobim} é a alternância da transferência em meses consecutivos durante os períodos secos, com 224 mudanças entre meses com e sem transferência. Como o gatilho é avaliado com o volume após afluência e evaporação, uma transferência de 500 L/s pode elevar Quixeramobim acima de 30\% no mês seguinte, desligando a transferência; com a retirada de 342 L/s, o volume volta a cair abaixo do gatilho, religando-a. Esse comportamento liga-desliga é consequência direta da regra implementada, sem faixa de tolerância, e seria atenuado por uma histerese, isto é, por limites diferentes para iniciar e encerrar a transferência.
+
+Os vertimentos elevados dos dois reservatórios, em especial o de Quixeramobim (28.776 hm$^3$ em 109 anos, cerca de 8,5 m$^3$/s), refletem o uso da afluência total no reservatório de jusante, discutido na Seção \ref{sec:base-dados}: a série de Quixeramobim já incorpora a vazão proveniente da bacia de Fogareiro, e como sua capacidade é pequena diante dessa afluência, a maior parte do volume que chega ao reservatório é vertida. O estado do sistema, definido por Fogareiro, permaneceu Normal em 87,5\% dos meses. Todos os 28 meses em Seca Severa ocorreram entre 2013 e 2017, período em que ambos os reservatórios atingiram seus volumes mínimos (janeiro de 2017). Fogareiro, com 118 hm$^3$, nunca ficou abaixo de 24,8\% da capacidade, enquanto Quixeramobim, com 7,88 hm$^3$, teve volume mínimo de 17,2\%. A aplicação mostra que, sob as regras adotadas, o reservatório maior sustenta o menor durante as secas, e que a principal limitação do receptor é a sua pequena capacidade diante da demanda própria.
+
+\section{Síntese das aplicações}
+\label{sec:sintese-aplicacoes}
+
+A Tabela \ref{tab:sintese} reúne os principais indicadores das três aplicações. Os valores não devem ser comparados diretamente entre reservatórios, pois cada aplicação possui capacidades, séries, demandas e regras próprias; a tabela tem a finalidade de registrar, em um único lugar, o que cada modo de operação permitiu observar.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Síntese dos indicadores das aplicações}
+    \label{tab:sintese}
+    \centering
+    \scriptsize
+    \begin{tabular}{p{3.4cm}p{3.2cm}p{3.6cm}p{3.6cm}}
+        \toprule
+        Indicador & Flor do Campo (Individual) & Carnaubal--Batalhão (Paralelo) & Fogareiro--Quixeramobim (Série) \\
+        \midrule
+        Meses simulados & 1.332 & 1.332 & 1.308 \\
+        Atendimento da demanda aplicada & 96,04\% & 97,57\% (conjunta) & 100,00\% / 100,00\% \\
+        Meses com falha & 106 & 42 (Carnaubal) & 0 / 0 \\
+        Déficit acumulado & 5,49 hm$^3$ & 13,42 hm$^3$ & 0,00 hm$^3$ \\
+        Volume mínimo & 0,0\% & 0,0\% / 2,2\% & 24,8\% / 17,2\% \\
+        Vertimento & 246,5 hm$^3$ & 2.686 / 13.805 hm$^3$ & 24.356 / 28.776 hm$^3$ \\
+        Permanência Normal/Alerta/Seca/Seca Severa & 20,0/15,1/17,9/47,0\% & sem regras & 87,5/7,0/3,4/2,1\% \\
+        Meses com transferência ou mudança de responsável & --- & 130 & 257 \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor. Nos hidrossistemas, os pares referem-se à primeira e à segunda unidade de cada nome.}
+\end{table}
+
+Em conjunto, as aplicações exercitaram todas as funcionalidades implementadas: o balanço individual com curvas-guia e racionamento em Flor do Campo; a redistribuição de uma demanda conjunta em Carnaubal--Barragem do Batalhão; e a transferência acionada por gatilho, com estado do sistema definido por um reservatório controlador, em Fogareiro--Quixeramobim. Em todas, o resíduo de conservação de massa calculado sobre as saídas foi nulo dentro da tolerância de $10^{-9}$ hm$^3$. As análises realizadas, como a identificação dos meses em que a demanda conjunta não pôde ser deslocada ou do comportamento liga-desliga da transferência, dependeram do acesso aos registros mensais, e não apenas aos indicadores agregados, o que reforça a importância da tabela exportável do sistema.
+
+\section{Limitações}
+\label{sec:limitacoes}
+
+Os resultados apresentados devem ser interpretados à luz das seguintes limitações:
+
+\begin{alineas}
+    \item \textbf{ausência de imputação automática de lacunas}: registros ausentes são desconsiderados, e a execução de hidrossistemas exige séries com os mesmos meses; a qualidade das séries depende de verificação externa ao sistema;
+    \item \textbf{dependência das séries cadastradas}: as afluências são as séries mensais cadastradas no banco de dados, cuja procedência não foi reavaliada neste trabalho, e a evaporação é representada por médias mensais repetidas em todos os anos; os resultados são condicionados a essa versão da base;
+    \item \textbf{balanço sem precipitação direta, infiltração e volume morto}: a chuva sobre o espelho d'água e as perdas por infiltração não são representadas, e o volume mínimo operacional é nulo; a primeira omissão tende a superestimar as perdas líquidas na estação chuvosa, e a última, a superestimar o volume disponível para retirada;
+    \item \textbf{fontes complementares não representadas}: o simulador considera apenas os reservatórios; em Flor do Campo, os poços previstos na regra do plano não entram no balanço, e o volume racionado é tratado como não fornecido;
+    \item \textbf{simplificação das transferências}: a transferência é um volume mensal único, instantâneo, sem separação entre volume liberado, perdas em trânsito e volume recebido, exceto pelo percentual agregado de atendimento;
+    \item \textbf{acoplamento simplificado entre reservatórios em cascata}: o reservatório de jusante utiliza a série de afluência total, que já incorpora a contribuição de montante sob uma operação de referência; assim, a operação simulada no reservatório de montante não altera a afluência de jusante, e o único acoplamento representado é a transferência;
+    \item \textbf{ausência de representação hidráulica do percurso}: não são representados tempo de percurso, capacidade de condução, custo energético ou fenômenos transitórios; e
+    \item \textbf{ausência de validação com dados observados}: os testes realizados verificam a implementação, mas não comparam os volumes simulados com volumes medidos nos reservatórios; portanto, não demonstram que o modelo representa a operação real.
+\end{alineas}
+
+Além dessas, a análise de sensibilidade variou um parâmetro por vez e não explora interações, e a regra de transferência não possui histerese, o que produz alternância de ativação em meses consecutivos.

@@ -1,18 +1,27 @@
+import { VARS_ESCURO } from './tema'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
+  ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 import {
   Activity, CheckCircle2, Database, Play, RefreshCw, Send,
   Download, FileSpreadsheet, FileText, Plus, Search, X,
+  ShieldCheck, Scale, Droplets, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import * as XLSX from './utils/planilha'
 import { elementToPngDataUrl } from './components/ChartExportMenu'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const MESES_NOMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const NIVEL_LABELS = ['Normal', 'Alerta', 'Seca', 'Seca Severa']
-const CURVE_COLORS = ['#2a9d8f', '#d4a017', '#e07b2a', '#d94040']
+// cores fixas guardadas junto com as faixas enviadas ao simulador
+const CURVE_HEX = ['#2a9d8f', '#d4a017', '#e07b2a', '#d94040']
+// cores de exibição: seguem o tema (claro ou escuro)
+const CURVE_COLORS = ['var(--faixa-normal)', 'var(--faixa-alerta)', 'var(--faixa-seca)', 'var(--faixa-severa)']
+// cor de cada nível: a escolhida pelo usuário no cenário ou a padrão do tema
+const corNivel = (scenario, i) => scenario?.cores?.[i] || CURVE_COLORS[i]
+const corNivelHex = (scenario, i) => scenario?.cores?.[i] || CURVE_HEX[i]
 const MAX_FAIXAS = 4
 
 function labelsForBands(count) {
@@ -102,6 +111,11 @@ function makeApi(base) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),
+    pareto: (payload) => fetch(`${b}/api/otimizador/pareto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
   }
 }
 
@@ -161,7 +175,7 @@ function useBoxZoom(data, key = 'data') {
       },
     },
     area: left !== null && right !== null
-      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />
+      ? <ReferenceArea x1={left} x2={right} strokeOpacity={0.3} fill="var(--teal)" fillOpacity={0.16} />
       : null,
   }
 }
@@ -227,7 +241,7 @@ function curvasParaFaixas(result, scenario) {
       NomeFaixaNormal: labels[0] || 'Normal',
       _tipoFaixa: 'restrita',
       _estadoIndice: nivelIdx,
-      _cor: CURVE_COLORS[nivelIdx],
+      _cor: corNivelHex(scenario, nivelIdx),
       ...Object.fromEntries(MESES.map((m, i) => [m, Number((Number(curve[i] || 0) * 100).toFixed(1))])),
     }
   })
@@ -297,13 +311,13 @@ function buildHistoricalVolumeData(result, mesIni, anoIni, labels) {
   return data
 }
 
-function HistoricalVolumeTooltip({ active, payload, label, labels }) {
+function HistoricalVolumeTooltip({ active, payload, label, labels, cores = CURVE_COLORS }) {
   if (!active || !payload?.length) return null
   const point = payload.find(p => p?.payload?.origVol !== undefined)?.payload
   if (!point) return null
-  const color = CURVE_COLORS[point.origEstado] || CURVE_COLORS[0]
+  const color = cores[point.origEstado] || cores[0]
   return (
-    <div style={{ background: '#fff', border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 12px', boxShadow: 'var(--shadow)', fontSize: 11 }}>
+    <div style={{ background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 12px', boxShadow: 'var(--shadow)', fontSize: 11 }}>
       <div style={{ fontWeight: 900, marginBottom: 7, color: 'var(--text)' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
         <span style={{ width: 8, height: 8, borderRadius: 999, background: color }} />
@@ -315,13 +329,172 @@ function HistoricalVolumeTooltip({ active, payload, label, labels }) {
   )
 }
 
-export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false }) {
+const METODOS = [
+  { id: 'pso', nome: 'Garantias (PSO)', descricao: 'Busca as curvas que atingem as garantias requeridas de cada nível.' },
+  { id: 'nsga2', nome: 'Pareto (NSGA-II)', descricao: 'Mostra o compromisso entre segurança (meses sem falha) e água entregue.' },
+]
+
+const CRITERIOS = [
+  { id: 'gradual', nome: 'Racionamento gradual', descricao: 'Minimiza o déficit quadrático: cortes pequenos e frequentes pesam menos que cortes raros e profundos, o que escalona os níveis.' },
+  { id: 'total', nome: 'Volume total', descricao: 'Maximiza o volume entregue. Tende a ir direto do atendimento pleno ao nível mais severo, com faixas intermediárias estreitas.' },
+]
+
+const DESTAQUES = [
+  { chave: 'seguranca_total', titulo: 'Segurança total', Icone: ShieldCheck, cor: 'var(--teal)', vazio: 'Nenhuma solução sem falhas nesta demanda' },
+  { chave: 'equilibrio', titulo: 'Equilíbrio', Icone: Scale, cor: 'var(--blue)' },
+  { chave: 'maxima_entrega', titulo: 'Máxima entrega', Icone: Droplets, cor: 'var(--orange-deep)' },
+]
+
+const num = (valor, casas = 1) => Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
+
+function resumoSolucao(s) {
+  return `${s.meses_falha} ${s.meses_falha === 1 ? 'mês' : 'meses'} com falha · ${num(s.entregue_percent)}% entregue · ${num(s.vazao_media_lps)} L/s`
+}
+
+function ParetoTooltip({ active, payload }) {
+  const ponto = payload?.[0]?.payload
+  if (!active || !ponto) return null
+  return (
+    <div style={{ background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '9px 12px', boxShadow: 'var(--shadow)', fontSize: 11, color: 'var(--text)' }}>
+      <div style={{ fontWeight: 900, marginBottom: 5 }}>{ponto.referencia ? 'Sem níveis meta (referência)' : `Solução ${ponto.id + 1}`}</div>
+      <div>Meses com falha: <strong>{ponto.meses_falha}</strong> ({num(ponto.garantia_percent)}% de garantia)</div>
+      <div>Água entregue: <strong>{num(ponto.entregue_percent)}%</strong> da demanda ({num(ponto.vazao_media_lps)} L/s em média)</div>
+      <div>Déficit quadrático médio: <strong>{num(ponto.deficit_quadratico_percent, 2)}%</strong></div>
+      {!ponto.referencia && <div>Meses em racionamento: <strong>{ponto.meses_racionamento}</strong></div>}
+      <div>Volume mínimo: <strong>{num(ponto.volume_minimo_percent)}%</strong></div>
+    </div>
+  )
+}
+
+function ParetoPanel({ dados, selecionada, onSelect }) {
+  const solucoes = dados.solucoes || []
+  const ref = dados.referencia_sem_racionamento
+  const destaques = dados.destaques || {}
+  const corDe = id => DESTAQUES.find(d => destaques[d.chave] === id)?.cor
+  // eixo x = o critério de água entregue que foi otimizado (no gradual, o déficit quadrático, com o melhor à direita)
+  const gradual = dados.parametros?.criterio_entrega === 'gradual'
+  const eixoX = s => (gradual ? s.deficit_quadratico_percent : s.entregue_percent)
+  const pontos = solucoes.map(s => ({ ...s, x: eixoX(s), y: s.meses_falha }))
+  const pontoRef = ref ? [{ ...ref, referencia: true, x: eixoX(ref), y: ref.meses_falha }] : []
+
+  const forma = ({ cx, cy, payload }) => {
+    if (cx == null || cy == null) return null
+    const ativo = payload.id === selecionada
+    const cor = corDe(payload.id) || 'var(--orange)'
+    return (
+      <g style={{ cursor: 'pointer' }}>
+        {ativo && <circle cx={cx} cy={cy} r={11} fill="none" stroke="var(--text)" strokeWidth={2} />}
+        <circle cx={cx} cy={cy} r={corDe(payload.id) ? 7 : 5} fill={cor} fillOpacity={ativo ? 1 : 0.78} stroke="var(--card)" strokeWidth={1.5} />
+      </g>
+    )
+  }
+  const formaRef = ({ cx, cy }) => (cx == null || cy == null ? null : (
+    <path d={`M${cx - 7},${cy - 7}L${cx + 7},${cy + 7}M${cx + 7},${cy - 7}L${cx - 7},${cy + 7}`} stroke="var(--red)" strokeWidth={3} strokeLinecap="round" />
+  ))
+
+  return (
+    <Card style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+        <Scale size={16} color="var(--orange)" />
+        <span style={{ fontSize: 13.5, fontWeight: 900 }}>Fronteira de Pareto: segurança × água entregue</span>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-light)', margin: '0 0 12px' }}>
+        {solucoes.length} soluções não dominadas ({num(dados.avaliacoes, 0)} simulações), critério {gradual ? 'racionamento gradual' : 'volume total'}. Nenhuma delas melhora a segurança sem piorar a entrega de água. Clique em um ponto para ver as curvas e aplicar no Simulador.
+      </p>
+
+      <div className="opt-pareto-cards">
+        {DESTAQUES.map(({ chave, titulo, Icone, cor, vazio }) => {
+          const id = destaques[chave]
+          const s = id == null ? null : solucoes[id]
+          return (
+            <button
+              key={chave}
+              type="button"
+              className={`opt-pareto-card ${s && id === selecionada ? 'active' : ''}`}
+              style={{ '--cor-destaque': cor }}
+              disabled={!s}
+              onClick={() => s && onSelect(id)}
+            >
+              <span className="opt-pareto-card-title"><Icone size={14} /> {titulo}</span>
+              <span className="opt-pareto-card-text">{s ? resumoSolucao(s) : vazio}</span>
+            </button>
+          )
+        })}
+        {ref && (
+          <div className="opt-pareto-card ref" style={{ '--cor-destaque': 'var(--red)' }}>
+            <span className="opt-pareto-card-title"><X size={14} /> Sem níveis meta</span>
+            <span className="opt-pareto-card-text">{resumoSolucao(ref)}</span>
+          </div>
+        )}
+      </div>
+
+      <div data-chart-name="fronteira_pareto" style={{ height: 300 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 12, right: 18, bottom: 18, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
+            <XAxis type="number" dataKey="x" name={gradual ? 'Déficit quadrático médio' : 'Água entregue'} domain={['auto', 'auto']}
+              reversed={gradual} tickFormatter={v => `${num(v)}%`}
+              tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false}
+              label={{ value: gradual ? 'Déficit quadrático médio (% da demanda, menor à direita)' : 'Água entregue (% da demanda)', position: 'insideBottom', offset: -10, fill: 'var(--text-light)', fontSize: 11 }} />
+            <YAxis type="number" dataKey="y" name="Meses com falha" allowDecimals={false}
+              tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false}
+              label={{ value: 'Meses com falha', angle: -90, position: 'insideLeft', offset: 14, fill: 'var(--text-light)', fontSize: 11 }} />
+            <ZAxis range={[60, 60]} />
+            <Tooltip content={<ParetoTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+            <Scatter name="Soluções" data={pontos} shape={forma} isAnimationActive={false}
+              line={{ stroke: 'var(--border)', strokeWidth: 1.5 }} onClick={p => onSelect(p?.payload?.id ?? p?.id)} />
+            {pontoRef.length > 0 && <Scatter name="Sem níveis meta" data={pontoRef} shape={formaRef} isAnimationActive={false} />}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 6 }}>
+        <button className="opt-btn opt-ghost" style={{ padding: '6px 9px' }} aria-label="Solução anterior"
+          disabled={selecionada <= 0} onClick={() => onSelect(selecionada - 1)}><ChevronLeft size={14} /></button>
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text-mid)' }}>Solução {selecionada + 1} de {solucoes.length}</span>
+        <button className="opt-btn opt-ghost" style={{ padding: '6px 9px' }} aria-label="Próxima solução"
+          disabled={selecionada >= solucoes.length - 1} onClick={() => onSelect(selecionada + 1)}><ChevronRight size={14} /></button>
+      </div>
+    </Card>
+  )
+}
+
+function MetricasSolucao({ s }) {
+  const itens = [
+    ['Meses com falha', `${s.meses_falha}`, `${num(s.garantia_percent)}% de garantia`],
+    ['Água entregue', `${num(s.entregue_percent)}%`, `${num(s.entregue_hm3)} hm³`],
+    ['Vazão média', `${num(s.vazao_media_lps)} L/s`, 'entregue no período'],
+    ['Déficit', `${num(s.deficit_hm3)} hm³`, 'não atendido'],
+    ['Déficit quadrático', `${num(s.deficit_quadratico_percent, 2)}%`, 'médio, da demanda'],
+    ['Racionamento', `${s.meses_racionamento}`, 'meses abaixo do Normal'],
+    ['Volume mínimo', `${num(s.volume_minimo_percent)}%`, 'da capacidade'],
+  ]
+  return (
+    <div className="opt-metricas">
+      {itens.map(([rotulo, valor, detalhe]) => (
+        <div key={rotulo} className="opt-metrica">
+          <span className="opt-metrica-rotulo">{rotulo}</span>
+          <strong>{valor}</strong>
+          <span className="opt-metrica-detalhe">{detalhe}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export default function OtimizadorMeta({ apiUrl, onApplyCurvas, acudeInicial, darkMode = false }) {
   const api = useMemo(() => makeApi(apiUrl), [apiUrl])
   const [lista, setLista] = useState([])
   const [reservatorio, setReservatorio] = useState('')
   const [bounds, setBounds] = useState({ anoMin: 1911, mesMin: 1, anoMax: 2021, mesMax: 12 })
   const [prob, setProb] = useState(0.25)
   const [iters, setIters] = useState(50)
+  const [metodo, setMetodo] = useState('pso')
+  const [populacao, setPopulacao] = useState(80)
+  const [geracoes, setGeracoes] = useState(60)
+  const [larguraMinima, setLarguraMinima] = useState(5)
+  const [criterioEntrega, setCriterioEntrega] = useState('gradual')
+  const [selecaoPorCenario, setSelecaoPorCenario] = useState({})
   const [ninicio, setNinicio] = useState(7)
   const [mesIni, setMesIni] = useState(1)
   const [anoIni, setAnoIni] = useState(1911)
@@ -341,7 +514,21 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   const sideRef = useRef(null)
 
   const scenario = scenarios.find(s => s.id === activeScenarioId) || scenarios[0]
-  const result = resultsByScenario[activeScenarioId] || null
+  const resultadoBruto = resultsByScenario[activeScenarioId] || null
+  const isPareto = resultadoBruto?.metodo === 'nsga2'
+  const solucoesPareto = isPareto ? (resultadoBruto.solucoes || []) : []
+  const selecionada = Math.min(
+    solucoesPareto.length - 1,
+    selecaoPorCenario[activeScenarioId] ?? resultadoBruto?.destaques?.equilibrio ?? 0,
+  )
+  // no NSGA-II o resultado exibido (curvas, volumes, exportações) é o da solução escolhida na fronteira
+  const result = isPareto
+    ? (solucoesPareto.length ? { ...resultadoBruto, ...solucoesPareto[selecionada] } : null)
+    : resultadoBruto
+  const selecionarSolucao = (indice) => {
+    if (indice == null || indice < 0 || indice >= solucoesPareto.length) return
+    setSelecaoPorCenario(prev => ({ ...prev, [activeScenarioId]: indice }))
+  }
   const loading = loadingId === activeScenarioId
   const progress = progressByScenario[activeScenarioId] || 0
 
@@ -370,7 +557,8 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       .then(data => {
         const itens = data.lista || []
         setLista(itens)
-        setReservatorio(prev => prev || itens[0] || '')
+        const doMapa = itens.includes(acudeInicial?.nome) ? acudeInicial.nome : ''
+        setReservatorio(prev => doMapa || prev || itens[0] || '')
       })
       .catch(e => setMsg({ type: 'error', text: e.message }))
   }, [api])
@@ -414,6 +602,14 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       const labels = [...(prev.labels || labelsForBands(prev.quantidadeFaixas))]
       labels[idx] = value
       return { labels }
+    })
+  }
+
+  const setCorNivel = (idx, cor) => {
+    updateScenario(prev => {
+      const cores = [...(prev.cores || [])]
+      cores[idx] = cor
+      return { cores }
     })
   }
 
@@ -474,11 +670,11 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     if (!reservatorio) return
     const nomesConfigurados = (scenario.labels || []).map(label => String(label).trim())
     if (nomesConfigurados.length !== scenario.quantidadeFaixas || nomesConfigurados.some(nome => !nome)) {
-      setMsg({ type: 'error', text: 'Preencha o nome de todas as faixas de operação.' })
+      setMsg({ type: 'error', text: 'Preencha o nome de todos os níveis de operação.' })
       return
     }
     if (new Set(nomesConfigurados.map(nome => nome.toLocaleLowerCase('pt-BR'))).size !== nomesConfigurados.length) {
-      setMsg({ type: 'error', text: 'Use um nome diferente para cada faixa de operação.' })
+      setMsg({ type: 'error', text: 'Use um nome diferente para cada nível de operação.' })
       return
     }
     const scenarioId = activeScenarioId
@@ -486,14 +682,15 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     setLoadingId(scenarioId)
     setProgressByScenario(prev => ({ ...prev, [scenarioId]: 0 }))
     setResultsByScenario(prev => ({ ...prev, [scenarioId]: null }))
+    setSelecaoPorCenario(prev => ({ ...prev, [scenarioId]: undefined }))
     setMsg(null)
     setZoomDomain(null)
 
-    const payload = {
+    const usarPareto = metodo === 'nsga2'
+    const comum = {
       cenario_id: scenarioId,
       reservatorio,
       prob,
-      iters,
       ninicio,
       mes_inicio: mesIni,
       ano_inicio: anoIni,
@@ -503,13 +700,15 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
       dsupl_m3s: scenarioSnapshot.dsupl,
       frac_durb: scenarioSnapshot.fracDurb,
       frac_dsup: scenarioSnapshot.fracDsup,
-      garantia_req: scenarioSnapshot.garantiaReq,
       quantidade_faixas: scenarioSnapshot.quantidadeFaixas,
       faixas_nomes: nomesConfigurados,
     }
+    const payload = usarPareto
+      ? { ...comum, populacao, geracoes, seed: 1, largura_minima: Math.min(25, Math.max(0, Number(larguraMinima) || 0)) / 100, criterio_entrega: criterioEntrega }
+      : { ...comum, iters, garantia_req: scenarioSnapshot.garantiaReq }
 
     try {
-      const response = await api.simular(payload)
+      const response = await (usarPareto ? api.pareto(payload) : api.simular(payload))
       if (!response.ok || !response.body) throw new Error('Falha ao iniciar otimização')
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -527,6 +726,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
           if (data.status === 'progresso') {
             setProgressByScenario(prev => ({ ...prev, [scenarioId]: Math.round((data.iteracao / data.total_iteracoes) * 100) }))
           } else if (data.status === 'sucesso') {
+            if (usarPareto && !data.solucoes?.length) {
+              setMsg({ type: 'error', text: 'O NSGA-II não encontrou soluções viáveis. Aumente a população ou as gerações.' })
+              continue
+            }
             setProgressByScenario(prev => ({ ...prev, [scenarioId]: 100 }))
             setResultsByScenario(prev => ({ ...prev, [scenarioId]: data }))
           } else if (data.status === 'erro') {
@@ -554,6 +757,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
   }
 
   const labelsAtivos = scenario?.labels || result?.faixas_nomes || labelsForBands(scenario?.quantidadeFaixas)
+  const coresAtivas = CURVE_COLORS.map((_, i) => corNivel(scenario, i))
 
   const performanceRows = () => labelsAtivos.map((label, i) => {
     const vazaoTotal = (Number(scenario.durb || 0) * Number(scenario.fracDurb[i] || 0))
@@ -561,7 +765,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     return {
       'Nível Operacional': label,
       'Vazão Total (L/s)': Number((vazaoTotal * 1000).toFixed(3)),
-      'Garantia Requerida': Number(((Number(scenario.garantiaReq[i] || 0)) * 100).toFixed(2)),
+      ...(isPareto ? {} : { 'Garantia Requerida': Number(((Number(scenario.garantiaReq[i] || 0)) * 100).toFixed(2)) }),
       'Garantia Obtida': Number(((Number(result?.garantias_obtidas?.[i] || 0)) * 100).toFixed(2)),
     }
   })
@@ -580,6 +784,21 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     'Vertimento (hm³)': Number(d['Vertimento (hm³)'] || 0),
     'Falha': d.Falha || 'Não',
     'Modo Operação': labelsAtivos[nomesResultado.indexOf(d['Modo Operação'])] || d['Modo Operação'] || labelsAtivos[0],
+  }))
+
+  const paretoRows = () => solucoesPareto.map((s, i) => ({
+    'Solução': i + 1,
+    Destaque: DESTAQUES.filter(d => resultadoBruto.destaques?.[d.chave] === i).map(d => d.titulo).join(', '),
+    'Meses com Falha': s.meses_falha,
+    'Garantia (%)': s.garantia_percent,
+    'Água Entregue (%)': s.entregue_percent,
+    'Água Entregue (hm³)': s.entregue_hm3,
+    'Vazão Média (L/s)': s.vazao_media_lps,
+    'Déficit (hm³)': s.deficit_hm3,
+    'Déficit Quadrático Médio (%)': s.deficit_quadratico_percent,
+    'Meses em Racionamento': s.meses_racionamento,
+    'Volume Mínimo (%)': s.volume_minimo_percent,
+    ...Object.fromEntries((s.niveis_meta || []).map((n, k) => [`Nível Meta ${labelsAtivos[k + 1] || k + 1}`, Number(n.toFixed(4))])),
   }))
 
   const exportCurvesCSV = () => {
@@ -625,6 +844,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     }))), 'Volumes')
     const rows = simulationRows()
     if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Simulação')
+    if (isPareto) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paretoRows()), 'Fronteira de Pareto')
     XLSX.writeFile(wb, `otimizacao_${safeName(reservatorio)}.xlsx`)
   }
 
@@ -642,9 +862,18 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
         <tr>
           <td>${escapeHtml(row['Nível Operacional'])}</td>
           <td>${escapeHtml(row['Vazão Total (L/s)'])}</td>
-          <td>${escapeHtml(row['Garantia Requerida'])}%</td>
+          ${isPareto ? '' : `<td>${escapeHtml(row['Garantia Requerida'])}%</td>`}
           <td>${escapeHtml(row['Garantia Obtida'])}%</td>
         </tr>`).join('')
+      const paretoHtml = isPareto ? `
+  <h2>Solu&ccedil;&atilde;o escolhida na fronteira de Pareto (NSGA-II)</h2>
+  <div class="meta">
+    <div><b>Meses com falha</b>${escapeHtml(result.meses_falha)} (${escapeHtml(num(result.garantia_percent))}% de garantia)</div>
+    <div><b>&Aacute;gua entregue</b>${escapeHtml(num(result.entregue_percent))}% da demanda</div>
+    <div><b>Vaz&atilde;o m&eacute;dia</b>${escapeHtml(num(result.vazao_media_lps))} L/s</div>
+    <div><b>Meses em racionamento</b>${escapeHtml(result.meses_racionamento)}</div>
+  </div>
+  <p>Solu&ccedil;&atilde;o ${selecionada + 1} de ${solucoesPareto.length}. Sem n&iacute;veis meta: ${escapeHtml(resumoSolucao(resultadoBruto.referencia_sem_racionamento || {}))}.</p>` : ''
       const curvesHtml = curves.map(row => `
         <tr>
           <td>${escapeHtml(row.Faixa)}</td>
@@ -672,11 +901,14 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
     <div><b>Demanda</b>${escapeHtml(m3sToLps(scenario.durb))} L/s</div>
     <div><b>Per&iacute;odo</b>${MESES[mesIni - 1]}/${anoIni} a ${MESES[mesFim - 1]}/${anoFim}</div>
     <div><b>Probabilidade de aflu&ecirc;ncia</b>${escapeHtml((prob * 100).toFixed(0))}%</div>
-    <div><b>Itera&ccedil;&otilde;es PSO</b>${escapeHtml(iters)}</div>
+    ${isPareto
+      ? `<div><b>NSGA-II</b>${escapeHtml(resultadoBruto.parametros?.populacao)} indiv&iacute;duos &times; ${escapeHtml(resultadoBruto.parametros?.geracoes)} gera&ccedil;&otilde;es, crit&eacute;rio ${resultadoBruto.parametros?.criterio_entrega === 'gradual' ? 'racionamento gradual' : 'volume total'}, largura m&iacute;nima ${escapeHtml(num((resultadoBruto.parametros?.largura_minima || 0) * 100, 0))}%</div>`
+      : `<div><b>Itera&ccedil;&otilde;es PSO</b>${escapeHtml(iters)}</div>`}
   </div>
+  ${paretoHtml}
   ${levelsImage ? `<figure><figcaption>Curvas dos n&iacute;veis meta</figcaption><img src="${levelsImage}" alt="Curvas dos n&iacute;veis meta"></figure>` : ''}
   <h2>Desempenho por n&iacute;vel operacional</h2>
-  <table><thead><tr><th>N&iacute;vel</th><th>Vaz&atilde;o total (L/s)</th><th>Garantia requerida</th><th>Garantia obtida</th></tr></thead><tbody>${performanceHtml}</tbody></table>
+  <table><thead><tr><th>N&iacute;vel</th><th>Vaz&atilde;o total (L/s)</th>${isPareto ? '' : '<th>Garantia requerida</th>'}<th>Garantia obtida</th></tr></thead><tbody>${performanceHtml}</tbody></table>
   ${volumeImage ? `<figure><figcaption>S&eacute;rie hist&oacute;rica de volumes</figcaption><img src="${volumeImage}" alt="S&eacute;rie hist&oacute;rica de volumes"></figure>` : ''}
   <h2>Valores mensais das curvas (% do volume)</h2>
   <table><thead><tr><th>N&iacute;vel</th>${MESES.map(month => `<th>${month}</th>`).join('')}</tr></thead><tbody>${curvesHtml}</tbody></table>
@@ -714,13 +946,13 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
   return (
     <div className={`sim-root ${darkMode ? 'opt-dark' : ''}`} style={{ minHeight: 600, padding: '18px 26px 48px' }}>
-      <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
+      <style>{`.sim-root{--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--blue-pale:#dde8f8;--red:#d94040;--red-pale:#fde8e8;--yellow:#d4a017;--yellow-pale:#fef3cd;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--card-2:#fff;--campo:#fff;--grade:#ecdcc8;--faixa-normal:#2a9d8f;--faixa-alerta:#d4a017;--faixa-seca:#e07b2a;--faixa-severa:#d94040;--sucesso:#10b981;--erro:#ef4444;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.opt-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}.opt-side{position:sticky;top:16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.opt-side-head{font-size:14px;font-weight:900;margin-bottom:12px;display:flex;gap:8px;align-items:center}.opt-section{border-top:1.5px solid var(--border-light);padding-top:10px}.opt-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer}.opt-primary{background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff}.opt-ghost{background:#fff;color:var(--text-mid);border:1.5px solid var(--border)}@keyframes opt-spin{to{transform:rotate(360deg)}}.opt-spin{animation:opt-spin 1.1s linear infinite}@media(max-width:920px){.opt-layout{grid-template-columns:1fr}.opt-side{position:relative;top:0}}`}</style>
       <style>{`.opt-layout{grid-template-columns:340px minmax(0,1fr);gap:0}.opt-side{position:sticky;top:12px;background:#fff;border:1px solid #cbd5e1;border-radius:0;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:0;overflow:hidden;font-family:'JetBrains Mono','Consolas',monospace}.opt-side-top{padding:16px;border-bottom:1px solid #cbd5e1;display:flex;flex-direction:column;gap:14px;background:#fff}.opt-side-body{padding:16px;display:flex;flex-direction:column;gap:22px;background:#fff}.opt-label{display:block;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin-bottom:5px}.opt-label.center{text-align:center}.opt-control-row{display:flex;align-items:center;gap:12px}.opt-control-row input[type=range]{flex:1;accent-color:#0ea5e9}.opt-mini{width:64px;text-align:center}.opt-select-wide{width:80%;margin:0 auto;display:block}.opt-period-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}.opt-period-name{width:42px;font-size:9px;text-transform:uppercase;color:#64748b}.opt-period-fields{display:flex;gap:4px}.opt-month{width:86px}.opt-year{width:86px;text-align:center}.opt-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid #cbd5e1;background:#f1f5f9}.opt-tab{border:0;border-right:1px solid #cbd5e1;background:#fff;color:#0284c7;font:700 12px 'JetBrains Mono','Consolas',monospace;padding:10px 16px}.opt-grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}.opt-matrix-title{text-align:center;font-size:10px;text-transform:uppercase;color:#475569;font-weight:700;margin:0 0 8px}.opt-matrix-labels,.opt-matrix{display:grid;grid-template-columns:repeat(4,1fr)}.opt-matrix-labels span{font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt-matrix{border:1px solid #cbd5e1;border-radius:4px;overflow:hidden}.opt-matrix input{border:0;border-right:1px solid #cbd5e1;background:#f1f5f9;text-align:center;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 4px;min-width:0}.opt-matrix input:last-child{border-right:0}.opt-run{width:100%;padding:12px;border-radius:6px;background:#0284c7;color:#fff;font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;letter-spacing:.08em}.opt-side select,.opt-side input[type=number]{border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;border-radius:4px;font:12px 'JetBrains Mono','Consolas',monospace;padding:7px 8px}.opt-perm-table{width:100%;border-collapse:collapse;font:12px 'JetBrains Mono','Consolas',monospace;text-align:center}.opt-perm-table th{color:#64748b;font-size:11px;font-weight:800;padding:8px 6px}.opt-perm-table td{border-top:1px solid #e2e8f0;padding:8px 6px;color:#334155}.opt-perm-table td:first-child{text-align:left;font-weight:800}.opt-section-title{font:800 12px 'JetBrains Mono','Consolas',monospace;text-transform:uppercase;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px}@media(max-width:920px){.opt-layout{grid-template-columns:1fr;gap:16px}.opt-side{position:relative;top:0;border-radius:var(--radius)}}`}</style>
-      <style>{`.opt-dark{--bg:#050403;--card:#0d0805;--text:#fff7ef;--text-mid:#efd0b8;--text-light:#c0987c;--border:#2a1a10;--border-light:#1f140d;--orange-pale:#3a1d0b;--orange-deep:#ff9b42;--teal-pale:#09231f;--red-pale:#2a0c0c;--yellow-pale:#2a2108;--blue-pale:#071634;--shadow:0 2px 18px rgba(0,0,0,.45)}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:#080503;color:var(--text);font-family:'Sora',sans-serif}.opt-dark option{background:#080503;color:var(--text)}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
-      <style>{`.opt-search{position:relative;width:88%;margin:0 auto}.opt-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none}.opt-search-input{width:100%;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);padding:9px 10px 9px 30px;font:12px 'Sora',sans-serif;outline:none}.opt-search-input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 3px var(--orange-pale)}.opt-search-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);max-height:210px;overflow:auto;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:var(--shadow);padding:4px}.opt-search-item{display:block;width:100%;text-align:left;border:0;border-radius:6px;background:transparent;color:var(--text);padding:8px 9px;font:700 11.5px 'Sora',sans-serif;cursor:pointer}.opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.opt-input-card{border:1.5px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--card) 82%,var(--bg));padding:12px}.opt-demand-grid{display:grid;grid-template-columns:1fr;gap:12px}.opt-demand-input{width:100%;text-align:center;border-radius:8px!important;padding:10px!important;font-size:13px!important;font-weight:800!important}.opt-hydro-select{display:block;margin:0 auto;width:180px;text-align:center}.opt-tab{display:inline-flex;align-items:center;gap:7px}.opt-tab.active{background:var(--orange-pale);color:var(--orange-deep)}.opt-tab-add{border:0;background:transparent;color:var(--text-light);padding:9px 12px;cursor:pointer}.opt-tab-add:hover{color:var(--orange-deep);background:var(--orange-pale)}.opt-tab-close{border:0;background:transparent;color:inherit;padding:0;line-height:0;cursor:pointer;opacity:.7}.opt-tab-close:hover{opacity:1;color:var(--red)}.opt-dark .opt-ghost{background:#0a0604;color:var(--text-light);border-color:var(--border)}.opt-dark .opt-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
-      <style>{`.opt-side,.opt-side-top,.opt-side-body,.opt-tab,.opt-btn,.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table,.opt-section-title,.opt-search-input,.opt-search-item,.opt-side select,.opt-side input[type=number],.opt-matrix input,.opt-run{font-family:'Sora',sans-serif}.opt-input-card{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important}.opt-side-body{gap:18px}.opt-matrix-title{color:var(--text-light);letter-spacing:0}.opt-matrix-labels{gap:4px;margin-bottom:4px}.opt-matrix-labels span{font-family:'Sora',sans-serif;font-weight:800}.opt-demand-input,.opt-side select,.opt-side input[type=number],.opt-matrix input{border-radius:var(--radius-xs)!important}.opt-matrix{gap:4px;border:0!important;border-radius:0!important;background:transparent!important;overflow:visible}.opt-matrix input{background:var(--card);color:var(--text);border:1.5px solid var(--border)!important;box-shadow:none!important;padding:8px 4px}.opt-matrix input:last-child{border-right:1.5px solid var(--border)!important}.sim-root:not(.opt-dark) .opt-side{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.sim-root:not(.opt-dark) .opt-side-top,.sim-root:not(.opt-dark) .opt-side-body{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tabbar{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab{background:transparent;color:var(--text-light);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab.active,.sim-root:not(.opt-dark) .opt-tab-add:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-search-input,.sim-root:not(.opt-dark) .opt-search-menu{background:var(--card);color:var(--text);border-color:var(--border)}.sim-root:not(.opt-dark) .opt-search-item{color:var(--text)}.sim-root:not(.opt-dark) .opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-side select,.sim-root:not(.opt-dark) .opt-side input[type=number],.sim-root:not(.opt-dark) .opt-matrix input{background:var(--card);color:var(--text);border-color:var(--border)!important}.sim-root:not(.opt-dark) .opt-ghost{background:var(--card);color:var(--text-mid);border-color:var(--border)}.opt-dark .opt-side select,.opt-dark .opt-side input[type=number],.opt-dark .opt-matrix input{background:#080503;color:var(--text);border-color:var(--border)!important}`}</style>
+      <style>{`.opt-dark{${VARS_ESCURO}}.opt-side,.opt-side-top,.opt-side-body,.opt-tab{background:var(--card);color:var(--text);font-family:'Sora',sans-serif}.opt-side{border-color:var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.opt-side-top,.opt-tabbar{border-color:var(--border)}.opt-tabbar{background:var(--bg)}.opt-tab{border-color:var(--border);color:var(--orange-deep)}.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table th,.opt-section-title{color:var(--text-light);font-family:'Sora',sans-serif}.opt-matrix,.opt-side select,.opt-side input[type=number]{border-color:var(--border);background:var(--campo);color:var(--text);font-family:'Sora',sans-serif}.opt-matrix input{border-color:var(--border);background:var(--campo);color:var(--text);font-family:'Sora',sans-serif}.opt-dark option{background:var(--card);color:var(--text)}.opt-control-row input[type=range]{accent-color:var(--orange)}.opt-run{background:linear-gradient(135deg,var(--orange),var(--orange-deep));font-family:'Sora',sans-serif}.opt-perm-table{font-family:'Sora',sans-serif}.opt-perm-table td{border-color:var(--border-light);color:var(--text-mid)}.opt-section-title{border-color:var(--border-light)}.opt-dark .recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important}`}</style>
+      <style>{`.opt-search{position:relative;width:88%;margin:0 auto}.opt-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none}.opt-search-input{width:100%;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);padding:9px 10px 9px 30px;font:12px 'Sora',sans-serif;outline:none}.opt-search-input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 3px var(--orange-pale)}.opt-search-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);max-height:210px;overflow:auto;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:var(--shadow);padding:4px}.opt-search-item{display:block;width:100%;text-align:left;border:0;border-radius:6px;background:transparent;color:var(--text);padding:8px 9px;font:700 11.5px 'Sora',sans-serif;cursor:pointer}.opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.opt-input-card{border:1.5px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--card) 82%,var(--bg));padding:12px}.opt-demand-grid{display:grid;grid-template-columns:1fr;gap:12px}.opt-demand-input{width:100%;text-align:center;border-radius:8px!important;padding:10px!important;font-size:13px!important;font-weight:800!important}.opt-hydro-select{display:block;margin:0 auto;width:180px;text-align:center}.opt-tab{display:inline-flex;align-items:center;gap:7px}.opt-tab.active{background:var(--orange-pale);color:var(--orange-deep)}.opt-tab-add{border:0;background:transparent;color:var(--text-light);padding:9px 12px;cursor:pointer}.opt-tab-add:hover{color:var(--orange-deep);background:var(--orange-pale)}.opt-tab-close{border:0;background:transparent;color:inherit;padding:0;line-height:0;cursor:pointer;opacity:.7}.opt-tab-close:hover{opacity:1;color:var(--red)}.opt-dark .opt-ghost{background:var(--card);color:var(--text-light);border-color:var(--border)}.opt-dark .opt-ghost:hover{background:var(--orange-pale);color:var(--orange-deep);border-color:var(--orange-deep)}`}</style>
+      <style>{`.opt-side,.opt-side-top,.opt-side-body,.opt-tab,.opt-btn,.opt-label,.opt-period-name,.opt-matrix-title,.opt-perm-table,.opt-section-title,.opt-search-input,.opt-search-item,.opt-side select,.opt-side input[type=number],.opt-matrix input,.opt-run{font-family:'Sora',sans-serif}.opt-input-card{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important}.opt-side-body{gap:18px}.opt-matrix-title{color:var(--text-light);letter-spacing:0}.opt-matrix-labels{gap:4px;margin-bottom:4px}.opt-matrix-labels span{font-family:'Sora',sans-serif;font-weight:800}.opt-demand-input,.opt-side select,.opt-side input[type=number],.opt-matrix input{border-radius:var(--radius-xs)!important}.opt-matrix{gap:4px;border:0!important;border-radius:0!important;background:transparent!important;overflow:visible}.opt-matrix input{background:var(--card);color:var(--text);border:1.5px solid var(--border)!important;box-shadow:none!important;padding:8px 4px}.opt-matrix input:last-child{border-right:1.5px solid var(--border)!important}.sim-root:not(.opt-dark) .opt-side{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.sim-root:not(.opt-dark) .opt-side-top,.sim-root:not(.opt-dark) .opt-side-body{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tabbar{background:var(--card);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab{background:transparent;color:var(--text-light);border-color:var(--border-light)}.sim-root:not(.opt-dark) .opt-tab.active,.sim-root:not(.opt-dark) .opt-tab-add:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-search-input,.sim-root:not(.opt-dark) .opt-search-menu{background:var(--card);color:var(--text);border-color:var(--border)}.sim-root:not(.opt-dark) .opt-search-item{color:var(--text)}.sim-root:not(.opt-dark) .opt-search-item:hover{background:var(--orange-pale);color:var(--orange-deep)}.sim-root:not(.opt-dark) .opt-side select,.sim-root:not(.opt-dark) .opt-side input[type=number],.sim-root:not(.opt-dark) .opt-matrix input{background:var(--card);color:var(--text);border-color:var(--border)!important}.sim-root:not(.opt-dark) .opt-ghost{background:var(--card);color:var(--text-mid);border-color:var(--border)}.opt-dark .opt-side select,.opt-dark .opt-side input[type=number],.opt-dark .opt-matrix input{background:var(--campo);color:var(--text);border-color:var(--border)!important}`}</style>
 
-      <style>{`.opt-side{position:sticky!important;top:74px!important;height:var(--opt-side-height,calc(100vh - 190px));max-height:var(--opt-side-height,calc(100vh - 190px));display:flex;flex-direction:column;overflow:hidden!important}.opt-side-scroll{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}.opt-side-scroll::-webkit-scrollbar{width:8px}.opt-side-scroll::-webkit-scrollbar-thumb{background:var(--border);border:2px solid var(--card);border-radius:8px}.opt-run-dock{flex:none;padding:12px 16px 16px;border-top:1.5px solid var(--border-light);background:var(--card);position:relative;z-index:2}.opt-run-dock .opt-run{margin:0}.opt-band-names{display:flex;flex-direction:column;gap:6px;margin:10px auto 0;width:88%}.opt-band-name-row{display:grid;grid-template-columns:10px minmax(0,1fr);align-items:center;gap:7px}.opt-band-dot{width:8px;height:8px;border-radius:50%;display:block}.opt-band-name-row input{width:100%;min-width:0;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font:700 11px 'Sora',sans-serif;padding:7px 8px;outline:none}.opt-band-name-row input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 2px var(--orange-pale)}.opt-dark .opt-band-name-row input{background:#080503;color:var(--text);border-color:var(--border)}@media(min-width:721px){.opt-layout{grid-template-columns:340px minmax(0,1fr)!important}}@media(max-width:720px){.opt-side{position:relative!important;top:0!important;height:auto;max-height:none;overflow:visible!important}.opt-side-scroll{overflow:visible;scrollbar-gutter:auto}}`}</style>
+      <style>{`.opt-side{position:sticky!important;top:74px!important;height:var(--opt-side-height,calc(100vh - 190px));max-height:var(--opt-side-height,calc(100vh - 190px));display:flex;flex-direction:column;overflow:hidden!important}.opt-side-scroll{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}.opt-side-scroll::-webkit-scrollbar{width:8px}.opt-side-scroll::-webkit-scrollbar-thumb{background:var(--border);border:2px solid var(--card);border-radius:8px}.opt-run-dock{flex:none;padding:12px 16px 16px;border-top:1.5px solid var(--border-light);background:var(--card);position:relative;z-index:2}.opt-run-dock .opt-run{margin:0}.opt-band-names{display:flex;flex-direction:column;gap:6px;margin:10px auto 0;width:88%}.opt-band-name-row{display:grid;grid-template-columns:16px minmax(0,1fr);align-items:center;gap:7px}.opt-band-cor{position:relative;display:block;width:14px;height:14px;border-radius:50%;cursor:pointer;box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--border);transition:transform .15s}.opt-band-cor:hover{transform:scale(1.2)}.opt-band-cor:focus-within{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--orange-deep)}.opt-band-name-row .opt-band-cor input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;border:0}.opt-band-reset{justify-self:start;background:none;border:0;padding:2px 0;color:var(--orange-deep);font:700 10.5px 'Sora',sans-serif;cursor:pointer;text-decoration:underline}.opt-band-dot{width:8px;height:8px;border-radius:50%;display:block}.opt-band-name-row input{width:100%;min-width:0;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font:700 11px 'Sora',sans-serif;padding:7px 8px;outline:none}.opt-band-name-row input:focus{border-color:var(--orange-deep);box-shadow:0 0 0 2px var(--orange-pale)}.opt-dark .opt-band-name-row input{background:var(--campo);color:var(--text);border-color:var(--border)}.opt-metodo{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg)}.opt-metodo-btn{border:0;border-radius:6px;background:transparent;color:var(--text-light);font:800 10.5px 'Sora',sans-serif;padding:7px 4px;cursor:pointer}.opt-metodo-btn.active{background:var(--card);color:var(--orange-deep);box-shadow:0 1px 4px rgba(0,0,0,.12)}.opt-metodo-desc{margin:6px 2px 0;font-size:10.5px;line-height:1.4;color:var(--text-light);text-align:center}.opt-pareto-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}.opt-pareto-card{display:flex;flex-direction:column;gap:4px;text-align:left;border:1.5px solid var(--border);border-left:4px solid var(--cor-destaque);border-radius:var(--radius-sm);background:var(--card);color:var(--text);padding:9px 11px;cursor:pointer;font-family:'Sora',sans-serif}.opt-pareto-card:hover:not(:disabled){border-color:var(--cor-destaque)}.opt-pareto-card.active{background:color-mix(in srgb,var(--cor-destaque) 12%,var(--card));border-color:var(--cor-destaque)}.opt-pareto-card:disabled{opacity:.6;cursor:default}.opt-pareto-card.ref{cursor:default;border-style:dashed;border-left-style:solid}.opt-pareto-card-title{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:900;color:var(--cor-destaque)}.opt-pareto-card-text{font-size:10.5px;line-height:1.4;color:var(--text-mid)}.opt-metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:4px 0 14px}.opt-metrica{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--border-light);border-radius:var(--radius-sm);padding:8px 10px}.opt-metrica-rotulo{font-size:9.5px;font-weight:800;text-transform:uppercase;color:var(--text-light)}.opt-metrica strong{font-size:15px;color:var(--text)}.opt-metrica-detalhe{font-size:10px;color:var(--text-light)}.opt-btn:disabled{opacity:.45;cursor:default}@media(min-width:721px){.opt-layout{grid-template-columns:340px minmax(0,1fr)!important}}@media(max-width:720px){.opt-side{position:relative!important;top:0!important;height:auto;max-height:none;overflow:visible!important}.opt-side-scroll{overflow:visible;scrollbar-gutter:auto}}`}</style>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
@@ -728,7 +960,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             <Activity size={21} color="var(--orange)" />
             <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>Otimizador de Níveis Meta</h2>
           </div>
-          <p style={{ fontSize: 11.5, color: 'var(--text-light)', margin: 0 }}>Calcule curvas guia por PSO e envie os limites mensais para o simulador.</p>
+          <p style={{ fontSize: 11.5, color: 'var(--text-light)', margin: 0 }}>Calcule curvas guia por PSO (metas de garantia) ou NSGA-II (segurança × água entregue) e envie os limites mensais para o simulador.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {result && (
@@ -770,12 +1002,64 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label">Iterações PSO</label>
-              <div className="opt-control-row">
-                <input type="range" min="10" max="500" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
-                <input className="opt-mini" type="number" min="10" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
+              <label className="opt-label center">Método de Otimização</label>
+              <div className="opt-metodo" role="radiogroup" aria-label="Método de otimização">
+                {METODOS.map(m => (
+                  <button key={m.id} type="button" role="radio" aria-checked={metodo === m.id}
+                    className={`opt-metodo-btn ${metodo === m.id ? 'active' : ''}`} onClick={() => setMetodo(m.id)}>
+                    {m.nome}
+                  </button>
+                ))}
               </div>
+              <p className="opt-metodo-desc">{METODOS.find(m => m.id === metodo)?.descricao}</p>
             </div>
+
+            {metodo === 'pso' ? (
+              <div>
+                <label className="opt-label">Iterações PSO</label>
+                <div className="opt-control-row">
+                  <input type="range" min="10" max="500" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
+                  <input className="opt-mini" type="number" min="10" step="10" value={iters} onChange={e => setIters(Number(e.target.value))} />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="opt-label center">Critério da Água Entregue</label>
+                  <div className="opt-metodo" role="radiogroup" aria-label="Critério da água entregue">
+                    {CRITERIOS.map(c => (
+                      <button key={c.id} type="button" role="radio" aria-checked={criterioEntrega === c.id}
+                        className={`opt-metodo-btn ${criterioEntrega === c.id ? 'active' : ''}`} onClick={() => setCriterioEntrega(c.id)}>
+                        {c.nome}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="opt-metodo-desc">{CRITERIOS.find(c => c.id === criterioEntrega)?.descricao}</p>
+                </div>
+                <div>
+                  <label className="opt-label">População NSGA-II</label>
+                  <div className="opt-control-row">
+                    <input type="range" min="20" max="400" step="10" value={populacao} onChange={e => setPopulacao(Number(e.target.value))} />
+                    <input className="opt-mini" type="number" min="20" max="400" step="10" value={populacao} onChange={e => setPopulacao(Number(e.target.value))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="opt-label">Gerações NSGA-II</label>
+                  <div className="opt-control-row">
+                    <input type="range" min="5" max="500" step="5" value={geracoes} onChange={e => setGeracoes(Number(e.target.value))} />
+                    <input className="opt-mini" type="number" min="5" max="500" step="5" value={geracoes} onChange={e => setGeracoes(Number(e.target.value))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="opt-label">Largura mínima de cada nível (% do volume)</label>
+                  <div className="opt-control-row">
+                    <input type="range" min="0" max="20" step="1" value={larguraMinima} onChange={e => setLarguraMinima(Number(e.target.value))} />
+                    <input className="opt-mini" type="number" min="0" max="25" step="1" value={larguraMinima} onChange={e => setLarguraMinima(Number(e.target.value))} />
+                  </div>
+                  <p className="opt-metodo-desc">Distância mínima entre curvas vizinhas em todos os meses. Sem ela, o NSGA-II tende a espremer os níveis intermediários.</p>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="opt-label">Período de Simulação</label>
@@ -803,24 +1087,34 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             </div>
 
             <div>
-              <label className="opt-label center">Faixas de Operação</label>
+              <label className="opt-label center">Níveis de Operação</label>
               <select className="opt-month opt-hydro-select" value={scenario.quantidadeFaixas} onChange={e => setQuantidadeFaixas(e.target.value)}>
-                {[2, 3, 4].map(quantidade => <option key={quantidade} value={quantidade}>{quantidade} faixas</option>)}
+                {[2, 3, 4].map(quantidade => <option key={quantidade} value={quantidade}>{quantidade} níveis</option>)}
               </select>
-              <div className="opt-band-names" aria-label="Nomes das faixas de operação">
+              <div className="opt-band-names" aria-label="Nomes e cores dos níveis de operação">
                 {scenario.labels.map((label, index) => (
-                  <label className="opt-band-name-row" key={index}>
-                    <span className="opt-band-dot" style={{ background: CURVE_COLORS[index] }} />
+                  <div className="opt-band-name-row" key={index}>
+                    <label className="opt-band-cor" style={{ background: coresAtivas[index] }} title="Clique para escolher a cor deste nível">
+                      <input
+                        type="color"
+                        aria-label={`Cor do nível ${label || index + 1}`}
+                        value={corNivelHex(scenario, index)}
+                        onChange={e => setCorNivel(index, e.target.value)}
+                      />
+                    </label>
                     <input
                       type="text"
                       maxLength={32}
-                      aria-label={`Nome da faixa ${index + 1}`}
+                      aria-label={`Nome do nível ${index + 1}`}
                       value={label}
                       onChange={e => setFaixaNome(index, e.target.value)}
                       onBlur={() => restoreFaixaNome(index)}
                     />
-                  </label>
+                  </div>
                 ))}
+                {scenario.cores?.some(Boolean) && (
+                  <button type="button" className="opt-band-reset" onClick={() => updateScenario({ cores: [] })}>Restaurar cores padrão</button>
+                )}
               </div>
             </div>
           </div>
@@ -859,15 +1153,17 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
               </label>
             </div>
 
+            {metodo === 'pso' && (
             <div className="opt-input-card">
               <p className="opt-matrix-title">Garantias Requeridas (%)</p>
-              <div className="opt-matrix-labels" style={{ gridTemplateColumns: `repeat(${labelsAtivos.length}, minmax(0, 1fr))` }}>{labelsAtivos.map((label, i) => <span key={label} style={{ color: CURVE_COLORS[i] }}>{label}</span>)}</div>
+              <div className="opt-matrix-labels" style={{ gridTemplateColumns: `repeat(${labelsAtivos.length}, minmax(0, 1fr))` }}>{labelsAtivos.map((label, i) => <span key={label} style={{ color: coresAtivas[i] }}>{label}</span>)}</div>
               <div className="opt-matrix" style={{ gridTemplateColumns: `repeat(${labelsAtivos.length}, minmax(0, 1fr))` }}>
                 {scenario.garantiaReq.map((v, i) => (
                   <input key={i} type="number" step="1" min="0" max="100" value={Number((v * 100).toFixed(1))} onChange={e => setArray('garantiaReq', i, Number(e.target.value) / 100)} />
                 ))}
               </div>
             </div>
+            )}
 
             <div className="opt-input-card">
               <p className="opt-matrix-title">Atendimento da Demanda (%)</p>
@@ -894,14 +1190,14 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
             <Card style={{ padding: 48, textAlign: 'center' }}>
               <Database size={32} color="var(--orange)" style={{ opacity: 0.4, marginBottom: 10 }} />
               <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 5 }}>Pronto para otimizar</div>
-              <div style={{ fontSize: 12, color: 'var(--text-light)' }}>Escolha o reservatório e as faixas de operação para calcular as curvas-guia.</div>
+              <div style={{ fontSize: 12, color: 'var(--text-light)' }}>Escolha o reservatório e os níveis de operação para calcular as curvas-guia.</div>
             </Card>
           )}
 
           {loading && (
             <Card style={{ padding: 42, textAlign: 'center' }}>
               <RefreshCw size={32} color="var(--orange)" className="opt-spin" style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 14, fontWeight: 900 }}>Otimizando níveis meta...</div>
+              <div style={{ fontSize: 14, fontWeight: 900 }}>{metodo === 'nsga2' ? 'Construindo a fronteira de Pareto...' : 'Otimizando níveis meta...'}</div>
               <div style={{ margin: '14px auto 0', width: 'min(360px,100%)', height: 8, borderRadius: 999, background: 'var(--border)', overflow: 'hidden' }}>
                 <div style={{ width: `${progress}%`, height: '100%', background: 'var(--orange)' }} />
               </div>
@@ -910,9 +1206,10 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
           {result && !loading && (
             <>
+              {isPareto && <ParetoPanel dados={resultadoBruto} selecionada={selecionada} onSelect={selecionarSolucao} />}
               <Card style={{ padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 900, marginBottom: 12 }}>
-                  <CheckCircle2 size={16} color="var(--teal)" /> Resultado para {reservatorio}
+                  <CheckCircle2 size={16} color="var(--teal)" /> {isPareto ? `Curvas da solução ${selecionada + 1} — ${resultadoBruto.reservatorio || reservatorio}` : `Resultado para ${reservatorio}`}
                   {bandZoom.isZoomed && (
                     <button className="opt-btn opt-ghost" onClick={bandZoom.reset} style={{ marginLeft: 'auto', padding: '6px 10px', fontSize: 10 }}>
                       Resetar Zoom
@@ -922,13 +1219,13 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                 <div ref={levelsChartRef} data-chart-name="curvas_niveis_meta" style={{ height: 330 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={bandZoom.data} margin={{ top: 10, right: 12, bottom: 0, left: -18 }} {...bandZoom.props}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ecdcc8" />
-                      <XAxis dataKey="mes" tick={{ fill: '#9a7055', fontSize: 11 }} tickLine={false} />
-                      <YAxis domain={[0, 100]} tick={{ fill: '#9a7055', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
+                      <XAxis dataKey="mes" tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
                       <Tooltip formatter={v => `${Number(v).toFixed(2)}%`} />
                       <Legend />
                       {chartModel.bands.map(band => (
-                        <Area key={band.key} isAnimationActive={false} type="linear" stackId="meta" name={band.label} dataKey={band.key} stroke={CURVE_COLORS[band.stateIndex]} fill={CURVE_COLORS[band.stateIndex]} fillOpacity={0.48} />
+                        <Area key={band.key} isAnimationActive={false} type="linear" stackId="meta" name={band.label} dataKey={band.key} stroke={coresAtivas[band.stateIndex]} fill={coresAtivas[band.stateIndex]} fillOpacity={0.48} />
                       ))}
                       {bandZoom.area}
                     </AreaChart>
@@ -938,12 +1235,13 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
 
               <Card style={{ padding: 16 }}>
                 <div className="opt-section-title">Desempenho e Vazões</div>
+                {isPareto && <MetricasSolucao s={result} />}
                 <table className="opt-perm-table">
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left' }}>Nível Operacional</th>
                       <th>Vazão Total (L/s)</th>
-                      <th>Garantia Requerida</th>
+                      {!isPareto && <th>Garantia Requerida</th>}
                       <th>Garantia Obtida</th>
                     </tr>
                   </thead>
@@ -956,13 +1254,13 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                       const ok = obtida >= exigida - 0.01
                       return (
                         <tr key={label}>
-                          <td style={{ color: CURVE_COLORS[i], display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: CURVE_COLORS[i], display: 'inline-block' }} />
+                          <td style={{ color: coresAtivas[i], display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: coresAtivas[i], display: 'inline-block' }} />
                             {label}
                           </td>
                           <td>{(vazaoTotal * 1000).toFixed(1)}</td>
-                          <td>{pct(exigida)}</td>
-                          <td style={{ color: ok ? '#10b981' : '#ef4444', fontWeight: 900 }}>{pct(obtida)}</td>
+                          {!isPareto && <td>{pct(exigida)}</td>}
+                          <td style={{ color: isPareto ? 'var(--text)' : ok ? 'var(--sucesso)' : 'var(--erro)', fontWeight: 900 }}>{pct(obtida)}</td>
                         </tr>
                       )
                     })}
@@ -991,13 +1289,13 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                         onMouseMove={e => e && refAreaLeft && setRefAreaRight(e.activeLabel ? String(e.activeLabel) : null)}
                         onMouseUp={handleVolumeZoom}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ecdcc8" />
-                        <XAxis dataKey="data" tick={{ fill: '#9a7055', fontSize: 10 }} tickLine={false} minTickGap={36} />
-                        <YAxis domain={[0, 100]} tick={{ fill: '#9a7055', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
-                        <Tooltip content={<HistoricalVolumeTooltip labels={labelsAtivos} />} />
-                        {refAreaLeft && refAreaRight && <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="#2a9d8f" fillOpacity={0.16} />}
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
+                        <XAxis dataKey="data" tick={{ fill: 'var(--text-light)', fontSize: 10 }} tickLine={false} minTickGap={36} />
+                        <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickFormatter={v => `${v}%`} tickLine={false} />
+                        <Tooltip content={<HistoricalVolumeTooltip labels={labelsAtivos} cores={coresAtivas} />} />
+                        {refAreaLeft && refAreaRight && <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="var(--teal)" fillOpacity={0.16} />}
                         {labelsAtivos.map((label, stateIndex) => (
-                          <Area key={label} isAnimationActive={false} type="linear" dataKey={`vol_${stateIndex}`} name={label} stroke={CURVE_COLORS[stateIndex]} strokeWidth={2.5} fill={CURVE_COLORS[stateIndex]} fillOpacity={0.30 + stateIndex * 0.025} connectNulls={false} />
+                          <Area key={label} isAnimationActive={false} type="linear" dataKey={`vol_${stateIndex}`} name={label} stroke={coresAtivas[stateIndex]} strokeWidth={2.5} fill={coresAtivas[stateIndex]} fillOpacity={0.30 + stateIndex * 0.025} connectNulls={false} />
                         ))}
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1017,7 +1315,7 @@ export default function OtimizadorMeta({ apiUrl, onApplyCurvas, darkMode = false
                   <tbody>
                     {curvasParaFaixas(result, scenario).map((f, i) => (
                       <tr key={f.Faixa}>
-                        <td style={{ padding: 9, borderTop: '1px solid var(--border-light)', fontWeight: 900, color: CURVE_COLORS[i + 1] || CURVE_COLORS[0] }}>{f.Faixa}</td>
+                        <td style={{ padding: 9, borderTop: '1px solid var(--border-light)', fontWeight: 900, color: coresAtivas[i + 1] || coresAtivas[0] }}>{f.Faixa}</td>
                         {MESES.map(m => <td key={m} style={{ padding: 9, borderTop: '1px solid var(--border-light)', textAlign: 'center' }}>{f[m]}</td>)}
                       </tr>
                     ))}

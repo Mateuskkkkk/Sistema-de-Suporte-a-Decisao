@@ -7,7 +7,6 @@ import pyswarms as ps
 from numba import njit
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -73,10 +72,14 @@ def validar_faixas_payload(payload: SimularPayload) -> None:
 
 
 def get_db_path():
-    # Na web, o banco de dados geralmente fica na mesma pasta do main.py
-    if os.path.exists('banco_site.db'):
-        return 'banco_site.db'
-    raise Exception("Arquivo banco_site.db não foi encontrado na raiz do projeto.")
+    # o banco fica na mesma pasta deste arquivo, independentemente da pasta de execução
+    caminho = os.environ.get(
+        "BANCO_SITE_DB",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "banco_site.db"),
+    )
+    if os.path.exists(caminho):
+        return caminho
+    raise Exception("Arquivo banco_site.db não foi encontrado na pasta do backend.")
 
 
 def normalizar_colunas_db(df: pd.DataFrame) -> pd.DataFrame:

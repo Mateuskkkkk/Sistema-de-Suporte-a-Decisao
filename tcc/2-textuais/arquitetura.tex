@@ -1,0 +1,63 @@
+% Diagrama da arquitetura do sistema
+\begin{tikzpicture}[
+    font=\scriptsize,
+    >={Stealth[length=2.2mm]},
+    comp/.style={rectangle, rounded corners=2pt, draw=#1!70!black, fill=#1!10, thick, text width=3.05cm, align=center, minimum height=11mm, inner sep=2pt},
+    camada/.style={rectangle, rounded corners=5pt, draw=#1!60!black, fill=#1!3, thick, inner sep=3mm},
+    titulo/.style={font=\footnotesize\bfseries, text=#1!60!black, anchor=south west, inner sep=1pt},
+    tab/.style={rectangle, draw=black!50, fill=white, text width=2.2cm, align=center, minimum height=6mm, font=\scriptsize\ttfamily},
+    req/.style={->, very thick, draw=black!70},
+    resp/.style={->, very thick, draw=black!45, dashed},
+    rot/.style={font=\tiny, fill=white, inner sep=1.2pt, align=center}
+]
+% ---------- usuário
+\node[rectangle, rounded corners=8pt, draw=black!70, fill=black!5, thick, text width=4.2cm, align=center, minimum height=8mm] (usr)
+  {\textbf{Usuário} (navegador web)};
+
+% ---------- camada de apresentação
+\node[comp=orange, below=16mm of usr, xshift=-34mm] (c1) {\textbf{Configuração}\\ reservatórios, modo, demandas, período};
+\node[comp=orange, right=3mm of c1] (c2) {\textbf{Níveis meta}\\ edição de limites e racionamento};
+\node[comp=orange, right=3mm of c2] (c3) {\textbf{Resultados}\\ indicadores, gráficos (Recharts) e tabela};
+\node[comp=orange, below=3mm of c2, text width=9.75cm, minimum height=7mm] (c4) {\textbf{Exportação}: planilha (xlsx), JSON e gráficos (PNG/SVG)};
+\begin{scope}[on background layer]
+  \node[camada=orange, fit=(c1)(c2)(c3)(c4)] (L1) {};
+\end{scope}
+\node[titulo=orange] at ([yshift=1mm]L1.north west) {Camada de apresentação --- React + Vite};
+
+% ---------- camada de processamento
+\node[comp=blue, below=24mm of c4.south, xshift=-34mm] (a1) {\textbf{API FastAPI}\\ \texttt{/api/reservatorios}\\ \texttt{/api/presets}\\ \texttt{/api/simular}};
+\node[comp=blue, right=3mm of a1] (a2) {\textbf{Preparação}\\ validação, leitura das séries e conversão para hm$^3$};
+\node[comp=teal, right=3mm of a2] (a3) {\textbf{Motor de simulação}\\ \texttt{simular\_sistema\_n}};
+\node[comp=teal, below=3mm of a2] (m1) {Estados e racionamento\\ (curvas-guia mensais)};
+\node[comp=teal, right=3mm of m1] (m2) {Modos Individual,\\ Série e Paralelo};
+\node[comp=teal, left=3mm of m1] (m3) {Balanço mensal\\ \texttt{dinamica\_mensal\_fast}\\ (NumPy + Numba)};
+\begin{scope}[on background layer]
+  \node[camada=blue, fit=(a1)(a2)(a3)(m1)(m2)(m3)] (L2) {};
+\end{scope}
+\node[titulo=blue] at ([yshift=1mm]L2.north west) {Camada de processamento --- Python};
+
+% ---------- camada de dados
+\node[tab, below=24mm of m3.south, xshift=1mm] (t1) {acudes};
+\node[tab, right=2mm of t1] (t2) {vazoes};
+\node[tab, right=2mm of t2] (t3) {evaporacao};
+\node[tab, right=2mm of t3] (t4) {cav};
+\node[tab, below=2mm of t2] (t5) {plano\_secas};
+\node[tab, right=2mm of t5] (t6) {hidrossistemas};
+\begin{scope}[on background layer]
+  \node[camada=gray, fit=(t1)(t2)(t3)(t4)(t5)(t6)] (L3) {};
+\end{scope}
+\node[titulo=gray] at ([yshift=1mm]L3.north west) {Camada de dados --- SQLite (\texttt{banco\_site.db})};
+\node[font=\scriptsize, text=black!60, text width=11cm, align=center, below=2mm of L3] {Conteúdo: 155 reservatórios, séries mensais 1910--2021, evaporação média mensal, curvas cota-área-volume e regras de níveis meta};
+
+% ---------- fluxos
+\draw[req] (usr.south) -- node[rot, right=1mm]{interação} ([yshift=6mm]usr.south |- L1.north);
+\draw[req] ([xshift=-25mm]L1.south) -- node[rot]{requisição HTTP\\ (configuração em JSON)} ([xshift=-25mm,yshift=5mm]L2.north);
+\draw[resp] ([xshift=25mm,yshift=5mm]L2.north) -- node[rot]{resposta JSON\\ (registros mensais)} ([xshift=25mm]L1.south);
+\draw[req] (a1) -- (a2);
+\draw[req] (a2) -- (a3);
+\draw[->, thick, draw=teal!60!black] (a3.south) -- (m2.north);
+\draw[->, thick, draw=teal!60!black] (m2) -- (m1);
+\draw[->, thick, draw=teal!60!black] (m1) -- (m3);
+\draw[req] ([xshift=-12mm]L2.south) -- node[rot]{consultas SQL} ([xshift=-12mm,yshift=5mm]L2.south |- L3.north);
+\draw[resp] ([xshift=12mm,yshift=5mm]L2.south |- L3.north) -- node[rot]{séries e parâmetros} ([xshift=12mm]L2.south);
+\end{tikzpicture}

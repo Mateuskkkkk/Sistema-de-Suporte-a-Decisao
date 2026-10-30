@@ -8,20 +8,33 @@ Sistema web para simulação de balanço hídrico e otimização de níveis meta
 - Carregamento de hidrossistemas pré-configurados.
 - Operação individual, em série ou em paralelo.
 - Otimização de níveis meta com curvas de Alerta, Seca e Seca Severa.
+- Dois métodos de otimização: PSO (atinge as garantias requeridas de cada nível) e NSGA-II multiobjetivo (fronteira de Pareto entre segurança, em meses sem falha, e água entregue).
 - Aplicação das curvas otimizadas diretamente no simulador.
 - Gráficos com faixas de criticidade hídrica.
 - Tabelas de permanência, volumes históricos e resultados mensais.
 - Exportação dos resultados da otimização em CSV e planilha Excel.
 - Modo claro e modo escuro no topo da aplicação.
+- Indicadores de desempenho de confiabilidade, resiliência e vulnerabilidade (Hashimoto, Stedinger e Loucks, 1982).
+- Indicadores do sistema: falha da demanda conjunta (modo Paralelo) e meses/volume transferido (modo Série).
+- Cenários hidrológicos: série histórica, fatores fixos ou personalizados de afluência, seca repetida e reamostragem anual com semente.
+- Comparação lado a lado de dois cenários (fixe um resultado e simule outro).
+- Salvar e abrir a configuração da simulação em arquivo JSON.
+- Marcação dos meses com falha e dos períodos com racionamento no gráfico de volume.
+- Validação dos campos com mensagens em português, no formulário e na API.
+
+As opções novas vêm desligadas por padrão: com os valores padrão, o simulador reproduz exatamente os resultados da versão usada no TCC.
 
 ## Estrutura do Projeto
 
 ```text
 Sistema-Hidrico-Unificado/
 ├── backend/
-│   ├── main.py
-│   ├── optimizer_engine.py
-│   ├── banco_site.db
+│   ├── main.py               # API (FastAPI) e acesso ao banco
+│   ├── simulador.py          # motor de balanço hídrico e indicadores
+│   ├── optimizer_engine.py   # otimizador de níveis meta (PSO)
+│   ├── otimizador_pareto.py  # otimização multiobjetivo (NSGA-II)
+│   ├── banco_site.db         # séries de vazões, evaporação e CAV
+│   ├── test_*.py             # testes automatizados
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html
@@ -49,9 +62,15 @@ Sistema-Hidrico-Unificado/
 1. Entre na aba **Otimizador**.
 2. Escolha o reservatório ou hidrossistema.
 3. Configure período histórico, mês inicial, demandas e permanências desejadas.
-4. Execute a otimização.
-5. Analise as curvas de Alerta, Seca e Seca Severa.
-6. Use as opções de exportação para salvar os resultados.
+4. Escolha o método:
+   - **Garantias (PSO)**: informe a garantia requerida de cada nível; o PSO procura as curvas que chegam mais perto delas.
+   - **Pareto (NSGA-II)**: não pede garantias. O algoritmo busca ao mesmo tempo o menor número de meses com falha (segurança) e o maior volume de água entregue, e devolve a fronteira de Pareto: o conjunto de curvas em que não dá para melhorar um objetivo sem piorar o outro.
+     O **critério da água entregue** pode ser **Racionamento gradual** (padrão), que minimiza o déficit quadrático e por isso prefere cortes pequenos e escalonados (faixas mais largas), ou **Volume total**, que maximiza o volume entregue e tende a ir direto do atendimento pleno ao nível mais severo.
+     A **largura mínima de cada nível** (padrão 5% do volume) impõe uma distância mínima entre curvas vizinhas em todos os meses; sem ela, o algoritmo tende a espremer os níveis intermediários, porque passar direto do atendimento pleno ao racionamento mais severo quase não piora os dois objetivos.
+5. Execute a otimização.
+6. No NSGA-II, escolha uma solução no gráfico da fronteira ou nos atalhos **Segurança total** (sem falhas, com a maior entrega possível), **Equilíbrio** (ponto de joelho) e **Máxima entrega**. O ponto **Sem níveis meta** mostra a operação sem racionamento, como referência.
+7. Analise as curvas de Alerta, Seca e Seca Severa.
+8. Use as opções de exportação para salvar os resultados (no NSGA-II, o Excel traz também a tabela da fronteira).
 
 ### Aplicar Curvas no Simulador
 
@@ -118,6 +137,25 @@ A interface ficará disponível em:
 ```text
 http://127.0.0.1:5173
 ```
+
+### 5. Rodar os Testes
+
+```bash
+cd backend
+python -m unittest discover -p "test_*.py"
+```
+
+Os testes incluem os resultados de referência do TCC (por exemplo, 142 meses de falha em Mundaú e 257 meses de transferência em Fogareiro–Quixeramobim).
+
+## Variáveis de Ambiente do Backend
+
+- `BANCO_SITE_DB`: caminho alternativo para o banco SQLite (padrão: `backend/banco_site.db`, independente da pasta de onde o servidor é iniciado).
+- `CORS_ORIGINS`: lista de origens permitidas separadas por vírgula, por exemplo `https://meu-site.com`. Sem ela, qualquer origem é aceita, sem credenciais.
+
+## Versão Desktop
+
+Para gerar um programa para Windows que abre o sistema numa janela própria, sem
+servidor nem internet, veja [desktop/README.md](desktop/README.md).
 
 ## Configuração da API no Frontend
 

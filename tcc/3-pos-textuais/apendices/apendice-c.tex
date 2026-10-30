@@ -1,0 +1,121 @@
+\apendice{MEMÓRIA DE CÁLCULO INDEPENDENTE}
+\label{ap:memoria-calculo}
+
+\section{Estrutura da planilha de verificação}
+
+A planilha independente foi construída em formato compatível com o LibreOffice Calc, sem funções de matrizes dinâmicas, e é composta pelas abas descritas na Tabela \ref{tab:abas-planilha}. O usuário cola a série de vazões, seleciona o reservatório e informa a demanda e o volume inicial; o balanço é iniciado automaticamente no primeiro mês com vazão.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Abas da planilha de verificação}
+    \label{tab:abas-planilha}
+    \centering
+    \footnotesize
+    \begin{tabular}{p{3.2cm}p{11.0cm}}
+        \toprule
+        Aba & Conteúdo \\
+        \midrule
+        \texttt{Verificacao} & parâmetros, indicadores de controle e cálculo mês a mês (uma linha por mês) \\
+        \texttt{Vazoes\_COLAR} & área de colagem da série de vazões, um ano por linha (1910--2021) \\
+        \texttt{Amostra\_12\_meses} & extrato de um ano escolhido, com colunas opcionais para colar as saídas do simulador e calcular diferenças \\
+        \texttt{Dados\_Acudes} & cadastro dos reservatórios: código, capacidade e estação de evaporação \\
+        \texttt{Dados\_Evap} & lâminas médias mensais de evaporação por estação \\
+        \texttt{Dados\_CAV} & curvas cota-área-volume de todos os reservatórios \\
+        \texttt{Aux\_CAV} & curva cota-área-volume do reservatório selecionado, em hm$^3$ e km$^2$ \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+Na aba \texttt{Verificacao}, cada mês é calculado pelas colunas da Tabela \ref{tab:colunas-planilha}. A área é obtida por interpolação linear entre os pontos da aba \texttt{Aux\_CAV}, localizados por busca do intervalo que contém o volume.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Colunas de cálculo mensal da planilha}
+    \label{tab:colunas-planilha}
+    \centering
+    \scriptsize
+    \begin{tabular}{p{3.6cm}p{10.6cm}}
+        \toprule
+        Coluna & Fórmula \\
+        \midrule
+        Afluência (hm$^3$) & $I_t = 2{,}592\,Q_t$ \\
+        Evaporação (m) & $e_t$ = lâmina mensal (mm) / 1000 \\
+        Armazenamento inicial & $V_t$ = volume final do mês anterior, ou volume inicial informado no primeiro mês \\
+        Área inicial & $A_t$ = interpolação de $V_t$ na curva \\
+        Demanda (hm$^3$) & $D_t = 2{,}592 \times$ demanda (m$^3$/s) \\
+        Saldo interno 1 & $V^{*}_{t+1} = V_t + I_t - D_t - e_t A_t$ \\
+        Área preliminar & $A^{*}_{t+1}$ = interpolação de $V^{*}_{t+1}$ na curva \\
+        Área média & $(A_t + A^{*}_{t+1})/2$ \\
+        Evaporação (hm$^3$) & $E_t = e_t \times$ área média \\
+        Saldo interno 2 & $P_t = V_t + I_t - D_t - E_t$ \\
+        Retirada efetiva & $R_t = D_t$ se $P_t \geq 0$; senão $\max(0, D_t + P_t)$ \\
+        Déficit (m$^3$/s) & $\max(0, D_t - R_t)/2{,}592$ \\
+        Estado auxiliar & $\max(0, P_t)$ se $P_t \geq 0$; senão $0$ se $D_t + P_t \geq 0$; senão $\max(0, P_t + D_t)$ \\
+        Vertimento & $S_t = \max(0,\ \text{estado auxiliar} - V_{\max})$ \\
+        Armazenamento final & $V_{t+1} = \max[0, \min(V_{\max},\ \text{estado auxiliar})]$ \\
+        Falha & ``Sim'' se o déficit for maior que $10^{-7}$ m$^3$/s \\
+        Resíduo & $\varepsilon_t = V_{t+1} - (V_t + I_t - R_t - E_t - S_t)$ \\
+        \bottomrule
+    \end{tabular}
+    \Fonte{Elaborada pelo autor.}
+\end{table}
+
+Os indicadores de controle da aba reúnem o número de meses válidos, as falhas, o atendimento global, o vertimento e a evaporação totais, o resíduo máximo, os volumes mínimo e máximo e a contagem de volumes negativos, com a sinalização ``OK'' quando o resíduo máximo é inferior à tolerância de $10^{-8}$ hm$^3$ e não há volumes negativos. Nas duas execuções de Flor do Campo, ambos os controles retornaram ``OK''.
+
+\section{Disponibilidade das planilhas}
+
+A planilha de verificação em branco e as planilhas preenchidas para Flor do Campo (60 e 120 L/s) e para os 25 hidrossistemas da matriz de verificação integram o material complementar descrito no Apêndice \ref{ap:material-complementar}. Em cada arquivo preenchido, a aba \texttt{Verificacao} contém o cálculo completo, mês a mês, utilizado nas comparações da Seção \ref{subsec:resultado-verif-balanco}.
+
+\section{Cálculo manual de meses selecionados}
+
+Para ilustrar o procedimento, apresenta-se o cálculo de setembro e outubro de 1932 para Flor do Campo, com demanda de 120 L/s ($D_t = 0{,}311040$ hm$^3$), extraído da execução de 120 L/s. Os valores são arredondados a seis casas decimais.
+
+\textbf{Setembro de 1932.} $V_t = 0{,}556082$ hm$^3$; $Q_t = 0{,}008639$ m$^3$/s, logo $I_t = 0{,}022392$ hm$^3$; $e_t = 0{,}3420$ m; $A_t = 0{,}885400$ km$^2$.
+\begin{alineas}
+    \item $V^{*}_{t+1} = 0{,}556082 + 0{,}022392 - 0{,}311040 - 0{,}3420 \times 0{,}885400 = -0{,}035373$ hm$^3$;
+    \item como o volume preliminar é negativo, adota-se a área do volume nulo, $A^{*}_{t+1} = 0$; área média $= 0{,}442700$ km$^2$; $E_t = 0{,}3420 \times 0{,}442700 = 0{,}151403$ hm$^3$;
+    \item $P_t = 0{,}556082 + 0{,}022392 - 0{,}311040 - 0{,}151403 = 0{,}116030$ hm$^3 \geq 0$, logo $R_t = 0{,}311040$ hm$^3$ e não há falha;
+    \item $V_{t+1} = 0{,}116030$ hm$^3$; $S_t = 0$; $\varepsilon_t = 0$.
+\end{alineas}
+
+O mês ilustra que o saldo preliminar negativo não implica falha: ele serve apenas para estimar a área ao fim do mês, e a evaporação calculada com a área média é menor que a estimada com a área inicial, o que mantém o saldo final positivo.
+
+\textbf{Outubro de 1932.} $V_t = 0{,}116030$ hm$^3$; $I_t = 0{,}003249$ hm$^3$; $e_t = 0{,}3983$ m; $A_t = 0{,}224092$ km$^2$.
+\begin{alineas}
+    \item $V^{*}_{t+1} = 0{,}116030 + 0{,}003249 - 0{,}311040 - 0{,}3983 \times 0{,}224092 = -0{,}281016$ hm$^3$;
+    \item $A^{*}_{t+1} = 0$; área média $= 0{,}112046$ km$^2$; $E_t = 0{,}3983 \times 0{,}112046 = 0{,}044628$ hm$^3$;
+    \item $P_t = 0{,}116030 + 0{,}003249 - 0{,}311040 - 0{,}044628 = -0{,}236388$ hm$^3 < 0$, logo $R_t = 0{,}311040 - 0{,}236388 = 0{,}074652$ hm$^3$, isto é, 0,028801 m$^3$/s;
+    \item déficit de $0{,}120 - 0{,}028801 = 0{,}091199$ m$^3$/s, com falha registrada;
+    \item $V_{t+1} = 0$; $S_t = 0$; $\varepsilon_t = 0 - (0{,}116030 + 0{,}003249 - 0{,}074652 - 0{,}044628) = 0$.
+\end{alineas}
+
+Os mesmos valores foram produzidos pelo simulador. O ano de 1932 completo é apresentado na Tabela \ref{tab:amostra-1932}.
+
+\begin{table}[!htbp]
+    \captionsetup{width=15cm}
+    \caption{Amostra de 12 meses da planilha: Flor do Campo, 1932, demanda de 120 L/s}
+    \label{tab:amostra-1932}
+    \centering
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lrrrrrrrrrc}
+        \toprule
+        Mês & $Q$ (m$^3$/s) & $I$ (hm$^3$) & $V_t$ (hm$^3$) & $e$ (mm) & Área média (km$^2$) & $E$ (hm$^3$) & Atendida (m$^3$/s) & Déficit (m$^3$/s) & $V_{t+1}$ (hm$^3$) & Falha \\
+        \midrule
+        JAN & 0,0421 & 0,1092 & 4,9971 & 213,3 & 2,8651 & 0,6111 & 0,1200 & 0,0000 & 4,1841 & Não \\
+        FEV & 0,0773 & 0,2004 & 4,1841 & 148,5 & 2,6526 & 0,3939 & 0,1200 & 0,0000 & 3,6795 & Não \\
+        MAR & 0,0772 & 0,2001 & 3,6795 & 115,2 & 2,4716 & 0,2847 & 0,1200 & 0,0000 & 3,2839 & Não \\
+        ABR & 0,0634 & 0,1643 & 3,2839 & 96,4 & 2,2959 & 0,2213 & 0,1200 & 0,0000 & 2,9158 & Não \\
+        MAI & 0,0309 & 0,0802 & 2,9158 & 125,5 & 2,0955 & 0,2630 & 0,1200 & 0,0000 & 2,4219 & Não \\
+        JUN & 0,0261 & 0,0676 & 2,4219 & 168,2 & 1,8517 & 0,3115 & 0,1200 & 0,0000 & 1,8670 & Não \\
+        JUL & 0,0225 & 0,0583 & 1,8670 & 268,3 & 1,5062 & 0,4041 & 0,1200 & 0,0000 & 1,2102 & Não \\
+        AGO & 0,0014 & 0,0037 & 1,2102 & 321,6 & 1,0781 & 0,3467 & 0,1200 & 0,0000 & 0,5561 & Não \\
+        SET & 0,0086 & 0,0224 & 0,5561 & 342,0 & 0,4427 & 0,1514 & 0,1200 & 0,0000 & 0,1160 & Não \\
+        OUT & 0,0013 & 0,0032 & 0,1160 & 398,3 & 0,1120 & 0,0446 & 0,0288 & 0,0912 & 0,0000 & Sim \\
+        NOV & 0,0016 & 0,0042 & 0,0000 & 380,3 & 0,0000 & 0,0000 & 0,0016 & 0,1184 & 0,0000 & Sim \\
+        DEZ & 0,0009 & 0,0024 & 0,0000 & 326,8 & 0,0000 & 0,0000 & 0,0009 & 0,1191 & 0,0000 & Sim \\
+        \bottomrule
+    \end{tabular}}
+    \Fonte{Elaborada pelo autor a partir da planilha de verificação.}
+\end{table}
