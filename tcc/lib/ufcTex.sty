@@ -983,13 +983,13 @@
 
 \newcommand{\imprimirdedicatoria}[1]{
 	\ifthenelse{\boolean{ufctex@ehqualificacao}}{}{
-		\vspace*{20cm}
-		\vfill
+		% Guia UFC (3.2.1.4): inicia-se abaixo do meio da página
+		\vspace*{0.5\textheight}
 		%Retira o espaço do paragrafo
 		\hspace*{-2cm}
 		%Adiciona o espaço da margem
 		\hspace*{8cm}	
-		\begin{minipage}{8cm}
+		\begin{minipage}[t]{8cm}
 			\input{#1}
 		\end{minipage}
 		\pagebreak
@@ -1027,15 +1027,15 @@
 
 \newcommand{\imprimirepigrafe}[1]{
 	\ifthenelse{\boolean{ufctex@ehqualificacao}}{}{
-		\vspace*{\fill}
-		\vfill
+		% Guia UFC (3.2.1.6): inicia-se abaixo do meio da página, recuo de 8 cm,
+		% justificada; a autoria segue o texto, conforme a NBR 10520
+		\vspace*{0.5\textheight}
 		%Retira o espaco do paragrafo
 		\hspace*{-2cm}
 		%Adiciona o espaco da margem
 		\hspace*{8cm}	
-		\begin{minipage}{8cm}
+		\begin{minipage}[t]{8cm}
 			\input{#1}
-			\raggedright{(\imprimirautordaepigrafe) \par}
 		\end{minipage}		
 		\pagebreak
 	}
