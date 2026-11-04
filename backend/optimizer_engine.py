@@ -240,8 +240,9 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3, vol_min, vol_max, c
     vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_ini)
     area_fin = interpola(cav_vol, cav_area, vol)
     area_med = (area_ini + area_fin) / 2.0
-    vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_med)
-    
+    evap_hm3 = evap_m * area_med
+    vol = vol_ini + aflu_hm3 - ret_hm3 - evap_hm3
+
     retirada_efetiva = ret_hm3
     if vol < vol_min:
         retirada_orig = retirada_efetiva
@@ -251,14 +252,19 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3, vol_min, vol_max, c
         else:
             vol = vol + retirada_orig
             retirada_efetiva = 0.0
-            if vol < 0: vol = 0.0
-            
+            if vol < 0:
+                # Evaporação limitada ao volume disponível no mês:
+                # o excesso calculado não é registrado como perda,
+                # o que mantém nulo o resíduo de conservação de massa.
+                evap_hm3 = evap_hm3 + vol
+                vol = 0.0
+
     vertimento = 0.0
     if vol > vol_max:
         vertimento = vol - vol_max
         vol = vol_max
-        
-    return vol, retirada_efetiva, vertimento, evap_m * area_med
+
+    return vol, retirada_efetiva, vertimento, evap_hm3
 
 @njit
 def calculo_volume_meta_fast(niveis_metas, aflu_prob, evap_ano, dem_total_hm3, cap_hm3, cav_vol, cav_area, ninicio):

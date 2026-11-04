@@ -299,6 +299,11 @@ function MetricsRow({ resultados, modo }) {
   const totalMeses = resultados[0].dados.length
   const falhasConj = calcFalhasConjuntas(resultados, modo)
   const falhasSist = falhasConj.filter(Boolean).length
+  const multi = resultados.length > 1
+  // Falha sistêmica: todas as unidades falham no mesmo mês
+  const falhasTodas = multi
+    ? Array.from({length: totalMeses}, (_, t) => resultados.every(r => r.dados[t]?.['Falha'] === 'Sim')).filter(Boolean).length
+    : falhasSist
   
   let rac=0, racM=0, atend=0, solic=0, vert=0, evap=0, transf=0
 
@@ -341,20 +346,21 @@ function MetricsRow({ resultados, modo }) {
       <div className="sim-fade" style={{ background:'var(--card)', border:`1.5px solid ${ok?'var(--teal-pale)':'var(--red-pale)'}`, borderRadius:'var(--radius)', padding:'14px 16px', boxShadow:'var(--shadow)', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:ok?'var(--teal)':'var(--red)', borderRadius:'4px 4px 0 0' }} />
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
-          <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Freq. Falha Sist.</div>
+          <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{multi ? 'Meses com Falha' : 'Freq. de Falha'}</div>
           <div style={{ width:24, height:24, borderRadius:6, background:ok?'var(--teal-pale)':'var(--red-pale)', display:'flex', alignItems:'center', justifyContent:'center' }}>
             {ok?<CheckCircle2 size={12} color="var(--teal)"/>:<AlertCircle size={12} color="var(--red)"/>}
           </div>
         </div>
         <div style={{ fontSize:24, fontWeight:800, color:ok?'var(--teal)':'var(--red)', fontFamily:'JetBrains Mono', lineHeight:1, marginBottom:4 }}>{freq}%</div>
-        <div style={{ fontSize:10.5, color:'var(--text-light)' }}>{ok?'✓ Sistema 100% abastecido':`${falhasSist} mês(es) em ${totalMeses}`}</div>
+        <div style={{ fontSize:10.5, color:'var(--text-light)' }}>{ok?'✓ Sistema 100% abastecido':`${falhasSist} mês(es) em ${totalMeses}${multi ? ' com falha em ao menos 1 reservatório' : ''}`}</div>
+        {multi && <div style={{ fontSize:10.5, color:'var(--text-light)', marginTop:2 }}>{`Falha sistêmica (todos): ${falhasTodas} mês(es)`}</div>}
       </div>
       <MCard label="Atendimento Médio" value={`${at}%`} sub="Demanda atendida vs solicitada" variant={parseFloat(at)>=95?'success':parseFloat(at)>=80?'yellow':'danger'} icon={BarChart3}/>
       <MCard label="Meses Simulados" value={totalMeses} sub={`${resultados.length} reservatório(s)`} variant="info" icon={TrendingDown}/>
       <MCard label="Rac. Médio" value={`${rm}%`} sub={`em ${racM} mês(es) c/ restrição`} variant={parseFloat(rm)>20?'danger':parseFloat(rm)>0?'yellow':'success'} icon={AlertCircle}/>
       <MCard label="Evaporação Total" value={evap.toFixed(1)} sub="hm³ no período" variant="default" icon={Droplets}/>
-      <MCard label="Vertimento Total" value={vert.toFixed(1)} sub="hm³ excedente" variant={vert>0?'info':'success'} icon={Droplets}/>
-      {transf>0 && <MCard label="Transferências" value={transf.toFixed(1)} sub="m³/s acumulados" variant="yellow" icon={ArrowLeftRight}/>}
+      <MCard label="Vertimento Total" value={vert.toFixed(1)} sub={multi ? 'hm³ (soma das unidades)' : 'hm³ excedente'} variant={vert>0?'info':'success'} icon={Droplets}/>
+      {transf>0 && <MCard label="Transferências" value={(transf*2.592).toFixed(1)} sub="hm³ transferidos" variant="yellow" icon={ArrowLeftRight}/>}
     </div>
   )
 }
