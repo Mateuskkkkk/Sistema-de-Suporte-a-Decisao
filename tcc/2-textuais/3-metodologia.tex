@@ -125,7 +125,7 @@ Do lado do sistema, a API valida a configuração, lê no banco as séries de va
 \section{Modelo de simulação hidrológica}
 \label{sec:modelo-simulacao}
 
-O simulador opera em intervalo mensal e aplica o princípio da conservação de massa a cada reservatório. Adotam-se as seguintes hipóteses: (i) todas as grandezas de volume são expressas em hm$^3$; (ii) o mês tem duração convencional de 30 dias; (iii) a afluência, a retirada e as transferências são tratadas como volumes mensais concentrados, sem distribuição intramensal; (iv) o volume mínimo operacional é nulo e o máximo é a capacidade; (v) a evaporação é calculada com a área média do espelho d'água e não é limitada ao volume disponível no mês: se a evaporação calculada superar o volume inicial somado à afluência, o volume final é anulado sem redução da evaporação registrada, o que produz resíduo de conservação de massa não nulo, situação que não ocorreu nas execuções relatadas neste trabalho; e (vi) não são representadas a precipitação direta sobre o espelho d'água nem as perdas por infiltração.
+O simulador opera em intervalo mensal e aplica o princípio da conservação de massa a cada reservatório. Adotam-se as seguintes hipóteses: (i) todas as grandezas de volume são expressas em hm$^3$; (ii) o mês tem duração convencional de 30 dias; (iii) a afluência, a retirada e as transferências são tratadas como volumes mensais concentrados, sem distribuição intramensal; (iv) o volume mínimo operacional é nulo e o máximo é a capacidade; (v) a evaporação é calculada com a área média do espelho d'água e não é limitada ao volume disponível no mês: se a evaporação calculada superar o volume inicial somado à afluência, o volume final é anulado sem redução da evaporação registrada, o que produz resíduo de conservação de massa não nulo, situação que não ocorreu nas execuções relatadas neste trabalho (na versão publicada, posterior à versão de referência, a evaporação passou a ser limitada ao volume disponível, sem alteração dos resultados aqui relatados); e (vi) não são representadas a precipitação direta sobre o espelho d'água nem as perdas por infiltração.
 
 As vazões médias mensais, em m$^3$/s, são convertidas para hm$^3$/mês pela Equação \ref{eq:conversao-vazao}. A mesma conversão é aplicada às demandas e às transferências.
 
@@ -548,6 +548,15 @@ Os casos controlados são testes funcionais com entradas sintéticas para as qua
 \end{table}
 
 Para facilitar o cálculo manual, adotaram-se, conforme o caso, afluência nula, evaporação nula e curva cota-área-volume com área constante de 1 km$^2$. Um caso é considerado aprovado quando o resultado obtido coincide com o esperado dentro da tolerância de $10^{-9}$ hm$^3$.
+
+\section{Verificação da solução}
+\label{sec:metodo-solucao}
+
+A planilha independente e os casos controlados verificam a implementação, isto é, se o código calcula o que a formulação especifica. Eles não estimam o erro da própria formulação discreta, em especial da área média obtida com uma única estimativa preliminar (Equação \ref{eq:evaporacao}), que é exata quando a área é constante, como nos casos controlados. Para estimar esse erro de discretização, etapa que \citeonline{oberkampfRoy2010} denominam verificação da solução, foram realizados dois testes.
+
+No primeiro, a função mensal do motor foi aplicada a um reservatório com área proporcional ao volume, $A = aV$, sem afluência nem retirada. Nesse caso, a equação contínua $dV/dt = -a\,e(t)\,V$ tem solução exata $V_n = V_0 \exp\left(-a \sum_{k=1}^{n} e_k\right)$. Adotaram-se a capacidade de Flor do Campo, a razão entre a área e o volume do reservatório cheio ($a = 0{,}176$ km$^2$/hm$^3$) e as lâminas mensais de Crateús, partindo do reservatório cheio e simulando 12 e 120 meses.
+
+No segundo, a simulação de Flor do Campo sem racionamento (60 L/s, 1911--2021, volume inicial de 50\%) foi repetida com a curva cota-área-volume real em duas variantes: com a área média iterada até a convergência, em vez de uma única estimativa preliminar, e com 30 subpassos diários por mês, nos quais a afluência, a retirada e a lâmina mensais são distribuídas uniformemente. A segunda variante também indica o efeito da hipótese (iii) da Seção \ref{sec:modelo-simulacao}, de volumes mensais concentrados.
 
 \section{Análise de sensibilidade}
 \label{sec:metodo-sensibilidade}
