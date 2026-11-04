@@ -8,7 +8,7 @@ Este capítulo descreve os dados, as hipóteses e os procedimentos empregados no
 
 O trabalho possui natureza aplicada e abordagem quantitativa e baseia-se em desenvolvimento computacional seguido de estudos de aplicação \cite{gil2017}. A investigação utiliza modelagem e simulação para analisar o comportamento de reservatórios ao longo das séries históricas de afluência, considerando diferentes demandas e regras de operação. Cada configuração representa uma hipótese de operação cujos efeitos são descritos por indicadores.
 
-A avaliação do sistema é feita no sentido de verificação, conforme discutido na Seção \ref{sec:verificacao-modelos}: busca-se demonstrar que as rotinas implementadas reproduzem as equações e as regras declaradas. Como não foram utilizadas observações de volumes dos reservatórios para confronto, os resultados das aplicações não são tratados como validação hidrológica do modelo. O procedimento foi dividido nas seguintes etapas:
+A avaliação do sistema é feita no sentido de verificação, conforme discutido na Seção \ref{sec:verificacao-modelos}: busca-se demonstrar que as rotinas implementadas reproduzem as equações e as regras declaradas. Como não foram utilizadas observações de volumes dos reservatórios para confronto, os resultados das aplicações não são tratados como validação hidrológica do modelo. Também não foi realizada avaliação de usabilidade com tomadores de decisão; a avaliação concentra-se na correção dos cálculos e na capacidade do sistema de evidenciar as consequências de cada configuração. O procedimento foi dividido nas seguintes etapas:
 
 \begin{alineas}
     \item organização da base de dados hidrológicos e físicos;
@@ -552,9 +552,9 @@ Para facilitar o cálculo manual, adotaram-se, conforme o caso, afluência nula,
 \section{Análise de sensibilidade}
 \label{sec:metodo-sensibilidade}
 
-A análise de sensibilidade foi realizada pela variação de um parâmetro por vez em torno de configurações de referência, mantendo os demais constantes \cite{pianosi2016}. Para os parâmetros de um reservatório isolado, utilizou-se Flor do Campo no modo Individual, sem racionamento, com volume inicial de 50\%, demanda de 60 L/s e período de 1911 a 2021. Para os parâmetros de transferência, utilizou-se a configuração de Fogareiro--Quixeramobim descrita na Seção \ref{sec:estudos-aplicacao}. As faixas de variação constam na Tabela \ref{tab:sensibilidade-config}. O fator de evaporação multiplica todas as lâminas mensais da estação associada.
+A análise de sensibilidade foi realizada pela variação de um parâmetro por vez em torno de configurações de referência, mantendo os demais constantes \cite{pianosi2016}. Para os parâmetros de um reservatório isolado, utilizou-se Flor do Campo no modo Individual, sem racionamento, com volume inicial de 50\%, demanda de 60 L/s e período de 1911 a 2021. Para os parâmetros de transferência, utilizou-se a configuração de Fogareiro--Quixeramobim descrita na Seção \ref{sec:estudos-aplicacao}. As faixas de variação constam na Tabela \ref{tab:sensibilidade-config}. O fator de evaporação multiplica todas as lâminas mensais da estação associada. Em Flor do Campo, os mesmos fatores foram aplicados também à configuração com a Regra 2 do plano de secas (Seção \ref{sec:estudos-aplicacao}), para avaliar a dependência dos resultados da aplicação em relação à estimativa de evaporação.
 
-\begin{table}[!htbp]
+\begin{table}[H]
     \captionsetup{width=15cm}
     \caption{Parâmetros variados na análise de sensibilidade}
     \label{tab:sensibilidade-config}
