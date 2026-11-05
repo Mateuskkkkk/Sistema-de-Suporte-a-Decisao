@@ -27,7 +27,7 @@ O sistema desenvolvido neste trabalho está disponível em repositório público
 
 Os resultados do Capítulo \ref{chap:resultados} foram obtidos com a versão indicada na Tabela \ref{tab:identificacao-codigo} e com a base de dados \texttt{banco\_site.db} distribuída nessa versão, com duas exceções: a tela inicial em mapa (Figura \ref{fig:home-mapa}) e a sensibilidade de Flor do Campo à evaporação com a Regra 2 (Tabela \ref{tab:flor-evap-regra}) foram produzidas com uma versão posterior, na qual a aplicação de Flor do Campo reproduz os mesmos resultados da versão de referência (188 meses com falha sem racionamento e 106 com a Regra 2). Como o repositório continua em desenvolvimento, versões posteriores podem conter funcionalidades não descritas neste trabalho; a versão de referência permanece acessível pelo identificador do \textit{commit}, conforme o Código-fonte \ref{cod:execucao}.
 
-O sistema também está publicado no endereço indicado na Tabela \ref{tab:identificacao-codigo}, onde pode ser utilizado pelo navegador, sem instalação. A versão publicada acompanha o desenvolvimento do repositório e pode, portanto, diferir da versão de referência; para reproduzir exatamente os resultados deste trabalho, deve-se executar localmente a versão de referência, conforme as instruções a seguir.
+O sistema também está publicado no endereço indicado na Tabela \ref{tab:identificacao-codigo}, onde pode ser usado pelo navegador, sem instalação. A versão publicada acompanha o desenvolvimento do repositório e pode, portanto, diferir da versão de referência; para reproduzir exatamente os resultados deste trabalho, deve-se executar localmente a versão de referência, conforme as instruções a seguir.
 
 \section{Organização do repositório}
 
@@ -56,7 +56,7 @@ Os componentes principais do repositório e a função de cada um no sistema sã
 
 \section{Dependências e execução}
 
-O serviço de processamento requer Python 3 e as bibliotecas listadas no arquivo \path{backend/requirements.txt}, entre elas FastAPI, Uvicorn, pandas, NumPy e Numba. A interface requer Node.js e as dependências declaradas no arquivo \path{frontend/package.json}, entre elas React, Recharts e Vite. Em síntese, a execução local compreende os comandos do Código-fonte \ref{cod:execucao}:
+O serviço de processamento requer Python 3 e as bibliotecas listadas no arquivo \path{backend/requirements.txt}, entre elas FastAPI, Uvicorn, pandas, NumPy e Numba. A interface requer Node.js e as dependências declaradas no arquivo \path{frontend/package.json}, entre elas React, Recharts e Vite. A execução local usa os comandos do Código-fonte \ref{cod:execucao}:
 
 \noindent\begin{minipage}{\linewidth}
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize,columns=fullflexible,caption={Instruções básicas de execução},label={cod:execucao}]
