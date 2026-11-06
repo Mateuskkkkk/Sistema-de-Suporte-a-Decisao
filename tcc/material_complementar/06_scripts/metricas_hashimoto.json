@@ -1,0 +1,57 @@
+{
+ "flor_curvas": {
+  "meses": 1332,
+  "falhas": 106,
+  "confiabilidade": 92.04204204204204,
+  "resiliencia": 0.19811320754716982,
+  "episodios": 21,
+  "maior_duracao": 10,
+  "deficit_medio": 0.05179726292887217,
+  "deficit_max": 0.06935049343664872,
+  "deficit_total": 5.49050987046045
+ },
+ "flor_sem": {
+  "meses": 1332,
+  "falhas": 188,
+  "confiabilidade": 85.88588588588588,
+  "resiliencia": 0.15425531914893617,
+  "episodios": 29,
+  "maior_duracao": 20,
+  "deficit_medio": 0.12051244067959331,
+  "deficit_max": 0.15488649343664873,
+  "deficit_total": 22.65633884776354
+ },
+ "carnaubal_conjunta": {
+  "meses": 1332,
+  "falhas": 42,
+  "confiabilidade": 96.84684684684684,
+  "resiliencia": 0.2619047619047619,
+  "episodios": 11,
+  "maior_duracao": 9,
+  "deficit_medio": 0.3195265817465227,
+  "deficit_max": 0.41321319739356493,
+  "deficit_total": 13.420116433353954
+ },
+ "fogareiro": {
+  "meses": 1308,
+  "falhas": 0,
+  "confiabilidade": 100.0,
+  "resiliencia": null,
+  "episodios": 0,
+  "maior_duracao": 0,
+  "deficit_medio": 0.0,
+  "deficit_max": 0.0,
+  "deficit_total": 0.0
+ },
+ "quixeramobim": {
+  "meses": 1308,
+  "falhas": 0,
+  "confiabilidade": 100.0,
+  "resiliencia": null,
+  "episodios": 0,
+  "maior_duracao": 0,
+  "deficit_medio": 0.0,
+  "deficit_max": 0.0,
+  "deficit_total": 0.0
+ }
+}

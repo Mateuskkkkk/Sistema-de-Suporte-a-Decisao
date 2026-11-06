@@ -5,3 +5,8 @@ frontend/dist/
 backend/__pycache__/
 backend/report.log
 .venv/
+
+# versão desktop
+.venv-desktop/
+build/
+dist/
