@@ -60,7 +60,7 @@ A Figura \ref{fig:sim-config-flor} mostra o painel de configuração preenchido 
 
 Após a execução, o painel de resultados apresenta uma linha de indicadores (frequência de falha sistêmica, atendimento médio, meses simulados, racionamento médio, evaporação e vertimento totais), o número de meses abastecidos por reservatório, a lista de meses com falha e os gráficos de volume armazenado, demanda solicitada e atendida, racionamento e afluências, conforme a Figura \ref{fig:sim-resultados-flor}. No gráfico de volume, a cor da linha indica o estado operacional de cada mês, e os meses com falha são destacados como ``Colapso''. Os percentuais de atendimento do painel têm bases distintas: o valor exibido no cartão de cada reservatório (92,0\% na Figura \ref{fig:sim-resultados-flor}) é a fração dos meses sem falha, enquanto o atendimento médio (64,3\%) é a razão entre o volume atendido e o volume solicitado. O primeiro mede a frequência do atendimento; o segundo, a quantidade de água fornecida.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \Caption{\label{fig:sim-resultados-flor}Painel de resultados da aplicação de Flor do Campo}
     \UFCfig{}{
@@ -281,9 +281,10 @@ A Tabela \ref{tab:verif-multi} apresenta a comparação entre o recálculo indep
     \label{tab:verif-multi}
     \centering
     \footnotesize
+    \setlength{\tabcolsep}{4pt}
     \begin{tabular}{llrrr}
         \toprule
-        Hidrossistema (modo) & Reservatório & Meses & Meses divergentes & Máx. diferença (hm$^3$) \\
+        Hidrossistema (modo) & Reservatório & Meses & Meses divergentes & Maior diferença (hm$^3$) \\
         \midrule
         Carnaubal--Batalhão (Paralelo) & Carnaubal & 1.332 & 0 & $6\times10^{-14}$ \\
          & Barragem do Batalhão & 1.332 & 0 & $9\times10^{-14}$ \\
@@ -560,11 +561,11 @@ Na Figura \ref{fig:flor-volume}, os enchimentos são raros: o reservatório vert
 
 A configuração do modo Paralelo é apresentada na Figura \ref{fig:sim-config-carnaubal}: Carnaubal (46,62 hm$^3$) é o reservatório prioritário, com gatilho de 10\%, e a Barragem do Batalhão (1,64 hm$^3$) é a segunda unidade; a demanda conjunta é de 160 L/s (0,4147 hm$^3$/mês), sem demandas locais. A Figura \ref{fig:sim-resultados-carnaubal} mostra o painel de resultados da interface, e a Figura \ref{fig:carnaubal-batalhao}, os gráficos exportados pelo simulador com os volumes dos dois reservatórios e a demanda conjunta assumida por cada unidade; os períodos em que a Barragem do Batalhão é responsável aparecem como pulsos no painel (c), e as falhas, como quedas da demanda atendida no painel (b).
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \Caption{\label{fig:sim-config-carnaubal}Configuração do modo Paralelo para Carnaubal--Barragem do Batalhão}
     \UFCfig{}{
-        \includegraphics[width=0.36\textwidth]{figuras/sim-config-carnaubal.png}
+        \includegraphics[width=0.29\textwidth]{figuras/sim-config-carnaubal.png}
     }{
         \Fonte{Elaborada pelo autor.}
     }
