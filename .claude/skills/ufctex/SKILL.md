@@ -1,6 +1,7 @@
 ---
 name: ufctex
-description: Escrever, editar, compilar e revisar trabalhos acadêmicos no modelo LaTeX da Universidade Federal do Ceará (ufcTex, derivado do abnTeX2), como TCC de graduação, monografia de especialização, dissertação ou tese. Use sempre que a tarefa mexer em um projeto com lib/ufcTex.sty, lib/abntex2.cls ou documento.tex no padrão da UFC (por exemplo a pasta tcc/), mesmo que o usuário diga só "o TCC", "a monografia", "o trabalho": incluir figura, tabela, quadro, código-fonte, equação, sigla, símbolo, apêndice ou referência; ajustar capa, folha de aprovação, banca ou ficha catalográfica; corrigir formatação ABNT; recompilar o PDF; ou conferir citações e referências.
+description: >-
+  Escrever, editar, compilar e revisar trabalhos acadêmicos no modelo LaTeX da Universidade Federal do Ceará (ufcTex, derivado do abnTeX2), como TCC de graduação, monografia de especialização, dissertação ou tese. Use sempre que a tarefa mexer em um projeto com lib/ufcTex.sty, lib/abntex2.cls ou documento.tex no padrão da UFC (por exemplo a pasta tcc/), mesmo que o usuário diga só "o TCC", "a monografia", "o trabalho": incluir figura, tabela, quadro, código-fonte, equação, sigla, símbolo, apêndice ou referência; ajustar capa, folha de aprovação, banca ou ficha catalográfica; corrigir formatação ABNT; recompilar o PDF; ou conferir citações e referências.
 ---
 
 # Modelo ufcTex (UFC)
