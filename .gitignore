@@ -10,3 +10,6 @@ backend/report.log
 .venv-desktop/
 build/
 dist/
+
+# grade ERSST v5 baixada pelo script de índices climáticos
+backend/data/ersst_v5_cache/

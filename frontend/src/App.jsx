@@ -4,6 +4,7 @@ import Inicio from './Inicio'
 import SimuladorHidrico from './Simulador'
 import OtimizadorMeta from './OtimizadorMeta'
 import PrevisaoVazoes from './PrevisaoVazoes'
+import PainelPrevisao from './PrevisaoCenarios'
 import ChartExportMenu from './components/ChartExportMenu'
 import { VARS_ESCURO } from './tema'
 
@@ -133,7 +134,7 @@ export default function App() {
       ) : view === 'vazoes' ? (
         <PrevisaoVazoes apiUrl={apiUrl} acudeInicial={acudeInicial} darkMode={darkMode} mode="qxx" />
       ) : (
-        <PrevisaoVazoes apiUrl={apiUrl} acudeInicial={acudeInicial} darkMode={darkMode} mode="knn" />
+        <PainelPrevisao apiUrl={apiUrl} acudeInicial={acudeInicial} darkMode={darkMode} />
       )}
       <ChartExportMenu />
     </div>

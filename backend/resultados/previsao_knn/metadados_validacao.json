@@ -1,0 +1,96 @@
+{
+  "gerado_em": "2026-11-13T16:53:40Z",
+  "commit": "11ff6988fb0032b8d7dab55d27aa2cacbe5d2903",
+  "numpy": "2.4.6",
+  "python": "3.11.18",
+  "reservatorios": [
+    "Mundaú",
+    "Carnaubal",
+    "Barragem do Batalhão",
+    "Fogareiro",
+    "Quixeramobim"
+  ],
+  "periodos": [
+    "1912-2021",
+    "1951-2021"
+  ],
+  "meses_emissao": [
+    "OUT",
+    "NOV",
+    "DEZ",
+    "JAN"
+  ],
+  "conjuntos": {
+    "nino": [
+      "nino34"
+    ],
+    "atlantico": [
+      "gradiente"
+    ],
+    "ambos": [
+      "nino34",
+      "gradiente"
+    ],
+    "ambos_quadra": [
+      "nino34",
+      "gradiente",
+      "quadra_anterior"
+    ]
+  },
+  "preditores": {
+    "nino34": "Niño 3.4 médio dos três meses anteriores à emissão (°C)",
+    "gradiente": "TNA menos TSA médio dos três meses anteriores à emissão (°C)",
+    "quadra_anterior": "ln(1 + afluência de fevereiro a maio do ano anterior, em hm³)",
+    "acumulada": "ln(1 + afluência de janeiro até o mês anterior à emissão, em hm³); só para emissões de fevereiro a junho"
+  },
+  "k": "arredondamento de raiz(n-1), com n-1 anos de treino, e esse valor -2 e +2",
+  "alvos": {
+    "quadra": "fevereiro a maio do ano-alvo",
+    "ano": "janeiro a dezembro do ano-alvo"
+  },
+  "crps": "exato sobre a distribuição discreta dos anos de treino e seus pesos",
+  "evento_roc": "volume abaixo do tercil inferior dos anos de treino",
+  "bootstrap": {
+    "n": 2000,
+    "semente": 2026,
+    "intervalo": "5% a 95%"
+  },
+  "fonte_indices": [
+    {
+      "indice": "nino34",
+      "descricao": "Niño 3.4: 5°S–5°N, 170°W–120°W",
+      "fonte": "NOAA NCEI Extended Reconstructed SST v5 (ERSST v5), arquivos anuais em ASCII",
+      "url": "https://www.ncei.noaa.gov/pub/data/cmb/ersst/v5/ascii/ersst.v5.AAAA.asc",
+      "unidade": "°C (anomalia)",
+      "periodo_base": "1991–2020",
+      "primeiro_mes": "1900-01",
+      "ultimo_mes": "2026-10",
+      "atualizado_em": "2026-11-13T16:46:47Z",
+      "sha256_arquivos": "5f16069ee2d959d2a149672757da40481e316321aaa60337f719511f535b21e7"
+    },
+    {
+      "indice": "tna",
+      "descricao": "Atlântico Tropical Norte: 5,5°N–23,5°N, 57,5°W–15°W",
+      "fonte": "NOAA NCEI Extended Reconstructed SST v5 (ERSST v5), arquivos anuais em ASCII",
+      "url": "https://www.ncei.noaa.gov/pub/data/cmb/ersst/v5/ascii/ersst.v5.AAAA.asc",
+      "unidade": "°C (anomalia)",
+      "periodo_base": "1991–2020",
+      "primeiro_mes": "1900-01",
+      "ultimo_mes": "2026-10",
+      "atualizado_em": "2026-11-13T16:46:47Z",
+      "sha256_arquivos": "5f16069ee2d959d2a149672757da40481e316321aaa60337f719511f535b21e7"
+    },
+    {
+      "indice": "tsa",
+      "descricao": "Atlântico Tropical Sul: 20°S–0°, 30°W–10°E",
+      "fonte": "NOAA NCEI Extended Reconstructed SST v5 (ERSST v5), arquivos anuais em ASCII",
+      "url": "https://www.ncei.noaa.gov/pub/data/cmb/ersst/v5/ascii/ersst.v5.AAAA.asc",
+      "unidade": "°C (anomalia)",
+      "periodo_base": "1991–2020",
+      "primeiro_mes": "1900-01",
+      "ultimo_mes": "2026-10",
+      "atualizado_em": "2026-11-13T16:46:47Z",
+      "sha256_arquivos": "5f16069ee2d959d2a149672757da40481e316321aaa60337f719511f535b21e7"
+    }
+  ]
+}

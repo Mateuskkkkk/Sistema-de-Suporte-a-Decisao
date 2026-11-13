@@ -21,6 +21,7 @@ Sistema web para simulação de balanço hídrico e otimização de níveis meta
 - Salvar e abrir a configuração da simulação em arquivo JSON.
 - Marcação dos meses com falha e dos períodos com racionamento no gráfico de volume.
 - Validação dos campos com mensagens em português, no formulário e na API.
+- Cenários de afluência da quadra chuvosa (fevereiro a maio) por reamostragem k-NN condicionada a índices climáticos, com climatologia de referência e simulação do reservatório com os cenários.
 
 As opções novas vêm desligadas por padrão: com os valores padrão, o simulador reproduz exatamente os resultados da versão usada no TCC.
 
@@ -33,6 +34,10 @@ Sistema-Hidrico-Unificado/
 │   ├── simulador.py          # motor de balanço hídrico e indicadores
 │   ├── optimizer_engine.py   # otimizador de níveis meta (PSO)
 │   ├── otimizador_pareto.py  # otimização multiobjetivo (NSGA-II)
+│   ├── previsao_knn.py       # previsão k-NN (funções puras, só NumPy)
+│   ├── previsao_knn_api.py   # rotas /api/previsao-knn
+│   ├── scripts/              # índices climáticos e validação da previsão
+│   ├── resultados/           # saídas dos scripts de validação
 │   ├── banco_site.db         # séries de vazões, evaporação e CAV
 │   ├── test_*.py             # testes automatizados
 │   └── requirements.txt
@@ -71,6 +76,29 @@ Sistema-Hidrico-Unificado/
 6. No NSGA-II, escolha uma solução no gráfico da fronteira ou nos atalhos **Segurança total** (sem falhas, com a maior entrega possível), **Equilíbrio** (ponto de joelho) e **Máxima entrega**. O ponto **Sem níveis meta** mostra a operação sem racionamento, como referência.
 7. Analise as curvas de Alerta, Seca e Seca Severa.
 8. Use as opções de exportação para salvar os resultados (no NSGA-II, o Excel traz também a tabela da fronteira).
+
+### Cenários da quadra chuvosa (k-NN)
+
+Aba **Previsão → Cenários da quadra (k-NN)**. O método é a reamostragem dos k vizinhos mais próximos de Lall e Sharma (1996, doi:10.1029/95WR02966), como em Souza Filho e Lall (2003, doi:10.1029/2002WR001373):
+
+- **Vetor de estado:** médias dos três meses anteriores à emissão do Niño 3.4 e do gradiente do Atlântico (TNA − TSA) e, opcionalmente, a afluência da quadra do ano anterior (em logaritmo).
+- **Distância e pesos:** distância euclidiana entre variáveis padronizadas com o histórico; k = arredondamento de √n; peso do vizinho j igual a (1/j) / Σ(1/i).
+- **Cenários:** sequências mensais observadas dos anos sorteados (padrão 1.000, semente 1), do mês de emissão até dezembro do ano-alvo, sem interpolação. A climatologia usa todos os anos com o mesmo peso.
+
+Os índices vêm da tabela `indices_climaticos`, preenchida pelo script abaixo, que baixa a grade ERSST v5 da NOAA e calcula Niño 3.4, TNA e TSA (anomalias em relação a 1991–2020). A API não baixa dados durante as requisições.
+
+```bash
+cd backend
+python scripts/atualizar_indices_noaa.py --inicio 1900 --conferir   # atualiza a tabela e confere com a NOAA PSL
+python scripts/validar_previsao_knn.py                              # validação deixando um ano de fora
+```
+
+A validação grava em `backend/resultados/previsao_knn/` um CSV por reservatório:
+
+- **Métricas:** CRPS, CRPSS em relação à climatologia e área sob a curva ROC do tercil inferior.
+- **Combinações:** emissões de outubro a janeiro, k em {√n − 2, √n, √n + 2}, quatro conjuntos de preditores, períodos 1912–2021 e 1951–2021, e alvos quadra (fevereiro a maio) e ano civil.
+
+Rotas: `GET /api/previsao-knn/opcoes`, `POST /api/previsao-knn/cenarios` e `POST /api/previsao-knn/simular`. A última roda o simulador com os cenários no lugar da série histórica e devolve os quantis do volume armazenado e a garantia de cada cenário.
 
 ### Aplicar Curvas no Simulador
 
