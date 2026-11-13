@@ -100,3 +100,21 @@ class EquivalentTargetLevelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EvaporationLimitTests(unittest.TestCase):
+    def test_evaporation_is_limited_to_available_volume(self):
+        from optimizer_engine import dinamica_mensal_fast
+
+        cav_vol = np.array([0.0, 10.0])
+        cav_area = np.array([5.0, 5.0])  # área constante de 5 km²
+        # 1 hm³ disponível e lâmina de 1 m: evaporação calculada de 5 hm³
+        vol, retirada, vertimento, evap = dinamica_mensal_fast(
+            1.0, 0.0, 1.0, 0.5, 0.0, 10.0, cav_vol, cav_area
+        )
+        self.assertEqual(vol, 0.0)
+        self.assertEqual(retirada, 0.0)
+        self.assertEqual(vertimento, 0.0)
+        self.assertAlmostEqual(evap, 1.0, places=12)
+        residuo = vol - (1.0 + 0.0 - retirada - evap - vertimento)
+        self.assertAlmostEqual(residuo, 0.0, places=12)

@@ -15,6 +15,27 @@ function chartBackground(element) {
   return getComputedStyle(root).getPropertyValue('--card').trim() || '#ffffff'
 }
 
+// Cores dos gráficos podem vir como var(--...), que só existem dentro da página.
+// Antes de exportar, troca essas referências pelas cores calculadas pelo navegador.
+const ATRIBUTOS_COR = [['fill', 'fill'], ['stroke', 'stroke'], ['stop-color', 'stopColor'], ['color', 'color']]
+function resolverCores(original, copia) {
+  const origem = [original, ...original.querySelectorAll('*')]
+  const destino = [copia, ...copia.querySelectorAll('*')]
+  origem.forEach((el, i) => {
+    const alvo = destino[i]
+    if (!alvo || !el.getAttribute) return
+    const calculado = getComputedStyle(el)
+    for (const [attr, prop] of ATRIBUTOS_COR) {
+      const valor = el.getAttribute(attr)
+      if (valor && valor.includes('var(')) alvo.setAttribute(attr, calculado[prop])
+    }
+    const estilo = el.getAttribute('style')
+    if (estilo && estilo.includes('var(')) {
+      for (const [attr, prop] of ATRIBUTOS_COR) if (estilo.includes(attr)) alvo.style[prop] = calculado[prop]
+    }
+  })
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -35,6 +56,7 @@ export async function elementToPngDataUrl(element) {
     logging: false,
     scale: Math.max(2, Math.min(3, window.devicePixelRatio || 1)),
     useCORS: true,
+    onclone: (_doc, copia) => resolverCores(element, copia),
   })
   return canvas.toDataURL('image/png')
 }
@@ -54,6 +76,7 @@ export function downloadElementAsSvg(element, filename) {
   const source = element?.querySelector('svg')
   if (!source) throw new Error('SVG do grafico nao encontrado.')
   const clone = source.cloneNode(true)
+  resolverCores(source, clone)
   const bounds = source.getBoundingClientRect()
   const width = Math.max(1, Math.round(bounds.width))
   const height = Math.max(1, Math.round(bounds.height))
