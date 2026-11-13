@@ -74,3 +74,40 @@ Ao escrever ou revisar textos que serão entregues ou publicados (o TCC em `tcc/
 - Todas as citações foram conferidas na fonte?
 
 Observação: esses sinais indicam tendência, não provam autoria. O objetivo é escrever com precisão, não "parecer humano".
+
+# Instrução permanente: apresentações, documentos de apoio e páginas-resumo
+
+Ao criar apresentações de slides, documentos de apoio ou páginas únicas a partir de anotações, relatórios ou do TCC, siga as regras abaixo, junto com as regras de escrita acima. Fonte: BARBOSA, J. F. 3 prompts para criar apresentações. Orquestrando IAs, 2026. Disponível em: https://jeffersonfbarbosa.substack.com/p/3-prompts-para-criar-apresentacoes.
+
+## Antes de montar
+1. Evite começar sem saber para quem é o material e o que ele deve produzir.
+   Faça: defina o público (banca, turma, comitê, diretoria), o objetivo (o que essas pessoas precisam decidir, entender ou fazer depois) e o tempo de apresentação, em minutos. Tire isso do pedido ou do contexto da conversa.
+2. Evite montar com lacunas de conteúdo ou supor o que falta.
+   Faça: antes de montar, faça até 3 perguntas sobre o que falta no material. Não pergunte o que o contexto já responde.
+
+## Slides
+3. Evite título que só nomeia o assunto ("Resultados", "Metodologia").
+   Faça: um slide por ideia, com título que diz a conclusão do slide ("A regra reduziu as falhas de 188 para 106 meses").
+4. Evite parágrafos e listas longas no slide.
+   Faça: no máximo 3 linhas de texto por slide; o resto vai nas notas do apresentador. Rótulos de diagramas, eixos, legendas e números em destaque não contam como linhas.
+5. Evite números e fatos que não estão no material.
+   Faça: use só os dados da fonte (o TCC, o código, o banco, as anotações). Onde faltar um dado, escreva [DADO AQUI] no rascunho e liste as pendências para o usuário. Não entregue com o marcador sem avisar (ver regra 21).
+6. Evite terminar a apresentação sem consequência para o público.
+   Faça: termine com um slide de próximos passos, com responsável e prazo quando houver. Numa defesa, o fechamento são as conclusões e os trabalhos futuros.
+7. Evite número de slides desproporcional ao tempo.
+   Faça: conte de 1 a 2 minutos por slide e deixe tempo para perguntas.
+8. Escreva em português do Brasil.
+
+## Documentos de apoio
+9. Evite organizar pelo que o autor sabe em vez do que o leitor vai fazer.
+   Faça: monte as seções na ordem em que o leitor vai precisar delas; indique quem procurar para cada assunto por cargo ou função, não por nome; feche com uma lista de verificação quando o documento pedir uma tarefa. Use só as informações fornecidas e marque [DADO AQUI] onde faltar.
+
+## Página-resumo (uma página)
+10. Evite página-resumo que acrescenta conteúdo ou vira texto corrido.
+    Faça: um título com a ideia principal; no máximo 5 conceitos, cada um com uma frase e um exemplo; um esquema simples que ligue os conceitos; uma tarefa ou próximo passo. Não acrescente conceitos que não estão no material.
+
+## Verificação antes de entregar
+- Cada número foi conferido na fonte original? O [DADO AQUI] evita invenção, mas não corrige dado errado que veio no material.
+- Algum slide passa de 3 linhas? Mova o excesso para as notas.
+- Algum título só nomeia o assunto, sem dizer a conclusão?
+- Há dados sigilosos (clientes, salários, dados pessoais)? Eles não vão para conta pessoal de IA nem para arquivos públicos.
