@@ -17,11 +17,21 @@ else:
         s = _orig(*a, **k); s["evaporacao_mm"] = s["evaporacao_mm"] * FATOR["evap"]; return s
     main.carregar_serie_simulador = _serie
 
-print("fator;falhas_sem;falhas_regra2;meses_racionamento;normal_pct")
-for fe in (0.8, 0.9, 1.0, 1.1, 1.2):
+K = 2.592
+print("fator;falhas_sem;falhas_regra2;meses_racionamento;normal_pct;"
+      "evap_sobre_afluencia_pct;agua_poupada_hm3;fracao_poupada_evaporada_pct;nao_fornecido_acude_hm3")
+for fe in (0.7, 0.8, 0.9, 1.0, 1.1, 1.2):
     FATOR["evap"] = fe
     sem = simular([res(172, 50, 60)])["Flor do Campo"]
     com = simular([res(172, 50, 60, plano=faixas(VM1, VM2, VM3, rac=RAC))], niveis_meta=True)["Flor do Campo"]
     normal = 100 * (com["Modo Operação"] == "Normal").mean()
+    aflu = sem["Afluências (hm³/mês)"].sum()
+    ret_sem = (sem["Demanda Atendida (m³/s)"] * K).sum()
+    ret_com = (com["Demanda Atendida (m³/s)"] * K).sum()
+    poupada = ret_sem - ret_com
+    evap_extra = com["Evaporação (hm³)"].sum() - sem["Evaporação (hm³)"].sum()
+    nao_fornecido = (com["Demanda Solicitada (m³/s)"] * K).sum() - ret_com
     print(f"{fe};{(sem['Falha'] == 'Sim').sum()};{(com['Falha'] == 'Sim').sum()};"
-          f"{(com['Racionamento (%)'] > 0).sum()};{normal:.1f}")
+          f"{(com['Racionamento (%)'] > 0).sum()};{normal:.1f};"
+          f"{100 * sem['Evaporação (hm³)'].sum() / aflu:.1f};{poupada:.2f};"
+          f"{100 * evap_extra / poupada:.1f};{nao_fornecido:.2f}")
