@@ -5,13 +5,17 @@ import numpy as np
 
 from previsao_knn import (
     area_roc,
+    coeficiente_determinacao,
     crps_discreto,
+    desempenho_loo,
     emissao_relativa,
     horizonte,
     indices_quadra,
     k_padrao,
     meses_anteriores,
+    mediana_ponderada,
     montar_historico,
+    nash_sutcliffe,
     para_json,
     pesos_lall_sharma,
     prever,
@@ -150,6 +154,42 @@ class MetricasTests(unittest.TestCase):
         self.assertTrue(math.isnan(area_roc([0.5], [True])))
 
 
+class IndicadoresTests(unittest.TestCase):
+    def test_nash_e_r2(self):
+        obs = [1.0, 2.0, 3.0, 4.0]
+        self.assertAlmostEqual(nash_sutcliffe(obs, obs), 1.0)
+        self.assertAlmostEqual(nash_sutcliffe(obs, [2.5] * 4), 0.0)
+        # previsão proporcional: correlação perfeita, mas viés penaliza o NSE
+        self.assertAlmostEqual(coeficiente_determinacao(obs, [2 * v for v in obs]), 1.0)
+        self.assertLess(nash_sutcliffe(obs, [2 * v for v in obs]), 0.0)
+        self.assertTrue(math.isnan(nash_sutcliffe([2.0, 2.0], [1.0, 3.0])))
+
+    def test_mediana_ponderada(self):
+        self.assertEqual(mediana_ponderada(np.array([5.0, 1.0, 3.0]), np.array([0.2, 0.2, 0.6])), 3.0)
+        self.assertEqual(mediana_ponderada(np.array([1.0, 2.0]), np.array([0.5, 0.5])), 1.0)
+
+    def test_validacao_deixando_um_ano_de_fora(self):
+        indices, vazoes = dados_sinteticos()
+        h = montar_historico(range(1950, 2001), 1, ("gradiente",), indices, vazoes)
+        iq = indices_quadra(1)
+        r = desempenho_loo(h["X"], h["anos"], h["S"], iq)
+        n = len(h["anos"])
+        self.assertEqual(r["n_anos"], n)
+        self.assertEqual(len(r["pontos"]), n)
+        self.assertEqual(r["k"], k_padrao(n - 1))
+        # o ano previsto não entra no próprio treino: com k = 1 e anos de quadras distintas,
+        # a previsão nunca é igual à quadra observada do próprio ano
+        r1 = desempenho_loo(h["X"], h["anos"], h["S"], iq, k=1)
+        quadras = h["S"][:, iq].sum(axis=1)
+        for p, q in zip(r1["pontos"], quadras):
+            self.assertAlmostEqual(p["observado"], q)
+            self.assertNotEqual(p["previsto"], q)
+        # os dados sintéticos têm sinal no gradiente: a previsão supera a climatologia
+        self.assertGreater(r["nse"], 0.0)
+        self.assertGreater(r["crpss"], 0.0)
+        self.assertTrue(0.0 <= r["r2"] <= 1.0)
+
+
 class JsonTests(unittest.TestCase):
     def test_nan_e_inf_viram_none(self):
         saida = para_json({"a": np.array([1.0, np.nan, np.inf]), "b": np.float64(-np.inf), "c": np.int64(3)})
@@ -187,6 +227,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(d["cenarios"][0]), len(d["meses"]))
         self.assertEqual(d["meses"][0], "DEZ/2015")
         self.assertIsNotNone(d["quadra_observada"])
+        self.assertEqual(d["desempenho"]["n_anos"], len(d["desempenho"]["pontos"]))
+        self.assertNotIn(2016, [p["ano"] for p in d["desempenho"]["pontos"]])
 
     def test_preditor_invalido_para_a_emissao(self):
         r = self.cliente.post("/api/previsao-knn/cenarios", json={

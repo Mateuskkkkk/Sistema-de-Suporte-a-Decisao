@@ -336,6 +336,84 @@ def area_roc(prob_evento: Sequence[float], evento: Sequence[bool]) -> float:
     return float((maior + 0.5 * empate) / (len(pos) * len(neg)))
 
 
+def mediana_ponderada(valores: np.ndarray, prob: np.ndarray) -> float:
+    """Menor valor cuja probabilidade acumulada chega a 0,5."""
+    ordem = np.argsort(valores, kind="stable")
+    acumulada = np.cumsum(np.asarray(prob, dtype=float)[ordem])
+    return float(np.asarray(valores, dtype=float)[ordem][np.searchsorted(acumulada, 0.5 - 1e-12)])
+
+
+def nash_sutcliffe(observado: Sequence[float], previsto: Sequence[float]) -> float:
+    """NSE = 1 - soma (obs - prev)^2 / soma (obs - média obs)^2."""
+    o = np.asarray(observado, dtype=float)
+    p = np.asarray(previsto, dtype=float)
+    den = float(np.sum((o - o.mean()) ** 2))
+    return float("nan") if den == 0 else float(1.0 - np.sum((o - p) ** 2) / den)
+
+
+def coeficiente_determinacao(observado: Sequence[float], previsto: Sequence[float]) -> float:
+    """R² como quadrado da correlação de Pearson entre observado e previsto."""
+    o = np.asarray(observado, dtype=float)
+    p = np.asarray(previsto, dtype=float)
+    if len(o) < 2 or o.std() == 0 or p.std() == 0:
+        return float("nan")
+    return float(np.corrcoef(o, p)[0, 1] ** 2)
+
+
+def desempenho_loo(
+    X_hist: np.ndarray,
+    anos_hist: np.ndarray,
+    S_hist: np.ndarray,
+    indices_quadra_horizonte: Sequence[int],
+    k: Optional[int] = None,
+    pesos: str = "lall_sharma",
+) -> dict:
+    """Validação deixando um ano de fora sobre o histórico da previsão.
+
+    Cada ano é previsto com os demais (padronização, vizinhos e pesos só do
+    treino). A previsão pontual é a média ponderada das quadras dos vizinhos;
+    NSE e R² comparam essa média com a quadra observada, e o CRPSS compara a
+    distribuição prevista com a climatologia dos mesmos anos de treino.
+    Sem sorteio: as probabilidades são usadas de forma exata.
+    """
+    anos_hist = np.asarray(anos_hist, dtype=int)
+    n = len(anos_hist)
+    if n < 4:
+        raise ValueError("A validação exige pelo menos 4 anos no histórico.")
+    k_treino = None if k is None else min(int(k), n - 1)
+    quadra = S_hist[:, list(indices_quadra_horizonte)].sum(axis=1)
+    pontos, crps, crps_clim = [], [], []
+    for i in range(n):
+        treino = np.arange(n) != i
+        res = probabilidades(X_hist[treino], anos_hist[treino], X_hist[i], k=k_treino, pesos=pesos)
+        q_treino = quadra[treino]
+        prob = res["prob"]
+        clim = np.full(n - 1, 1.0 / (n - 1))
+        pontos.append({
+            "ano": int(anos_hist[i]),
+            "observado": float(quadra[i]),
+            "previsto": float(np.sum(prob * q_treino)),
+            "mediana": mediana_ponderada(q_treino, prob),
+            "climatologia": float(q_treino.mean()),
+        })
+        crps.append(crps_discreto(q_treino, prob, quadra[i]))
+        crps_clim.append(crps_discreto(q_treino, clim, quadra[i]))
+    obs = [p["observado"] for p in pontos]
+    prev = [p["previsto"] for p in pontos]
+    media_clim = float(np.mean(crps_clim))
+    return {
+        "metodo": "deixando um ano de fora",
+        "n_anos": n,
+        "k": int(k_treino if k_treino is not None else k_padrao(n - 1)),
+        "previsao_pontual": "média ponderada das quadras dos vizinhos",
+        "nse": nash_sutcliffe(obs, prev),
+        "r2": coeficiente_determinacao(obs, prev),
+        "nse_mediana": nash_sutcliffe(obs, [p["mediana"] for p in pontos]),
+        "crpss": float("nan") if media_clim == 0 else float(1.0 - np.mean(crps) / media_clim),
+        "pontos": pontos,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Serialização
 # ---------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart,
+  Tooltip, XAxis, YAxis, ZAxis,
 } from 'recharts'
 import { CloudRain, RefreshCw, Search, Shuffle } from 'lucide-react'
 import { VARS_ESCURO } from './tema'
-import PrevisaoVazoes from './PrevisaoVazoes'
 
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const EMISSOES = [
@@ -20,7 +20,7 @@ const NOMES_CONJUNTOS = {
   ambos_quadra: 'Niño 3.4 + gradiente + quadra anterior',
 }
 
-const ESTILO = `.pc-root{--grade:#ecdcc8;--card-2:#fff;--campo:#fff;--serie-1:#264fa3;--serie-2:#e07b2a;--serie-3:#2a9d8f;--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pc-dark{${VARS_ESCURO}}.pc-tabbar{display:flex;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;padding:3px;width:fit-content}.pc-tab{border:0;border-radius:7px;background:transparent;color:var(--text-light);font:900 12px 'Sora',sans-serif;padding:8px 13px;cursor:pointer}.pc-tab.on{background:var(--orange-pale);color:var(--orange-deep)}.pc-layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:10px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif;background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff;width:100%}.pc-btn:disabled{cursor:not-allowed;opacity:.6}.pc-section{border-top:1.5px solid var(--border-light);padding-top:12px;margin-top:12px;display:flex;flex-direction:column;gap:10px}.pc-table{width:100%;border-collapse:collapse;font-size:12px}.pc-table th{background:var(--card);color:var(--text-light);text-align:left;padding:7px 8px;border-bottom:1.5px solid var(--border-light)}.pc-table td{padding:7px 8px;border-bottom:1px solid var(--border-light)}.pc-metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}@keyframes pc-spin{to{transform:rotate(360deg)}}.pc-spin{animation:pc-spin 1s linear infinite}@media(max-width:920px){.pc-layout{grid-template-columns:1fr}.pc-tabbar{width:100%}.pc-tab{flex:1}}`
+const ESTILO = `.pc-root{--grade:#ecdcc8;--card-2:#fff;--campo:#fff;--serie-1:#264fa3;--serie-2:#e07b2a;--serie-3:#2a9d8f;--bg:#fdf6ee;--orange:#e07b2a;--orange-pale:#fdebd3;--orange-deep:#c46318;--teal:#2a9d8f;--teal-pale:#d4f5ef;--blue:#264fa3;--red:#d94040;--red-pale:#fde8e8;--text:#1e1208;--text-mid:#5a3c24;--text-light:#9a7055;--border:#ecdcc8;--border-light:#f5ebe0;--card:#fff;--shadow:0 2px 16px rgba(150,90,40,.10);--radius:14px;--radius-sm:9px;--radius-xs:6px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)}.pc-dark{${VARS_ESCURO}}.pc-layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:10px 13px;font-size:12px;font-weight:900;cursor:pointer;font-family:'Sora',sans-serif;background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff;width:100%}.pc-btn:disabled{cursor:not-allowed;opacity:.6}.pc-section{border-top:1.5px solid var(--border-light);padding-top:12px;margin-top:12px;display:flex;flex-direction:column;gap:10px}.pc-table{width:100%;border-collapse:collapse;font-size:12px}.pc-table th{background:var(--card);color:var(--text-light);text-align:left;padding:7px 8px;border-bottom:1.5px solid var(--border-light)}.pc-table td{padding:7px 8px;border-bottom:1px solid var(--border-light)}.pc-metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}@keyframes pc-spin{to{transform:rotate(360deg)}}.pc-spin{animation:pc-spin 1s linear infinite}@media(max-width:920px){.pc-layout{grid-template-columns:1fr}}`
 
 function apiBase(apiUrl) {
   return apiUrl || import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
@@ -76,6 +76,60 @@ function Dica({ active, payload, label }) {
       {linha('Climatologia mediana', d.climMediana, 'var(--blue)')}
       {d.observado !== undefined && d.observado !== null && linha('Observado', d.observado, 'var(--teal)')}
     </div>
+  )
+}
+
+function DicaValidacao({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div style={{ background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '8px 10px', boxShadow: 'var(--shadow)', fontSize: 11 }}>
+      <div style={{ fontWeight: 900, marginBottom: 4 }}>Quadra de {d.ano}</div>
+      <div>Observada: <b>{fmt(d.observado, 1)} hm³</b></div>
+      <div>Prevista (média): <b>{fmt(d.previsto, 1)} hm³</b></div>
+    </div>
+  )
+}
+
+function qualidadeNse(v) {
+  if (v === null || v === undefined) return 'sem variação para calcular'
+  if (v <= 0) return 'não supera a média histórica'
+  return 'melhor que a média histórica'
+}
+
+function Desempenho({ d }) {
+  const maximo = Math.ceil(Math.max(...d.pontos.map(p => Math.max(p.observado, p.previsto))) / 10) * 10
+  return (
+    <Card style={{ padding: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 900 }}>Desempenho na validação</div>
+      <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2, marginBottom: 12 }}>
+        Cada um dos {d.n_anos} anos do histórico foi previsto com os demais (k = {d.k}), com as mesmas opções desta previsão.
+        A previsão pontual é a média ponderada das quadras dos anos vizinhos.
+      </div>
+      <div className="pc-metricas" style={{ marginBottom: 12 }}>
+        <Metrica rotulo="Nash-Sutcliffe (NSE)" valor={fmt(d.nse, 2)} sub={qualidadeNse(d.nse)} />
+        <Metrica rotulo="R²" valor={fmt(d.r2, 2)} sub="quadrado da correlação entre previsto e observado" />
+        <Metrica rotulo="CRPSS" valor={fmt(d.crpss, 2)} sub="ganho da distribuição prevista sobre a climatologia" />
+      </div>
+      <div style={{ height: 300 }}>
+        <ResponsiveContainer>
+          <ScatterChart margin={{ top: 6, right: 16, left: 0, bottom: 14 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--grade)" />
+            <XAxis type="number" dataKey="observado" name="Observado" domain={[0, maximo]} tick={{ fontSize: 10, fill: 'var(--text-light)' }}
+              label={{ value: 'Quadra observada (hm³)', position: 'insideBottom', offset: -8, fill: 'var(--text-light)', fontSize: 10 }} />
+            <YAxis type="number" dataKey="previsto" name="Previsto" domain={[0, maximo]} tick={{ fontSize: 10, fill: 'var(--text-light)' }}
+              label={{ value: 'Prevista (hm³)', angle: -90, position: 'insideLeft', fill: 'var(--text-light)', fontSize: 10 }} />
+            <ZAxis range={[28, 28]} />
+            <Tooltip content={<DicaValidacao />} />
+            <ReferenceLine segment={[{ x: 0, y: 0 }, { x: maximo, y: maximo }]} stroke="var(--text-light)" strokeDasharray="5 4" />
+            <Scatter data={d.pontos} fill="var(--orange)" fillOpacity={0.75} isAnimationActive={false} />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ fontSize: 10.5, color: 'var(--text-light)', marginTop: 4 }}>
+        Linha tracejada: previsão igual ao observado. NSE igual a 1 é previsão perfeita; NSE igual ou menor que 0 indica que a média histórica prevê tão bem quanto o modelo.
+      </div>
+    </Card>
   )
 }
 
@@ -254,6 +308,8 @@ function CenariosKnn({ apiUrl, acudeInicial }) {
               </div>
             </Card>
 
+            {resultado.desempenho && <Desempenho d={resultado.desempenho} />}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
               <Card style={{ padding: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Anos vizinhos</div>
@@ -289,30 +345,19 @@ function CenariosKnn({ apiUrl, acudeInicial }) {
 }
 
 export default function PainelPrevisao({ apiUrl, acudeInicial, darkMode = false }) {
-  const [aba, setAba] = useState('cenarios')
   return (
     <div className={`pc-root ${darkMode ? 'pc-dark' : ''}`} style={{ minHeight: 600 }}>
       <style>{ESTILO}</style>
-      <div style={{ padding: '18px 26px 0' }}>
-        <div className="pc-tabbar">
-          <button className={`pc-tab ${aba === 'cenarios' ? 'on' : ''}`} onClick={() => setAba('cenarios')}>Cenários da quadra (k-NN)</button>
-          <button className={`pc-tab ${aba === 'regressao' ? 'on' : ''}`} onClick={() => setAba('regressao')}>Regressão (KNN e XGBoost)</button>
+      <div style={{ padding: '18px 26px 48px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
+          <CloudRain size={22} color="var(--orange)" />
+          <h2 style={{ margin: 0, fontSize: 19, fontWeight: 900 }}>Cenários de afluência da quadra chuvosa</h2>
         </div>
+        <p style={{ margin: '0 0 14px', color: 'var(--text-light)', fontSize: 11.5 }}>
+          Previsão por reamostragem dos anos com estado climático mais parecido, com a climatologia como referência.
+        </p>
+        <CenariosKnn apiUrl={apiUrl} acudeInicial={acudeInicial} />
       </div>
-      {aba === 'cenarios' ? (
-        <div style={{ padding: '14px 26px 48px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
-            <CloudRain size={22} color="var(--orange)" />
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 900 }}>Cenários de afluência da quadra chuvosa</h2>
-          </div>
-          <p style={{ margin: '0 0 14px', color: 'var(--text-light)', fontSize: 11.5 }}>
-            Previsão por reamostragem dos anos com estado climático mais parecido, com a climatologia como referência.
-          </p>
-          <CenariosKnn apiUrl={apiUrl} acudeInicial={acudeInicial} />
-        </div>
-      ) : (
-        <PrevisaoVazoes apiUrl={apiUrl} acudeInicial={acudeInicial} darkMode={darkMode} mode="knn" />
-      )}
     </div>
   )
 }
