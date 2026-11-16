@@ -308,7 +308,14 @@ function CenariosKnn({ apiUrl, acudeInicial }) {
               </div>
             </Card>
 
-            {resultado.desempenho && <Desempenho d={resultado.desempenho} />}
+            {resultado.desempenho ? <Desempenho d={resultado.desempenho} /> : (
+              <Card style={{ padding: 14, fontSize: 12, color: 'var(--text-mid)' }}>
+                <b>Indicadores de desempenho indisponíveis.</b>{' '}
+                {'desempenho' in resultado
+                  ? (resultado.desempenho_erro || 'A validação não pôde ser calculada para esse histórico.')
+                  : 'A API em uso não calcula os indicadores (NSE, R² e CRPSS): ela roda uma versão anterior do código. Reinicie o servidor da API (uvicorn) a partir da versão atual do repositório.'}
+              </Card>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
               <Card style={{ padding: 16 }}>

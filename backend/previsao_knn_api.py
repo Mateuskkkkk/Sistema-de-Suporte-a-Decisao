@@ -196,8 +196,12 @@ def calcular_previsao(req: CenariosRequest, conexao, anos_permitidos: Optional[s
         "observado": None if observado is None else observado.tolist(),
         "quadra_observada": None if observado is None else float(observado[iq].sum()),
         "fonte_indices": ler_fonte_indices(conexao),
-        "desempenho": pk.desempenho_loo(hist["X"], hist["anos"], hist["S"], iq, k=prev["k"]),
     }
+    try:
+        resposta["desempenho"] = pk.desempenho_loo(hist["X"], hist["anos"], hist["S"], iq, k=prev["k"])
+    except ValueError as erro:
+        resposta["desempenho"] = None
+        resposta["desempenho_erro"] = str(erro)
     if req.incluir_cenarios:
         resposta["cenarios"] = prev["cenarios"]
         resposta["anos_sorteados"] = prev["anos_sorteados"]
