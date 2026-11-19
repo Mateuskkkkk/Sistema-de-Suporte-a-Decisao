@@ -1,0 +1,10 @@
+Conferência dos índices calculados da ERSST v5 (2026-11-13T16:46:47Z)
+
+nino34 × nino34.csv do repositório [Date,   Nino Anom 3.4 Index  using NOAA ERSST v6 from NCEI  missing value -99.99 https://psl.noaa.gov/data/timeseries/month/]: 1950–2026, n = 918, r = 1.000, REQM sem viés = 0.008 °C
+nino34 × https://psl.noaa.gov/data/timeseries/month/data/nino34.long.anom.csv [Date,   NINA34  missing value -99.99 https://psl.noaa.gov/data/timeseries/month/]: 1900–2026, n = 1521, r = 0.907, REQM sem viés = 0.381 °C
+    subperíodo 1900–1949: 1900–1949, n = 600, r = 0.841, REQM sem viés = 0.476 °C
+    subperíodo 1950–2026: 1950–2026, n = 921, r = 0.981, REQM sem viés = 0.174 °C
+tna × tna.csv do repositório [Date,   TNAa  missing value -99.99 https://psl.noaa.gov/data/timeseries/month/]: 1948–2026, n = 941, r = 0.962, REQM sem viés = 0.133 °C
+tna × https://psl.noaa.gov/data/correlation/tna.data [TNAa Tropical Northern Atlantic Index SST Anom 5.5N-23.5N; 15W-57.5W Using HadISST1.1: Climo 1991-2020 NOAA/PSL https://psl.noaa.gov/data/timeseries/month/]: 1948–2026, n = 945, r = 0.962, REQM sem viés = 0.132 °C
+tsa × tsa.csv do repositório [Date,   TSAa  missing value -99.99 https://psl.noaa.gov/data/timeseries/month/]: 1948–2026, n = 941, r = 0.963, REQM sem viés = 0.122 °C
+tsa × https://psl.noaa.gov/data/correlation/tsa.data [TSAa NOAA/PSL https://psl.noaa.gov/data/timeseries/month/]: 1948–2026, n = 945, r = 0.963, REQM sem viés = 0.122 °C

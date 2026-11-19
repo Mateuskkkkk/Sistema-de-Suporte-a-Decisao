@@ -1,0 +1,40 @@
+{
+ "A_12_meses": {
+  "a_km2_por_hm3": 0.17570685931377095,
+  "x_max": 0.06998404206467497,
+  "V_final": 63.047636204243474,
+  "V_exato": 63.0316731183592,
+  "erro_rel_final": 0.00025325499220523845,
+  "erro_rel_max": 0.00025325499220523845
+ },
+ "A_120_meses": {
+  "a_km2_por_hm3": 0.17570685931377095,
+  "x_max": 0.06998404206467497,
+  "V_final": 0.639711847392175,
+  "V_exato": 0.6380939995631051,
+  "erro_rel_final": 0.002535438086203051,
+  "erro_rel_max": 0.002535438086203051
+ },
+ "B_mensal": {
+  "falhas": 188,
+  "evaporacao_hm3": 1859.385964513921,
+  "vertimento_hm3": 244.32835597611216,
+  "volume_medio_pct": 21.904651100167005
+ },
+ "B_convergido": {
+  "falhas": 188,
+  "evaporacao_hm3": 1859.9543560096472,
+  "vertimento_hm3": 244.24396904837974,
+  "volume_medio_pct": 21.890466833153276
+ },
+ "B_diario": {
+  "falhas": 190,
+  "evaporacao_hm3": 1858.8439530499616,
+  "vertimento_hm3": 245.1574403152574,
+  "volume_medio_pct": 21.881808147693345
+ },
+ "B_simulador": {
+  "falhas": 188,
+  "evaporacao_hm3": 1859.3859645139187
+ }
+}

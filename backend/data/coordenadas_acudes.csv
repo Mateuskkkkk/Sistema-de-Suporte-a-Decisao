@@ -1,0 +1,156 @@
+cod,acude,municipio,latitude,longitude,fonte,wikidata,nome_wikidata,metodo,dist_sede_km,situacao,municipio_do_ponto
+78,Acarape do Meio,Redenção,-4.19438,-38.808561,Wikidata,Q62012764,Acarape do Meio,nome e município,9.3,ok,redencao
+1,Acaraú Mirim,Massapê,-3.501693,-40.283254,Wikidata,Q62012931,Acaraú Mirim,nome e município,7.0,ok,massape
+32,Adauto Bezerra,Pereiro,-6.03697,-38.44982,Wikidata,Q62012780,Adauto Bezerra,nome e município,1.4,ok,pereiro
+45,Amanary,Maranguape,-4.015654,-38.870564,Wikidata,Q62012935,Amanari,nome aproximado e município,25.0,ok,maranguape
+112,Angicos,Coreaú,-3.635278,-40.821389,Wikidata,Q62012775,Angicos,nome e município,20.8,ok,frecheirinha
+234,Aracoiaba,Aracoiaba,-4.403056,-38.697222,Wikidata,Q62013832,Açude Aracoiaba,nome e município,13.3,ok,aracoiaba
+31,Araras,Varjota,-4.209553,-40.449814,Wikidata,Q9641516,Açude Araras,nome (município diferente),3.2,ok,santa quiteria
+240,Arneiroz II,Arneiroz,-6.267523,-40.220209,Wikidata,Q62012705,Arneiroz II,nome e município,8.2,ok,arneiroz
+83,Arrebita,Forquilha,-3.848333,-40.271944,Wikidata,Q62013279,Arrebita,nome e município,5.5,ok,forquilha
+47,Atalho,Brejo Santo ,-7.653,-38.9098,Wikidata,Q9641529,Açude Atalho,"busca por nome (Açude Atalho, Brejo Santo)",20.2,ok,jati
+49,Ayres de Sousa,Sobral,-3.796507,-40.512112,Wikidata,Q62012941,Ayres de Sousa,nome e município,21.8,ok,sobral
+2,Banabuiú,Banabuiú,-5.33333,-39.0,Wikidata,Q16496400,Açude Banabuiú,nome (município diferente),10.1,ok,banabuiu
+163,Barra Velha,Independência,-5.320556,-40.325278,Wikidata,Q62013385,Barra Velha,nome e município,7.7,ok,independencia
+202,Barragem do Batalhão,Crateús,-5.16768,-40.6536,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+173,Batente,Ocara,-4.649271,-38.496192,Wikidata,Q62012777,Batente,nome e município,21.2,ok,ocara
+177,Benguê,Aiuaba,-6.595833,-40.138889,Wikidata,Q62013835,Benguê,nome e município,3.6,ok,aiuaba
+64,Bonito,Ipú,-4.337673,-40.632424,Wikidata,Q62012950,Bonito,nome e município,8.5,ok,ipu
+125,Broco,Tauá,-6.008254,-40.32471,Wikidata,Q62015139,Broco,nome e município,4.0,ok,taua
+170,Cachoeira,Aurora,-7.011389,-39.021389,Wikidata,Q62012786,Cachoeira,nome e município,10.1,ok,aurora
+217,Caldeirões,Saboeiro,-6.5346,-39.9017,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+74,Canafístula,Iracema,-5.869722,-38.319167,Wikidata,Q62013265,Canafistula,nome e município,7.1,ok,iracema
+127,Canoas,Assaré,-6.947038,-39.940729,Wikidata,Q62012709,Canoas,nome e município,11.9,ok,assare
+33,Capitão Mor,Pedra Branca,-5.625556,-39.998889,Wikidata,Q62014001,Capitão Mor,nome e município,37.5,conferir,pedra branca
+236,Carmina,Catunda,-4.666389,-40.203333,Wikidata,Q62013263,Carmina,nome e município,2.6,ok,catunda
+53,Carnaubal,Crateús,-5.2825,-40.671389,Wikidata,Q62013389,Carnaubal,nome e município,12.9,ok,crateus
+65,Carão,Tamboril,-4.818843,-40.353656,Wikidata,Q62012957,Carão,nome e município,4.0,ok,tamboril
+194,Castanhão,Alto Santo,-5.558784,-38.425169,Wikidata,Q62012960,Castanhão,nome e município,17.6,ok,alto santo
+97,Castro,Itapiúna,-4.565556,-38.931389,Wikidata,Q62012787,Castro,nome e município,1.2,ok,itapiuna
+223,Catucinzenta,Aquiraz,-4.023056,-38.437222,Wikidata,Q62013837,Catu-Cinzenta,nome aproximado e município,14.7,ok,aquiraz
+158,Cauhipe,Caucaia,-3.739722,-38.865,Wikidata,Q62013362,Cauhipe,nome e município,22.6,ok,caucaia
+3,Caxitoré,Umirim,-3.742386,-39.362434,Wikidata,Q62012962,Caxitoré,nome e município (2 homônimos),7.5,ok,umirim
+4,Cedro,Quixadá,-4.974402,-39.067291,Wikidata,Q62012964,Cedro,nome e município (2 homônimos),5.8,ok,quixada
+84,Cipoada,Morada Nova,-5.251111,-38.648611,Wikidata,Q62012789,Açude Cipoada,nome e município,35.3,conferir,morada nova
+220,Cocó,Fortaleza,-3.843688,-38.535435,Wikidata,Q62015153,Barragem do Cocó,nome e município,14.1,ok,fortaleza
+133,Colina,Quiterianópolis,-5.839167,-40.710833,Wikidata,Q62013379,Colina,nome e município,1.2,ok,quiterianopolis
+34,Cupim,Independência,-5.392778,-40.300556,Wikidata,Q62013374,Cupim,nome e município,1.0,ok,independencia
+197,Curral Velho,Morada Nova,-5.085156,-38.313387,Wikidata,Q62012967,Curral Velho,nome e município,6.4,ok,morada nova
+178,Desterro,Caridade,-4.060798,-39.114227,Wikidata,Q62013287,Desterro,nome e município,20.2,ok,caridade
+60,Diamante,Coreaú,-3.596989,-40.865856,Wikidata,Q62015141,Diamante,nome e município,23.8,ok,coreau
+215,Diamantino II,Marco,-3.079379,-40.475409,Wikidata,Q62015143,Diamantino II,nome (município diferente),35.6,conferir,marco
+134,Do Coronel,Antonina do Norte,-6.704027,-39.951956,Wikidata,Q62012712,Do Coronel,nome e município,8.2,ok,saboeiro
+5,Edson Queiroz,Santa Quitéria,-4.226943,-40.057502,Wikidata,Q62012970,Edson Queiroz,nome e município,15.2,ok,santa quiteria
+30,Ema,Iracema,-5.777093,-38.354381,Wikidata,Q62012877,Ema,nome e município,7.9,ok,iracema
+44,Escuridão,Canindé,-4.529229,-39.378806,Wikidata,Q19607335,Açude Escuridão,nome (município diferente),21.0,ok,caninde
+208,Facundo,Parambu,-6.20768,-40.6905,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+59,Farias de Sousa,Nova Russas,-4.768022,-40.584224,Wikidata,Q62012974,Farias de Souza,nome aproximado e município,7.3,ok,nova russas
+6,Favelas,Tauá,-5.98365,-40.119948,Wikidata,Q62012977,Favelas,nome e município,19.6,ok,taua
+239,Faé,Quixelô,-6.160016,-39.219073,Wikidata,Q62012715,Faé,nome e município,9.8,ok,quixelo
+212,Figueiredo,Alto Santo,-5.627582,-38.263676,Wikidata,Q62012979,Figueiredo,nome e município,13.2,ok,alto santo
+172,Flor do Campo,Novo Oriente,-5.571944,-40.674167,Wikidata,Q9641581,Açude Flor do Campo,nome e município,11.9,ok,novo oriente
+119,Fogareiro,Quixeramobim,-5.19067,-39.2889,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+51,Forquilha,Forquilha,-3.80084,-40.247985,Wikidata,Q62012983,Açude Forquilha,nome e município,1.7,ok,forquilha
+72,Forquilha II,Tauá,-5.530205,-40.085042,Wikidata,Q62012987,Forquilha II,nome e município,55.8,conferir,taua
+77,Frios,Umirim,-3.691681,-39.300979,Wikidata,Q62012990,Frios,nome e município,5.3,ok,umirim
+210,Gameleira,Itapipoca,-3.380833,-39.487778,Wikidata,Q62012783,Açude Gameleira,nome e município,16.9,ok,itapipoca
+169,Gangorra,Granja,-3.166565,-40.864111,Wikidata,Q18499455,Açude Gangorra,nome e município,5.2,ok,granja
+95,Gavião,Pacatuba,-3.922985,-38.560457,Wikidata,Q62012769,Gavião,nome e município,8.9,ok,pacatuba
+7,General Sampaio,General Sampaio,-4.066407,-39.455656,Wikidata,Q62012998,General Sampaio,nome e município,2.6,ok,general sampaio
+1123,Gerardo Atimbone,Sobral,-3.835026,-39.988656,Wikidata,Q62013407,Gerardo Atimbone,nome e município,43.1,conferir,sobral
+205,Germinal,Palmácia,-4.181667,-38.865833,Wikidata,Q62013854,Germinal,nome (município diferente),5.4,ok,pacoti
+36,Gomes,Mauriti,-7.481757,-38.728348,Wikidata,Q62013004,Gomes,nome e município,11.6,ok,mauriti
+211,Itapajé,Itapajé,-3.672072,-39.574857,Wikidata,Q62013512,Itapajé,nome e município,1.7,ok,itapage
+244,Itapebussu,Maranguape,-4.060788,-38.900136,Wikidata,Q62013013,Itapebussu,nome e município,30.6,conferir,maranguape
+180,Itaúna,Granja,-3.157778,-41.134722,Wikidata,Q62013840,Itaúna,nome e município,33.2,conferir,granja
+69,Jaburu I,Ubajara,-3.865083,-41.113278,Wikidata,Q62011825,Jaburu I,nome e município,21.4,ok,ubajara
+52,Jaburu II,Independência,-5.417606,-40.479256,Wikidata,Q62013246,Jaburu II,nome e município,19.2,ok,independencia
+135,Jatobá,Milhã,-5.605556,-39.236667,Wikidata,Q62013355,Jatoba,nome e município (2 homônimos),9.2,ok,milha
+216,Jatobá II,Ipueiras,-4.53802,-40.7118,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+171,Jenipapeiro,Dep. Irapuan Pinheiro,-5.80814,-39.256749,Wikidata,Q62013020,Jenipapeiro II,nome aproximado e município,11.9,ok,deputado irapuan pinheiro
+1120,Jenipapeiro II,Baixio,-6.676424,-38.750326,Wikidata,Q62015148,Jenipapeiro I,"município (no Wikidata: Jenipapeiro I, Baixio)",6.3,ok,baixio
+213,Jenipapo,Meruoca,-3.562681,-40.441098,Wikidata,Q62015149,Jenipapo,nome e município,2.9,ok,meruoca
+121,Jerimum,Irauçuba,-3.837222,-39.690556,Wikidata,Q62012781,Açude Jerimum,nome e município,14.4,ok,tejucuoca
+28,Joaquim Távora,Jaguaribe,-5.954206,-38.841408,Wikidata,Q62013029,Joaquim Távora,nome e município,24.9,ok,jaguaribe
+147,João Luís,Araripe,-7.083331,-40.180348,Wikidata,Q62015144,João Luis,nome e município,15.2,ok,araripe
+189,Junco,Granjeiro,-6.891441,-39.217746,Wikidata,Q62015147,Açude Junco,nome e município,1.2,ok,granjeiro
+63,Lima Campos,Icó,-6.399788,-38.971253,Wikidata,Q62013031,Lima Campos,nome e município,12.8,ok,ico
+199,Macacos,Ibaretama,-4.809444,-38.715278,Wikidata,Q62012771,Macacos,nome e município,3.9,ok,ibaretama
+164,Madeiro,Pereiro,-6.188611,-38.553056,Wikidata,Q62013841,Madeiro,nome e município,19.7,ok,pereiro
+235,Malcozinhado,Cascavel,-4.108889,-38.291111,Wikidata,Q62013844,Açude Malcozinhado,nome e município,6.0,ok,cascavel
+201,Mamoeiro,Antonina do Norte,-6.793972,-40.07062,Wikidata,Q62012717,Mamoeiro,nome e município,9.6,ok,antonina do norte
+8,Manoel Balbino,Juazeiro do Norte,-7.105169,-39.329154,Wikidata,Q62013186,Manoel Balbino,nome (município diferente),10.4,ok,caririacu
+1124,Maranguapinho,Maranguape,-3.878922,-38.650589,Wikidata,Q62015151,Açude Maranguapinho,nome (município diferente),3.8,ok,maranguape
+126,Martinópole,Martinópole,-3.236111,-40.613889,Wikidata,Q62013292,Açude Martinópole,nome e município,8.5,ok,martinopole
+1119,Missi,Miraíma,-3.475278,-39.863056,Wikidata,Q62013847,Missi,nome e município,15.5,ok,miraima
+161,Mons. Tabosa,Mons. Tabosa,-4.809167,-40.012222,Wikidata,Q62013364,Monsenhor Tabosa,nome e município,6.1,ok,monsenhor tabosa
+206,Monte Belo,Araripe,-7.21319,-40.1359,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+61,Mundaú,Uruburetama,-3.63757,-39.516864,Wikidata,Q62013042,Mundaú,nome e município (2 homônimos),1.7,ok,uruburetama
+168,Muquém,Cariús,-6.610556,-39.481944,Wikidata,Q62013875,Muquém,nome e município,9.7,ok,carius
+26,Nova Floresta,Jaguaribe,-5.949132,-38.907798,Wikidata,Q62013047,Nova Floresta,nome e município,32.0,conferir,jaguaribe
+155,Olho d'Água,Várzea Alegre,-6.789444,-39.374722,Wikidata,Q62013282,Olho Dagua,nome aproximado e município,8.9,ok,varzea alegre
+9,Orós,Orós,-6.2388,-38.925,Wikidata,Q1359861,Açude Orós,nome e município,2.6,ok,oros
+80,Pacajus,Pacajus,-4.186834,-38.423352,Wikidata,Q62012774,Pacajus,nome e município,4.9,ok,pacajus
+88,Pacoti,Horizonte,-4.080026,-38.530175,Wikidata,Q62012767,Pacoti,nome e município,8.0,ok,horizonte
+89,Parambu,Parambu,-6.201667,-40.711389,Wikidata,Q62012778,Parambu,busca por nome (barragem em Parambu),2.4,ok,parambu
+56,Patos,Sobral,-3.762797,-40.034516,Wikidata,Q62013059,Patos,nome e município,35.8,conferir,sobral
+10,Patu,Senador Pompeu,-5.579318,-39.40587,Wikidata,Q62013065,Patu,nome e município,3.9,ok,senador pompeu
+148,Pau Preto,Potengi,-7.08746,-40.091353,Wikidata,Q62015155,Pau Preto,nome e município,7.5,ok,potengi
+11,Pedras Brancas,Quixadá,-5.1501,-38.87864,Wikidata,Q9641660,Açude Pedras Brancas,nome (município diferente),25.4,ok,banabuiu
+179,Penedo,Maranguape,-3.969444,-38.745278,Wikidata,Q62012797,Penedo,nome e município,11.1,ok,maranguape
+12,Pentecoste,Pentecoste,-3.823889,-39.243333,Wikidata,Q22015368,Açude Pentecoste,nome (município diferente),4.5,ok,pentecoste
+192,Pesqueiro,Capistrano,-4.443889,-38.961389,Wikidata,Q62013850,Pesqueiro,nome e município,6.4,ok,capistrano
+167,Pirabibu,Quixeramobim,-4.983333,-39.355278,Wikidata,Q62013349,Pirabibu,nome e município,24.2,ok,quixeramobim
+13,Pompeu Sobrinho,Choró,-4.844023,-39.147778,Wikidata,Q62013087,Pompeu Sobrinho,nome e município,1.6,ok,choro
+82,Potiretama,Potiretama,-5.7225,-38.167778,Wikidata,Q62013316,Potiretama,nome e município,1.5,ok,potiretama
+90,Poço Verde,Itapipoca,-3.439369,-39.631975,Wikidata,Q9641676,Açude Poço Verde,nome e município (2 homônimos),8.6,ok,itapipoca
+27,Poço da Pedra,Campos Sales,-6.984008,-40.360534,Wikidata,Q62013078,Poço da Pedra,nome e município,9.3,ok,campos sales
+67,Poço do Barro,Morada Nova,-5.384958,-38.463514,Wikidata,Q62013081,Poço do Barro,nome e município,33.6,conferir,morada nova
+14,Prazeres,Barro,-7.17188,-38.7741,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+62,Premuoca,Uruoca,-3.322584,-40.552747,Wikidata,Q62013108,Premuoca,nome e município,2.0,ok,uruoca
+79,Quandú,Itapipoca,-3.573333,-39.629167,Wikidata,Q62012790,Açude Quandu,nome e município,9.7,ok,itapipoca
+68,Quincoé,Acopiara,-6.084708,-39.456949,Wikidata,Q62013170,Quinquê,nome com grafia diferente (Quinquê),1.1,ok,acopiara
+15,Quixabinha,Mauriti,-7.504874,-38.744364,Wikidata,Q62013175,Quixabinha,nome e município,13.5,ok,mauriti
+16,Quixeramobim,Quixeramobim,-5.198336,-39.314195,Wikidata,Q62013177,Quixeramobim,nome e município,2.9,ok,quixeramobim
+54,Realejo,Crateús,-5.271165,-40.815119,Wikidata,Q62012995,Realejo,nome e município,21.3,ok,crateus
+186,Riacho da Serra,Alto Santo,-5.564444,-38.324722,Wikidata,Q62013852,Riacho da Serra,nome e município,8.3,ok,alto santo
+17,Riacho do Sangue,Solonópole,-5.686995,-38.954971,Wikidata,Q62013189,Riacho do Sangue,nome e município,7.1,ok,solonopole
+117,Riachão,Itaitinga,-4.000278,-38.523889,Wikidata,Q62012794,Riachão,nome e município,3.9,ok,itaitinga
+174,Rivaldo de Carvalho,Catarina,-6.205833,-39.933333,Wikidata,Q62012759,Rivaldo de Carvalho,nome e município,11.3,ok,catarina
+181,Rosário,Lavras da Mangabeira,-6.891481,-39.079051,Wikidata,Q62012844,Rosário,nome e município,20.2,ok,lavras da mangabeira
+21,S. Pedro Timbaúba,Miraíma,-3.576978,-39.972799,Wikidata,Q62013194,São Pedro da Timbaúba,nome aproximado e município,1.2,ok,miraima
+18,Salão,Canindé,-4.407841,-39.311762,Wikidata,Q62013197,Salão,nome e município,6.3,ok,caninde
+166,Santa Maria,Ererê,-5.965556,-38.276111,Wikidata,Q62013308,Santa Maria,nome e município,10.4,ok,erere
+55,Santa Maria de Aracatiaçu,Sobral,-4.046995,-39.984342,Wikidata,Q62013199,Santa Maria do Aracatiaçu,nome e município,56.7,conferir,sobral
+233,Santo Antônio,Iracema,-5.887143,-38.411488,Wikidata,Q62015138,Santo Antônio,nome e município,15.6,ok,iracema
+50,Santo Antônio de Aracatiaçu,Sobral,-3.888919,-40.009903,Wikidata,Q62013202,Santo Antônio do Aracatiaçu,nome e município,43.6,conferir,sobral
+19,Santo Antônio de Russas,Russas,-4.852006,-38.175006,Wikidata,Q62013204,Santo Antônio de Russas,nome e município,24.0,ok,russas
+99,Serafim Dias,Mombaça,-5.726003,-39.651486,Wikidata,Q62013216,Serafim Dias,nome e município,2.8,ok,mombaca
+159,Sitios Novos,Caucaia,-3.769444,-38.961667,Wikidata,Q62013375,Sítios Novos,nome e município,33.6,conferir,pentecoste
+22,Sobral,Sobral,-3.655871,-40.367452,Wikidata,Q62012955,Sobral,nome e município,4.3,ok,sobral
+160,Sousa,Canindé,-4.3925,-39.282778,Wikidata,Q62013380,Souza,nome aproximado e município,5.8,ok,caninde
+66,Sucesso,Tamboril,-4.953054,-40.51909,Wikidata,Q62012885,Sucesso,nome e município,25.9,ok,tamboril
+141,São Domingos,Caridade,-4.220556,-39.283056,Wikidata,Q62012784,Sao Domingos,nome e município,10.2,ok,caridade
+190,São Domingos II,Caririaçu,-7.028976,-39.283945,Wikidata,Q62015140,São Domingos II,nome e município,0.2,ok,caririacu
+39,São José I,Boa Viagem,-5.195278,-39.601667,Wikidata,Q62013343,Sao Jose I,nome e município,17.3,ok,boa viagem
+85,São José II,Piquet Carneiro,-5.836944,-39.478056,Wikidata,Q62013339,Sao Jose II,nome e município,7.9,ok,piquet carneiro
+185,São José III,Ipaporanga,-4.887304,-40.784394,Wikidata,Q62015142,São José III,nome e município,3.6,ok,ipaporanga
+20,São Mateus,Canindé,-4.37314,-39.315899,Wikidata,Q62013210,São Mateus,nome e município,2.4,ok,caninde
+81,São Vicente,Santana do Acaraú,-3.391996,-40.266729,Wikidata,Q62013214,São Vicente,nome e município,9.8,ok,santana do acarau
+254,Taquara,Cariré,-3.894889,-40.611194,Wikidata,Q62012840,Açude Taquara,nome (município diferente),16.1,ok,carire
+75,Tatajuba,Icó,-6.415833,-39.082222,Wikidata,Q62013365,Tatajuba,nome e município,25.2,ok,ico
+92,Tejuçuoca,Tejuçuoca,-3.975127,-39.510705,Wikidata,Q62013221,Açude Tejuçuoca,nome e município,7.8,ok,tejucuoca
+23,Thomás Osterne,Crato,-7.093078,-39.487364,Wikidata,Q62013223,Thomaz Osterne de Alencar,nome com grafia diferente (Thomaz Osterne de Alencar),16.0,ok,crato
+111,Tigre,Solonópole,-5.889167,-39.153611,Wikidata,Q62013303,Tigre,nome e município,24.7,ok,solonopole
+132,Tijuquinha,Baturité,-4.317242,-38.89402,Wikidata,Q62012762,Tijuquinha,nome e município,1.7,ok,baturite
+96,Trapiá II,Pedra Branca,-5.502778,-39.738889,Wikidata,Q62013332,Açude Trapiá II,nome e município,6.5,ok,pedra branca
+129,Trapiá III,Coreaú,-3.730833,-40.680833,Wikidata,Q62013395,Trapia III,nome e município,21.2,ok,coreau
+24,Trici,Tauá,-5.915212,-40.423701,Wikidata,Q62013226,Trici,nome e município,16.1,ok,taua
+122,Trussu,Iguatu,-6.36281,-39.2892,sede municipal (aproximada),,,não encontrado,0.0,aproximada,
+58,Tucunduba,Senador Sá,-3.18157,-40.449465,Wikidata,Q62013230,Barragem de Tucunduba,nome e município,19.2,ok,senador sa
+162,Ubaldinho,Cedro,-6.584167,-39.239167,Wikidata,Q62013360,Ubaldinho,nome e município,19.8,ok,varzea alegre
+191,Umari,Madalena,-4.807778,-39.551389,Wikidata,Q62013324,Açude Umari,nome e município,4.9,ok,madalena
+110,Valério,Altaneira,-6.967778,-39.7275,Wikidata,Q62012772,Valerio,nome e município,3.5,ok,assare
+130,Vieirão,Boa Viagem,-5.157222,-39.719722,Wikidata,Q62013320,Vieirao,nome e município,5.2,ok,boa viagem
+70,Várzea da Volta,Moraújo,-3.509635,-40.601022,Wikidata,Q62013233,Várzea da Volta,nome e município,9.9,ok,moraujo
+25,Várzea do Boi,Tauá,-5.893882,-40.249717,Wikidata,Q62013236,Várzea do Boi,nome e município,11.5,ok,taua

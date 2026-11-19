@@ -1,0 +1,7 @@
+fator;falhas_sem;falhas_regra2;meses_racionamento;normal_pct;evap_sobre_afluencia_pct;agua_poupada_hm3;fracao_poupada_evaporada_pct;nao_fornecido_acude_hm3
+0.7;100;53;887;33.4;76.8;43.40;91.0;56.41
+0.8;132;69;939;29.5;79.3;47.44;91.9;63.77
+0.9;162;84;1005;24.5;81.1;49.97;93.9;69.55
+1.0;188;106;1066;20.0;82.7;51.37;94.3;74.03
+1.1;218;124;1089;18.2;84.1;52.93;94.3;78.96
+1.2;239;141;1101;17.3;85.3;54.39;94.6;83.51
