@@ -1,0 +1,11 @@
+# Gera a lista de abreviaturas e siglas (pacote glossaries) ao compilar com latexmk
+add_cus_dep('acn', 'acr', 0, 'makeglossaries');
+add_cus_dep('glo', 'gls', 0, 'makeglossaries');
+sub makeglossaries {
+    my ($base_name, $path) = fileparse($_[0]);
+    pushd $path;
+    my $ret = system "makeglossaries '$base_name'";
+    popd;
+    return $ret;
+}
+push @generated_exts, 'acn', 'acr', 'alg', 'glo', 'gls', 'glg', 'ist';

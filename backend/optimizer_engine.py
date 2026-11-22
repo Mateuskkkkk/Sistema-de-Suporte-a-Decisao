@@ -7,7 +7,6 @@ import pyswarms as ps
 from numba import njit
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -73,10 +72,14 @@ def validar_faixas_payload(payload: SimularPayload) -> None:
 
 
 def get_db_path():
-    # Na web, o banco de dados geralmente fica na mesma pasta do main.py
-    if os.path.exists('banco_site.db'):
-        return 'banco_site.db'
-    raise Exception("Arquivo banco_site.db não foi encontrado na raiz do projeto.")
+    # o banco fica na mesma pasta deste arquivo, independentemente da pasta de execução
+    caminho = os.environ.get(
+        "BANCO_SITE_DB",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "banco_site.db"),
+    )
+    if os.path.exists(caminho):
+        return caminho
+    raise Exception("Arquivo banco_site.db não foi encontrado na pasta do backend.")
 
 
 def normalizar_colunas_db(df: pd.DataFrame) -> pd.DataFrame:
@@ -237,8 +240,9 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3, vol_min, vol_max, c
     vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_ini)
     area_fin = interpola(cav_vol, cav_area, vol)
     area_med = (area_ini + area_fin) / 2.0
-    vol = vol_ini + aflu_hm3 - ret_hm3 - (evap_m * area_med)
-    
+    evap_hm3 = evap_m * area_med
+    vol = vol_ini + aflu_hm3 - ret_hm3 - evap_hm3
+
     retirada_efetiva = ret_hm3
     if vol < vol_min:
         retirada_orig = retirada_efetiva
@@ -248,14 +252,19 @@ def dinamica_mensal_fast(vol_ini, aflu_hm3, evap_m, ret_hm3, vol_min, vol_max, c
         else:
             vol = vol + retirada_orig
             retirada_efetiva = 0.0
-            if vol < 0: vol = 0.0
-            
+            if vol < 0:
+                # Evaporação limitada ao volume disponível no mês:
+                # o excesso calculado não é registrado como perda,
+                # o que mantém nulo o resíduo de conservação de massa.
+                evap_hm3 = evap_hm3 + vol
+                vol = 0.0
+
     vertimento = 0.0
     if vol > vol_max:
         vertimento = vol - vol_max
         vol = vol_max
-        
-    return vol, retirada_efetiva, vertimento, evap_m * area_med
+
+    return vol, retirada_efetiva, vertimento, evap_hm3
 
 @njit
 def calculo_volume_meta_fast(niveis_metas, aflu_prob, evap_ano, dem_total_hm3, cap_hm3, cav_vol, cav_area, ninicio):
